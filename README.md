@@ -1,6 +1,6 @@
 # Seekmodo for Zen Cart
 
-[![Latest release](https://img.shields.io/badge/release-v1.0.4-2563eb)](https://github.com/numinix/seekmodo-zen-cart-connector/releases/latest)
+[![Latest release](https://img.shields.io/badge/release-v1.0.5-2563eb)](https://github.com/numinix/seekmodo-zen-cart-connector/releases/latest)
 [![Download (seekmodo.com)](https://img.shields.io/badge/download-seekmodo.com%2Fplugins%2Fzen--cart-22c55e)](https://seekmodo.com/plugins/zen-cart)
 [![Docs](https://img.shields.io/badge/docs-INSTALL%20%C2%B7%20CONFIG%20%C2%B7%20UPGRADE-64748b)](docs/)
 
@@ -34,9 +34,9 @@ keeping Zen Cart's native search permanently armed as a graceful fallback.
 
 ```bash
 # Download the latest signed zip from seekmodo.com:
-curl -fLO https://seekmodo.com/plugins/seekmodo-zen-cart-v1.0.4.zip
-curl -fLO https://seekmodo.com/plugins/seekmodo-zen-cart-v1.0.4.zip.sha256
-sha256sum -c seekmodo-zen-cart-v1.0.4.zip.sha256
+curl -fLO https://seekmodo.com/plugins/seekmodo-zen-cart-v1.0.5.zip
+curl -fLO https://seekmodo.com/plugins/seekmodo-zen-cart-v1.0.5.zip.sha256
+sha256sum -c seekmodo-zen-cart-v1.0.5.zip.sha256
 ```
 
 Then in Zen Cart admin → **Plugin Manager** → **Upload New Plugin** →

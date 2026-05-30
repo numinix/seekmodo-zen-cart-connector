@@ -4,6 +4,30 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.5 — 2026-05-30
+
+- **W6b consumption (default_mode + indexer_schedule).**
+  `RemoteConfig::writeThrough()` now mirrors **seven** keys from the
+  gateway snapshot (was five) — adding `default_mode` →
+  `NUMINIX_SEEKMODO_DEFAULT_MODE` and `indexer_schedule` →
+  `NUMINIX_SEEKMODO_INDEXER_SCHEDULE`.
+- **Mode resolver fall-through.** `numinix_seekmodo_mode()` consults
+  `NUMINIX_SEEKMODO_DEFAULT_MODE` when `MODE` is empty / unset /
+  invalid, before defaulting to `'off'`.
+- **Indexer cron renderer.** New `tools/render_indexer_cron.php`
+  translates the `indexer_schedule` enum into a cron line. Consumed
+  by the operator-side `tools/install_redline_connector.py` (in the
+  seekmodo monorepo) to populate
+  `/etc/cron.d/numinix-seekmodo-<tenant>` on managed-mode installs.
+- **Installer rows.** ScriptedInstaller now seeds
+  `NUMINIX_SEEKMODO_DEFAULT_MODE=active` and
+  `NUMINIX_SEEKMODO_INDEXER_SCHEDULE=daily` as safe defaults.
+- **Tests.** New `tests/W6bConsumptionTest.php` pins the 5-key →
+  7-key writeThrough surface plus the four-case mode-resolver
+  fall-through behaviour.
+
+Full per-version detail: [`zc_plugins/Seekmodo/v1.0.5/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.5/CHANGELOG.md).
+
 ## v1.0.4 — 2026-05-29
 
 - LTR P6 conversion-event helpers

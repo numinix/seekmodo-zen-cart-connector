@@ -17,10 +17,10 @@ If you're upgrading from an existing install, skip to
 Always download the **signed** zip from `seekmodo.com/plugins`:
 
 ```bash
-curl -fLO https://seekmodo.com/plugins/seekmodo-zen-cart-v1.0.4.zip
-curl -fLO https://seekmodo.com/plugins/seekmodo-zen-cart-v1.0.4.zip.sha256
-sha256sum -c seekmodo-zen-cart-v1.0.4.zip.sha256
-# expected: seekmodo-zen-cart-v1.0.4.zip: OK
+curl -fLO https://seekmodo.com/plugins/seekmodo-zen-cart-v1.0.5.zip
+curl -fLO https://seekmodo.com/plugins/seekmodo-zen-cart-v1.0.5.zip.sha256
+sha256sum -c seekmodo-zen-cart-v1.0.5.zip.sha256
+# expected: seekmodo-zen-cart-v1.0.5.zip: OK
 ```
 
 The latest version pointer lives at
@@ -46,7 +46,7 @@ download.
    - Hide the configuration group from the admin sidebar by default
      — once paired, settings live on `admin.seekmodo.com`.
 
-After install, the row should read **Seekmodo v1.0.4 — Installed**.
+After install, the row should read **Seekmodo v1.0.5 — Installed**.
 
 ## 3. Pair the storefront with your Seekmodo tenant
 

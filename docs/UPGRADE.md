@@ -48,12 +48,11 @@ this whole path is a 30-second operation.
 
 ## Version notes
 
-### v1.0.5 (planned)
+### v1.0.5 (current)
 
-- New constants `NUMINIX_SEEKMODO_DEFAULT_MODE` and
-  `NUMINIX_SEEKMODO_INDEXER_SCHEDULE`. Both are seeded by the
-  installer with safe defaults (`active` and `daily` respectively)
-  and are gateway-authoritative.
+- New constants `NUMINIX_SEEKMODO_DEFAULT_MODE` (default `active`) and
+  `NUMINIX_SEEKMODO_INDEXER_SCHEDULE` (default `daily`). Both are
+  seeded by the installer and are gateway-authoritative.
 - `RemoteConfig::writeThrough()` mirrors them from `tenant.snapshot`.
 - New helper `tools/render_indexer_cron.php` for managed-mode installs.
 
@@ -63,7 +62,7 @@ the v1.0.5 upgrade is still safe — `MODE` continues to override
 `DEFAULT_MODE`. The new constant only matters when `MODE` is unset
 (empty), which on existing installs it isn't.
 
-### v1.0.4 (current)
+### v1.0.4
 
 - LTR P6 conversion-event helpers added. Storefront templates that
   call `numinix_seekmodo_mirror_add_to_cart` / `_purchase` from Zen
