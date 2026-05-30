@@ -116,6 +116,37 @@ the SHA-256, and opens an auto-merging PR against
 zip + manifest update under `services/marketing-site/public/plugins/`.
 The seekmodo deploy webhook then ships the marketing site.
 
+### How to cut a release (maintainers)
+
+```bash
+# 1. Bump the version in zc_plugins/Seekmodo/v<NEW>/manifest.php
+#    (or copy v<OLD> -> v<NEW> with `python tools/build_release.py --bump patch`).
+# 2. Update CHANGELOG.md.
+# 3. Commit + tag + push.
+git add .
+git commit -m "release: vX.Y.Z"
+git tag vX.Y.Z
+git push origin main vX.Y.Z
+```
+
+The `release.yml` workflow takes it from there: ~2 minutes after the
+tag push, the new zip is live at `seekmodo.com/plugins/...` and
+attached to the matching GitHub Release.
+
+### One-time pipeline setup
+
+The cross-repo PR step needs a GitHub Actions secret
+`SEEKMODO_PUBLISH_TOKEN` on this repo whose value is a token with
+write access on `numinix/seekmodo`. Set it once with:
+
+```bash
+# From the seekmodo monorepo root:
+python tools/setup_connector_release_pipeline.py
+```
+
+That script verifies the token, writes the secret, and triggers a
+`workflow_dispatch` run so you can confirm the pipeline is green.
+
 ## Support
 
 - Public docs: <https://seekmodo.com/docs>

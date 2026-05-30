@@ -21,7 +21,13 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  # GITHUB_TOKEN needs contents:write so the final
+  # "Attach release artefacts" step can `gh release create` /
+  # `gh release upload` against this connector repo. The cross-repo
+  # PR + auto-merge into numinix/seekmodo is done via
+  # SEEKMODO_PUBLISH_TOKEN (a PAT or fine-grained token with `repo`
+  # scope on numinix/seekmodo) and is not affected by this block.
+  contents: write
 
 jobs:
   publish:
