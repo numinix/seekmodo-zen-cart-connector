@@ -1,0 +1,86 @@
+name: release
+
+# Triggered on tag push of the form vX.Y.Z. Builds the connector zip,
+# computes its SHA-256, and opens an auto-merging PR into
+# numinix/seekmodo carrying the artefact + an updated manifest.json
+# under services/marketing-site/public/plugins/. The seek-api01 push
+# webhook then redeploys the marketing-site service so the new
+# download is live at https://seekmodo.com/plugins/seekmodo-zen-cart-
+# v<X.Y.Z>.zip within ~2 minutes of the tag push.
+#
+# Required secret on this repo:
+#   SEEKMODO_PUBLISH_TOKEN  - PAT with `repo` scope on numinix/seekmodo.
+#
+# Manual trigger: workflow_dispatch with the same job is also exposed
+# so an operator can re-publish the latest tag without retagging.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the connector repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release version
+        id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            VERSION="$GITHUB_REF_NAME"
+          else
+            VERSION="$(git describe --tags --abbrev=0 || true)"
+            if [ -z "$VERSION" ]; then
+              echo "ERROR: no tag found and ref_type != tag; cannot resolve a version." >&2
+              exit 2
+            fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build zip + SHA-256
+        run: |
+          python tools/build_release.py
+          ls -la dist/
+
+      - name: Open + auto-merge publish PR into numinix/seekmodo
+        env:
+          SEEKMODO_PUBLISH_TOKEN: ${{ secrets.SEEKMODO_PUBLISH_TOKEN }}
+        run: |
+          if [ -z "$SEEKMODO_PUBLISH_TOKEN" ]; then
+            echo "::error::SEEKMODO_PUBLISH_TOKEN secret is not set on this repo."
+            echo "Add a PAT with 'repo' scope on numinix/seekmodo as the secret named SEEKMODO_PUBLISH_TOKEN."
+            exit 1
+          fi
+          python tools/build_release.py --auto-pr
+
+      - name: Attach release artefacts to the GitHub release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Idempotent — if the release was created via `gh release
+          # create` at tag time it already exists; this just adds the
+          # artefacts. If it doesn't exist, create it from the tag.
+          if ! gh release view "${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            gh release create "${{ steps.version.outputs.version }}" \
+              --title "${{ steps.version.outputs.version }}" \
+              --generate-notes
+          fi
+          gh release upload "${{ steps.version.outputs.version }}" \
+            dist/*.zip dist/*.zip.sha256 --clobber
