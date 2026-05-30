@@ -1,0 +1,16 @@
+# Seekmodo Zen Cart connector — changelog
+
+## v1.0.3
+- **Storefront tuning forwarded to gateway** *(hot-fix added 2026-05-28)*. `_numinix_seekmodo_build_search_payload()` now forwards the storefront's `NUMINIX_TYPESENSE_TYPO_TOKENS_THRESHOLD`, `NUMINIX_TYPESENSE_DROP_TOKENS_THRESHOLD`, `NUMINIX_TYPESENSE_QUERY_BY` (+ aligned `query_by_weights`, `prefix`, `infix`), and the keyword/browse-mode `sort_by`. Without this the gateway fell back to `SearchDefaults::for('commerce')` (drop=1, typo=1) regardless of the tenant's admin-tuned values. Symptom on redlinestands.com: `keyword=automotive+rotisserie` returned 9 hits via gateway, 177 hits via the same Typesense backend called directly with the storefront's drop=10/typo=10. Per-field arrays only ship when their comma-count aligns with `query_by`'s — misaligned bundles would 400 against Typesense.
+- **Generic filter pass-through.** Replaced the hard-coded `facets` body field (silently dropped by the gateway) with a runtime filter-mapping registry that builds a proper Typesense `filter_by` string from `$_GET`. Storefront integrators call `numinix_seekmodo_register_filter_mapping($urlParam, $field, $opts)` once at boot to declare each sidebar/attribute filter. Defaults now correctly map Redline's `?type=…` to `p_type` and `?capacity_by_lbs=…` to `capacity` so existing tenants don't regress. See `docs/FILTERS.md`.
+- **Local-filter intersection helper.** New `numinix_seekmodo_apply_local_filter($remoteResult, $localIds)` lets a storefront intersect the gateway's product-ID list with a locally-computed filter set (for attribute filters that aren't indexed in Typesense, custom permission gates, etc.). The connector handles `total` recomputation and preserves rank order.
+- **Typeahead through the gateway.** New `numinix_seekmodo_run_typeahead($q, $max, $opts)` helper and `numinix_seekmodo_typeahead_lib.php`. Routes autocomplete queries through `/v1/search` with prefix/infix tuning, records an `impression` event tagged `extra.surface='typeahead'`, and degrades to a `null` return so the storefront's existing direct-Typesense (or LIKE) fallback still works on gateway outage. See `docs/TYPEAHEAD.md`.
+- **Surface-tagged click mirroring.** `numinix_seekmodo_mirror_click()` now accepts an `$opts = ['surface' => 'results']` argument (defaults preserved for v1.0.2 callers). New `numinix_seekmodo_mirror_typeahead_click()` wraps the same plumbing with `surface='typeahead'` so analytics can segment SERP clicks from autocomplete clicks. The gateway stashes the surface under `extra_json.surface` — no gateway schema change required.
+
+## v1.0.2
+- Forward shopper session/UA/IP to gateway so bot-check classifier runs on /v1/search (P0-1 / P0-3).
+
+## v1.0.1
+- Connector now pages through gateway results (per_page=250 x 50 pages) so Zen Cart's local pagination sees every matching product, not just the first 10. Fixes 'more won't load' on storefronts where shoppers expected continuous scroll past page 1.
+- Force IPv4 + relax connect timeout to 250-750ms (was 200ms) in Client.php and RemoteConfig.php — flaky CF IPv6 path on Redline web03 was tripping the breaker spuriously.
+- Response normalizer handles the gateway's nested results.hits[*].document envelope in addition to the legacy flat {products,total} shape.

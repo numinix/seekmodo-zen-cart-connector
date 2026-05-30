@@ -1,0 +1,17 @@
+# Build output
+dist/
+*.zip
+*.zip.sha256
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
