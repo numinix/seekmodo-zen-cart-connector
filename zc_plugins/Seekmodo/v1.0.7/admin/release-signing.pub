@@ -1,0 +1,7 @@
+{
+  "kid": "marketing-2026-05",
+  "alg": "EdDSA",
+  "kty": "OKP",
+  "crv": "Ed25519",
+  "x": "PLACEHOLDER_REPLACED_BY_BUILD_RELEASE_PY"
+}
