@@ -4,6 +4,36 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.7 — 2026-05-31
+
+- **In-plugin auto-update — admin "Updates" page (Sprint 4 PR 2).**
+  New `admin/numinix_seekmodo_updates.php` (sibling of
+  `numinix_seekmodo_connect.php`) pulls
+  `https://seekmodo.com/plugins/manifest.json`, compares
+  `platforms.zen_cart.latest` against the local `pluginVersion`,
+  and surfaces release notes + an **Apply update** button. The
+  manifest's ed25519 signature is verified against the public key
+  vendored at `admin/release-signing.pub`.
+- **Daily update-check cron (Sprint 4 PR 3).** New CLI runner
+  `admin/numinix_seekmodo_check_updates.php` runs once a day from
+  cron. When a new version is found it writes a sentinel row that
+  the admin shell renders as a top-bar one-liner linking to the
+  Updates page. `tools/install_redline_connector.py` (seekmodo
+  monorepo) prints the cron line alongside the existing indexer
+  line.
+- **One-click apply + rollback (Sprint 4 PR 4).** The Updates page's
+  **Apply update** action downloads the signed zip, re-verifies
+  SHA-256 + ed25519, snapshots the live tree to
+  `.backup-<oldver>/`, expands the new tree, and runs the new
+  version's `ScriptedInstaller` upgrade entry-point. A
+  **Roll back to vX.Y.Z** link on the same page swaps directories
+  back; the last 3 backups are kept and older ones are pruned.
+- **Vendored release-signing public key.** `tools/build_release.py`
+  (Sprint 4 PR 1) writes `admin/release-signing.pub` into each
+  per-version plugin tree on every release build.
+
+Full per-version detail: [`zc_plugins/Seekmodo/v1.0.7/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.7/CHANGELOG.md).
+
 ## v1.0.6 — 2026-05-31
 
 - **Bot-check backend selector (W6c, PROJECT_PLAN.md §P1-14 Phase B).**
