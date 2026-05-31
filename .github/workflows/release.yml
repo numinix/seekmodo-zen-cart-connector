@@ -1,24 +1,43 @@
-name: release
+name: release (manual fallback)
 
-# Triggered on tag push of the form vX.Y.Z. Builds the connector zip,
-# computes its SHA-256, and opens an auto-merging PR into
-# numinix/seekmodo carrying the artefact + an updated manifest.json
-# under services/marketing-site/public/plugins/. The seek-api01 push
-# webhook then redeploys the marketing-site service so the new
-# download is live at https://seekmodo.com/plugins/seekmodo-zen-cart-
-# v<X.Y.Z>.zip within ~2 minutes of the tag push.
+# DEPRECATED — tag-push trigger removed 2026-05-31.
 #
-# Required secret on this repo:
-#   SEEKMODO_PUBLISH_TOKEN  - PAT with `repo` scope on numinix/seekmodo.
+# Why: per the seekmodo monorepo's .cursor/rules/deploy.mdc +
+# AGENTS.md §1, GitHub Actions is not used for routine deploys. Each
+# tag push of v*.*.* fired this workflow's full build + auto-PR
+# pipeline (~3 GHA minutes including Python setup + zip build + the
+# cross-repo PR open). The same end-result — a signed, manifested,
+# downloadable connector zip live at
+# https://seekmodo.com/plugins/seekmodo-zen-cart-v<X.Y.Z>.zip — is
+# now produced operator-locally:
 #
-# Manual trigger: workflow_dispatch with the same job is also exposed
-# so an operator can re-publish the latest tag without retagging.
+#   git tag v<X.Y.Z>
+#   git push origin v<X.Y.Z>
+#   python tools/build_release.py --auto-pr
+#
+# The auto-PR opens against numinix/seekmodo and lands on
+# `services/marketing-site/public/plugins/`, which the seekmodo
+# webhook already redeploys on push. So the *deployment* of the
+# release is webhook-driven; only the artefact build is operator-
+# local. **No GHA minutes are consumed for the routine release.**
+#
+# This workflow is retained as a `workflow_dispatch`-only emergency
+# fallback for the case where an operator can't run
+# tools/build_release.py from their workstation (e.g. ed25519 signing
+# key unavailable locally) and needs GHA to build + sign + open the
+# PR. The `SEEKMODO_PUBLISH_TOKEN` secret stays configured so this
+# fallback works when invoked manually. It does NOT run on tag push.
+#
+# DO NOT re-enable the `on: push` tag trigger — see the seekmodo
+# monorepo's .cursor/rules/deploy.mdc.
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why is GHA fallback being used? Routine releases are operator-local via tools/build_release.py --auto-pr."
+        required: false
+        default: "manual operator dispatch — operator-local signing unavailable"
 
 permissions:
   # GITHUB_TOKEN needs contents:write so the final
@@ -42,14 +61,10 @@ jobs:
       - name: Resolve release version
         id: version
         run: |
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            VERSION="$GITHUB_REF_NAME"
-          else
-            VERSION="$(git describe --tags --abbrev=0 || true)"
-            if [ -z "$VERSION" ]; then
-              echo "ERROR: no tag found and ref_type != tag; cannot resolve a version." >&2
-              exit 2
-            fi
+          VERSION="$(git describe --tags --abbrev=0 || true)"
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: no tag found; cannot resolve a version. Tag a release first (git tag vX.Y.Z && git push --tags) before invoking this manual fallback." >&2
+            exit 2
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Resolved version: $VERSION"
@@ -59,7 +74,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Build zip + SHA-256
+      - name: Build zip + SHA-256 + signature
         run: |
           python tools/build_release.py
           ls -la dist/
@@ -76,7 +91,6 @@ jobs:
           python tools/build_release.py --auto-pr
 
       - name: Attach release artefacts to the GitHub release
-        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -89,4 +103,4 @@ jobs:
               --generate-notes
           fi
           gh release upload "${{ steps.version.outputs.version }}" \
-            dist/*.zip dist/*.zip.sha256 --clobber
+            dist/*.zip dist/*.zip.sha256 dist/*.zip.sig --clobber
