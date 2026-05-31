@@ -4,6 +4,35 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.6 — 2026-05-31
+
+- **Bot-check backend selector (W6c, PROJECT_PLAN.md §P1-14 Phase B).**
+  `RemoteConfig::writeThrough()` now mirrors **eight** keys from the
+  gateway snapshot (was seven) — adding `bot_check_backend` →
+  `NUMINIX_BOT_CHECK_BACKEND`. Values are clamped to `legacy` |
+  `gateway`; anything else is dropped (the row is left untouched, and
+  the bot-check client falls through to its built-in `legacy`
+  default). Operators flip the value from `admin.seekmodo.com` once
+  Phase B shadow validation completes on a tenant.
+- **Vendored bot-check client.**
+  `catalog/includes/functions/numinix_bot_check_client.php` now ships
+  inside the plugin tree. Reads `NUMINIX_BOT_CHECK_BACKEND` and routes
+  classify / nonce.issue / nonce.verify either at
+  `bot-check.numinix.com` (legacy) or at the gateway's `BotCheck\*`
+  tools (`/v1/bot.classify`, `/v1/nonce.issue`, `/v1/nonce.verify`)
+  when set to `gateway`. `if (!function_exists(...))` guards on every
+  helper keep the existing tenant-repo copy as the first-loaded
+  authoritative one until the connector deploy runs.
+- **Installer row.** `ScriptedInstaller` adds
+  `NUMINIX_BOT_CHECK_BACKEND` (default `'legacy'`) to the Seekmodo
+  Search configuration group.
+- **Tests.** New `tests/W6cBackendSelectorTest.php` pins the 8-key
+  writeThrough surface, the gateway/legacy switching path inside the
+  bot-check client (URL + header scheme + endpoint remap), and the
+  malformed-snapshot guard.
+
+Full per-version detail: [`zc_plugins/Seekmodo/v1.0.6/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.6/CHANGELOG.md).
+
 ## v1.0.5 — 2026-05-30
 
 - **W6b consumption (default_mode + indexer_schedule).**

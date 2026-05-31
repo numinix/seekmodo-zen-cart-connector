@@ -1,0 +1,301 @@
+<?php
+/**
+ * Seekmodo Search connector — scripted installer.
+ *
+ * Creates the NUMINIX_SEEKMODO_* configuration rows on install. MODE
+ * defaults to `active` so the connector self-manages (auto-promotion
+ * FSM); operators can override per-tenant from admin.seekmodo.com.
+ * The whole "Seekmodo Search" configuration group is hidden from the
+ * Zen Cart admin (CONFIGURATION_GROUP_VISIBLE_<id>=false) — these
+ * rows act as a runtime cache for values pulled from the gateway, not
+ * as the editable surface.
+ *
+ * Idempotent: re-running install with rows already present is a
+ * no-op (Zen Cart's addConfigurationKey honors INSERT IGNORE).
+ */
+
+use Zencart\PluginSupport\ScriptedInstaller as ScriptedInstallBase;
+
+class ScriptedInstaller extends ScriptedInstallBase
+{
+    private const GROUP_TITLE = 'Seekmodo Search';
+    private const GROUP_TITLE_LEGACY = 'Numinix Seekmodo';
+
+    protected function executeInstall()
+    {
+        $this->renameLegacyGroup();
+        $groupId = $this->ensureGroup();
+        $this->ensureAdminPage();
+        $this->hideGroupFromAdmin($groupId);
+
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_URL', [
+            'configuration_title' => 'Seekmodo: Gateway URL',
+            'configuration_value' => 'https://mcp.seekmodo.com',
+            'configuration_description' => 'Base URL of the Seekmodo MCP gateway. The connector appends <code>/v1/...</code> for REST calls. Leave at the default unless you are pointing at a staging gateway.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 100,
+        ]);
+
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_TENANT_ID', [
+            'configuration_title' => 'Seekmodo: Tenant ID',
+            'configuration_value' => '',
+            'configuration_description' => 'Per-store tenant identifier issued by <code>services/mcp-gateway/ops/tenant-add.php</code> on the gateway side.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 101,
+        ]);
+
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_SHARED_SECRET', [
+            'configuration_title' => 'Seekmodo: Shared Secret',
+            'configuration_value' => '',
+            'configuration_description' => 'Per-store HMAC key (64-hex). Captured once at tenant-add time on the gateway; never stored anywhere recoverable.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 102,
+        ]);
+
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_MODE', [
+            'configuration_title' => 'Seekmodo: Mode',
+            'configuration_value' => 'active',
+            'configuration_description' => 'Managed at admin.seekmodo.com. One of <b>off</b> | <b>active</b> | <b>shadow</b> | <b>enforce</b>.<br><b>off</b> = bypass Seekmodo, fall back to native Zen Cart search.<br><b>active</b> (recommended) = let the connector self-manage. It begins in shadow, observes gateway health for ~24h, then auto-promotes to enforce. If the gateway misbehaves it auto-demotes back to shadow until it heals. No operator intervention required.<br><b>shadow</b> = manual override. Always observation-only; storefront keeps using native search.<br><b>enforce</b> = manual override. Always serve gateway results with native fallback on failure.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 103,
+            'set_function' => 'zen_cfg_select_option(array(\'off\', \'active\', \'shadow\', \'enforce\'),',
+        ]);
+
+        // W6b (v1.0.5+) — tenant-wide default mode the storefront falls
+        // back to when MODE is empty. Mirrored from tenant.snapshot's
+        // `default_mode` field by RemoteConfig::writeThrough.
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_DEFAULT_MODE', [
+            'configuration_title' => 'Seekmodo: Default Mode',
+            'configuration_value' => 'active',
+            'configuration_description' => 'Managed at admin.seekmodo.com. The mode the storefront uses when <b>NUMINIX_SEEKMODO_MODE</b> is empty / unset / invalid. Lets seekmodo.com set a tenant-wide default that survives a manual <b>MODE</b> row clear. One of <b>off</b> | <b>active</b> | <b>shadow</b> | <b>enforce</b>.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 107,
+            'set_function' => 'zen_cfg_select_option(array(\'off\', \'active\', \'shadow\', \'enforce\'),',
+        ]);
+
+        // W6b (v1.0.5+) — declarative cron schedule for the indexer.
+        // Mirrored from tenant.snapshot's `indexer_schedule` field by
+        // RemoteConfig::writeThrough. The storefront doesn't read this
+        // directly; the operator-side install script translates it
+        // into a /etc/cron.d/numinix-seekmodo-<tenant> entry via
+        // tools/render_indexer_cron.php.
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_INDEXER_SCHEDULE', [
+            'configuration_title' => 'Seekmodo: Indexer Schedule',
+            'configuration_value' => 'daily',
+            'configuration_description' => 'Managed at admin.seekmodo.com. Declarative cron schedule for the Seekmodo indexer. One of <b>hourly</b> | <b>every_4h</b> | <b>every_12h</b> | <b>daily</b> | <b>manual</b>. <b>manual</b> means: this connector does not own the cron — the operator runs <code>transfer_products.php</code> on whatever schedule they prefer.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 108,
+            'set_function' => 'zen_cfg_select_option(array(\'hourly\', \'every_4h\', \'every_12h\', \'daily\', \'manual\'),',
+        ]);
+
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_AUTO_PROMOTE', [
+            'configuration_title' => 'Seekmodo: Auto-Promote',
+            'configuration_value' => 'true',
+            'configuration_description' => 'Master switch for the auto-promotion state machine, which only runs when MODE=active. <b>true</b> (default) = connector advances bootstrap → shadow → enforce based on observed gateway health, and auto-demotes back to shadow on sustained failures. <b>false</b> = freeze the FSM at its current state (useful while debugging a flaky gateway).',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 110,
+            'set_function' => 'zen_cfg_select_option(array(\'true\', \'false\'),',
+        ]);
+
+        // The next three rows are FSM bookkeeping the connector writes
+        // to itself. Keeping them as configuration rows means a human
+        // operator can inspect them via Admin -> Configuration -> Seekmodo
+        // Search without a separate dashboard.
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_AUTO_STATE', [
+            'configuration_title' => 'Seekmodo: Auto-Promote State',
+            'configuration_value' => 'bootstrap',
+            'configuration_description' => 'Read-only FSM phase. One of: <b>bootstrap</b> (just installed; behaves as shadow), <b>shadow_observing</b> (collecting promotion sample), <b>enforced</b> (serving gateway results with native fallback), <b>shadow_recovering</b> (auto-demoted; healing). Written by the connector — do not edit by hand.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 111,
+        ]);
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_AUTO_STATE_SINCE', [
+            'configuration_title' => 'Seekmodo: Auto-Promote State Since',
+            'configuration_value' => '',
+            'configuration_description' => 'ISO-8601 UTC timestamp of the last FSM transition. Read-only.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 112,
+        ]);
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_AUTO_HISTORY', [
+            'configuration_title' => 'Seekmodo: Auto-Promote History',
+            'configuration_value' => '[]',
+            'configuration_description' => 'JSON array of the last 16 FSM transitions: {ts, from, to, reason}. Read-only.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 113,
+        ]);
+
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_TIMEOUT_MS', [
+            'configuration_title' => 'Seekmodo: Hot-Path Timeout (ms)',
+            'configuration_value' => '250',
+            'configuration_description' => 'Per-call hot-path timeout in milliseconds. Anything slower than this counts as a circuit-breaker failure. Default <b>250</b>; valid range 80&ndash;2000.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 104,
+        ]);
+
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_INDEX_BATCH', [
+            'configuration_title' => 'Seekmodo: Index Batch Size',
+            'configuration_value' => '500',
+            'configuration_description' => 'Max documents per /v1/index call. The gateway accepts up to 1000 per call; we default to 500 to leave headroom. Lower this if PHP memory/upload limits force smaller batches.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 105,
+        ]);
+
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_DEBUG', [
+            'configuration_title' => 'Seekmodo: Debug Logging',
+            'configuration_value' => 'false',
+            'configuration_description' => 'When <b>true</b>, logs every hot-path call to <code>logs/numinix_seekmodo.log</code>. Useful during shadow / enforce verification windows; turn off in steady-state production.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 106,
+            'set_function' => 'zen_cfg_select_option(array(\'true\', \'false\'),',
+        ]);
+
+        // W6c (v1.0.6+) — bot-check backend selector. Mirrored from
+        // tenant.snapshot's `bot_check_backend` field by
+        // RemoteConfig::writeThrough. Default stays `'legacy'` so an
+        // in-place file deploy of v1.0.6 does NOT change which
+        // bot-check service the storefront calls until the operator
+        // explicitly opts in via admin.seekmodo.com (Phase B shadow
+        // validation). PROJECT_PLAN.md §P1-14.
+        $this->addConfigurationKey('NUMINIX_BOT_CHECK_BACKEND', [
+            'configuration_title' => 'Seekmodo: Bot-Check Backend',
+            'configuration_value' => 'legacy',
+            'configuration_description' => 'Managed at admin.seekmodo.com. Selects which bot-check service the storefront calls. <b>legacy</b> (default) = standalone <code>bot-check.numinix.com</code> service. <b>gateway</b> = MCP gateway\'s bundled <code>BotCheck\\*</code> tools at <code>mcp.seekmodo.com/v1/bot.classify</code>. Used during the bot-check consolidation rollout (PROJECT_PLAN.md §P1-14 Phase B). Unrecognised values fall back to <b>legacy</b>.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 109,
+            'set_function' => 'zen_cfg_select_option(array(\'legacy\', \'gateway\'),',
+        ]);
+
+        // M5 — claim-token pairing scratch space. Written by
+        // numinix_seekmodo_connect.php at mint-time, read by the
+        // storefront callback, and cleared on successful pair.
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_INSTALL_TOKEN', [
+            'configuration_title' => 'Seekmodo: Install Token',
+            'configuration_value' => '',
+            'configuration_description' => 'Internal: short-lived install token used by the M5 claim-token pairing flow. Cleared automatically on successful pair. Read-only; do not edit by hand.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 200,
+        ]);
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_INSTALL_TOKEN_EXP', [
+            'configuration_title' => 'Seekmodo: Install Token Expires At',
+            'configuration_value' => '0',
+            'configuration_description' => 'Internal: unix timestamp the install_token above expires at. Read-only.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 201,
+        ]);
+
+        return true;
+    }
+
+    protected function executeUninstall()
+    {
+        $this->deleteConfigurationKeys([
+            'NUMINIX_SEEKMODO_URL',
+            'NUMINIX_SEEKMODO_TENANT_ID',
+            'NUMINIX_SEEKMODO_SHARED_SECRET',
+            'NUMINIX_SEEKMODO_MODE',
+            'NUMINIX_SEEKMODO_DEFAULT_MODE',
+            'NUMINIX_SEEKMODO_INDEXER_SCHEDULE',
+            'NUMINIX_SEEKMODO_TIMEOUT_MS',
+            'NUMINIX_SEEKMODO_INDEX_BATCH',
+            'NUMINIX_SEEKMODO_DEBUG',
+            'NUMINIX_SEEKMODO_AUTO_PROMOTE',
+            'NUMINIX_SEEKMODO_AUTO_STATE',
+            'NUMINIX_SEEKMODO_AUTO_STATE_SINCE',
+            'NUMINIX_SEEKMODO_AUTO_HISTORY',
+            'NUMINIX_SEEKMODO_INSTALL_TOKEN',
+            'NUMINIX_SEEKMODO_INSTALL_TOKEN_EXP',
+            'NUMINIX_BOT_CHECK_BACKEND',
+        ]);
+        zen_deregister_admin_pages('numinixSeekmodoConnect');
+    }
+
+    /**
+     * Register the admin "Connect to Seekmodo" page so it shows up in
+     * the Tools menu. Idempotent — zen_register_admin_pages's INSERT
+     * is gated on a NOT EXISTS check.
+     */
+    private function ensureAdminPage(): void
+    {
+        if (!function_exists('zen_register_admin_pages')) {
+            return;
+        }
+        zen_register_admin_pages(
+            'numinixSeekmodoConnect',
+            'BOX_TOOLS_NUMINIX_SEEKMODO_CONNECT',
+            'FILENAME_NUMINIX_SEEKMODO_CONNECT',
+            '',
+            'tools',
+            'Y',
+            500
+        );
+    }
+
+    /**
+     * Flip CONFIGURATION_GROUP_VISIBLE_<gid> to 'false' so the
+     * "Seekmodo Search" group disappears from Admin -> Configuration.
+     * The rows themselves stay (they're a runtime cache for the
+     * gateway snapshot); they're just no longer human-edited from
+     * Zen Cart admin. Idempotent.
+     */
+    private function hideGroupFromAdmin(int $groupId): void
+    {
+        global $db;
+        $db->Execute(
+            "UPDATE " . TABLE_CONFIGURATION
+            . " SET configuration_value = 'false',"
+            . " configuration_description = 'Hidden by default — settings are managed on admin.seekmodo.com.'"
+            . " WHERE configuration_key = 'CONFIGURATION_GROUP_VISIBLE_{$groupId}'"
+            . " AND configuration_value <> 'false'"
+        );
+    }
+
+    /**
+     * One-time rename of the legacy "Numinix Seekmodo" configuration_group
+     * to "Seekmodo Search". A no-op on fresh installs and on installs
+     * where the rename has already happened.
+     */
+    private function renameLegacyGroup(): void
+    {
+        global $db;
+        $db->Execute(
+            "UPDATE " . TABLE_CONFIGURATION_GROUP
+            . " SET configuration_group_title = '" . zen_db_input(self::GROUP_TITLE) . "'"
+            . " WHERE configuration_group_title = '" . zen_db_input(self::GROUP_TITLE_LEGACY) . "'"
+        );
+    }
+
+    /**
+     * Find or create the dedicated configuration_group row so all the
+     * NUMINIX_SEEKMODO_* keys live under a single Admin -> Configuration
+     * subsection labeled "Seekmodo Search" rather than getting scattered
+     * into the generic Sessions or My Store groups.
+     */
+    private function ensureGroup(): int
+    {
+        global $db;
+        $existing = $db->Execute(
+            "SELECT configuration_group_id FROM " . TABLE_CONFIGURATION_GROUP
+            . " WHERE configuration_group_title = '" . zen_db_input(self::GROUP_TITLE) . "' LIMIT 1"
+        );
+        if (!$existing->EOF) {
+            return (int)$existing->fields['configuration_group_id'];
+        }
+        $sortOrderRow = $db->Execute(
+            "SELECT MAX(sort_order) AS max_sort FROM " . TABLE_CONFIGURATION_GROUP
+        );
+        $newSort = (int)($sortOrderRow->fields['max_sort'] ?? 0) + 1;
+        $db->Execute(
+            "INSERT INTO " . TABLE_CONFIGURATION_GROUP . " (configuration_group_title, configuration_group_description, sort_order, visible)"
+            . " VALUES ('" . zen_db_input(self::GROUP_TITLE) . "',"
+            . " 'Runtime cache for the Seekmodo Search connector. Settings are managed on admin.seekmodo.com; this group is hidden from the Zen Cart admin and only exposed for diagnostic inspection.',"
+            . " {$newSort}, 1)"
+        );
+        $newId = (int)$db->Insert_ID();
+        $db->Execute(
+            "INSERT INTO " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added)"
+            . " VALUES ('Display configuration group {$newId}?', 'CONFIGURATION_GROUP_VISIBLE_{$newId}', 'false',"
+            . " 'Hidden by default — settings are managed on admin.seekmodo.com.', 6, 1,"
+            . " 'zen_cfg_select_option(array(\\'true\\', \\'false\\'),', NOW())"
+        );
+        return $newId;
+    }
+}
