@@ -105,16 +105,17 @@ Full list and semantics: [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md).
 
 Each release publishes a signed zip at
 `https://seekmodo.com/plugins/seekmodo-zen-cart-v<X.Y.Z>.zip` plus a
-SHA-256 sidecar. The `latest` pointer is in
-`https://seekmodo.com/plugins/manifest.json` — the planned in-plugin
-auto-updater consumes that endpoint.
+SHA-256 sidecar and an ed25519 detached signature. The `latest`
+pointer is in `https://seekmodo.com/plugins/manifest.json` — the
+in-plugin auto-updater (Sprint 4) consumes that endpoint.
 
-Tags drive the release pipeline: pushing a `v*.*.*` tag in this repo
-triggers `.github/workflows/release.yml`, which builds the zip, computes
-the SHA-256, and opens an auto-merging PR against
-[`numinix/seekmodo`](https://github.com/numinix/seekmodo) carrying the
-zip + manifest update under `services/marketing-site/public/plugins/`.
-The seekmodo deploy webhook then ships the marketing site.
+The release pipeline is **operator-local**, not GitHub Actions. Per
+the seekmodo monorepo's [`.cursor/rules/deploy.mdc`](https://github.com/numinix/seekmodo/blob/main/.cursor/rules/deploy.mdc)
+and [`AGENTS.md`](https://github.com/numinix/seekmodo/blob/main/AGENTS.md)
+§1, GHA is not used for routine deploys (it costs us billable
+minutes). Running the release locally and letting the existing
+seek-api01 deploy webhook handle the *deployment* of the resulting
+PR keeps the routine release at zero GHA minutes.
 
 ### How to cut a release (maintainers)
 
@@ -127,25 +128,45 @@ git add .
 git commit -m "release: vX.Y.Z"
 git tag vX.Y.Z
 git push origin main vX.Y.Z
+
+# 4. Build + sign + publish (operator-local).
+python tools/build_release.py --auto-pr
 ```
 
-The `release.yml` workflow takes it from there: ~2 minutes after the
-tag push, the new zip is live at `seekmodo.com/plugins/...` and
-attached to the matching GitHub Release.
+`tools/build_release.py --auto-pr`:
+
+1. Reads the version from the highest-numbered `v*/manifest.php`.
+2. Builds the zip, writes `dist/seekmodo-zen-cart-v<X.Y.Z>.zip`,
+   computes its SHA-256 (`<zip>.sha256`), and signs it with the
+   operator-local ed25519 key at
+   `RELEASE_SIGNING_KEY_PATH` / `/etc/numinix/release-signing.key`
+   / `/etc/numinix/marketing-jwt.ed25519` (writes `<zip>.sig`).
+3. Vendors the matching public key into the plugin tree at
+   `zc_plugins/Seekmodo/v<X.Y.Z>/admin/release-signing.pub`.
+4. Opens an auto-merging PR against
+   [`numinix/seekmodo`](https://github.com/numinix/seekmodo)
+   carrying the zip, signature, and manifest update under
+   `services/marketing-site/public/plugins/`. When that PR merges
+   to `main`, the seek-api01 deploy webhook redeploys
+   marketing-site, publishing the new download. **No GHA minutes
+   are consumed.**
 
 ### One-time pipeline setup
 
-The cross-repo PR step needs a GitHub Actions secret
-`SEEKMODO_PUBLISH_TOKEN` on this repo whose value is a token with
-write access on `numinix/seekmodo`. Set it once with:
+The cross-repo PR step needs a fine-grained GitHub PAT with `repo`
+scope on `numinix/seekmodo`. Set it once via the seekmodo monorepo:
 
 ```bash
 # From the seekmodo monorepo root:
 python tools/setup_connector_release_pipeline.py
 ```
 
-That script verifies the token, writes the secret, and triggers a
-`workflow_dispatch` run so you can confirm the pipeline is green.
+The PAT lands in your local environment as
+`SEEKMODO_PUBLISH_TOKEN`. The script also writes the same value as a
+GitHub Actions secret on this repo so the **emergency-fallback**
+manual `workflow_dispatch` of `.github/workflows/release.yml` works
+when an operator can't run the build locally (see the docstring at
+the top of that workflow).
 
 ## Support
 

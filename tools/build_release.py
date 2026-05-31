@@ -6,8 +6,35 @@ Produces a Zen Cart-compatible plugin zip plus a SHA-256 sidecar, an
 ed25519 detached signature (for Sprint 4 in-plugin auto-update), and
 (optionally) a ``manifest.json`` entry suitable for publishing to the
 seekmodo monorepo's ``services/marketing-site/public/plugins/``
-directory. Designed to be driven by ``.github/workflows/release.yml``
-on a tag push, but also runs locally.
+directory.
+
+================================================================
+ROUTINE RELEASES ARE OPERATOR-LOCAL.
+================================================================
+
+Per the seekmodo monorepo's ``.cursor/rules/deploy.mdc`` + AGENTS.md
+§1, GitHub Actions is not used for routine deploys (it costs us
+billable minutes). The routine release path is operator-local:
+
+    git tag v<X.Y.Z>
+    git push origin v<X.Y.Z>
+    python tools/build_release.py --auto-pr
+
+``--auto-pr`` opens a PR against ``numinix/seekmodo`` carrying the
+new manifest entry + zip under
+``services/marketing-site/public/plugins/``. When that PR merges to
+``main``, the seek-api01 deploy webhook sees the
+``services/marketing-site/**`` change and redeploys marketing-site,
+publishing the new download at
+``https://seekmodo.com/plugins/seekmodo-zen-cart-v<X.Y.Z>.zip``
+within ~2 minutes. The *deployment* is webhook-driven; only the
+artefact build is operator-local. **No GHA minutes are consumed.**
+
+The legacy ``.github/workflows/release.yml`` is retained as a
+``workflow_dispatch``-only emergency fallback for the case where an
+operator can't run ``tools/build_release.py`` from their workstation
+(e.g. ed25519 signing key unavailable locally) and needs GHA to
+build + sign + open the PR. It is not the routine path.
 
 The version is read from the highest-numbered ``v*/manifest.php``'s
 ``pluginVersion`` field.
