@@ -74,6 +74,45 @@ Detailed contract: [`docs/INTEGRATION.md`](docs/INTEGRATION.md). All
 four paths degrade gracefully — gateway down or circuit breaker open
 falls through to native Zen Cart search inside the same request.
 
+## Multi-environment installs (v1.0.8+)
+
+You can install the plugin on dev / staging / preview clones of
+the same storefront without polluting your production tenant's
+search index or click stream. Each tenant on
+[admin.seekmodo.com](https://admin.seekmodo.com) is locked to a
+single canonical storefront host via the **Storefront domain**
+setting. Connectors running on any other host return null from
+every gateway-talking entry — same code path as `MODE=off` — and
+your storefront keeps serving search via the native Zen Cart `LIKE`
+fallback. **Zero user-visible outage on the locked-out host.**
+
+The gateway auto-picks the right host for you: every authenticated
+call carries `X-Seekmodo-Storefront-Host:` and the admin UI's
+dropdown is sourced from those observations. The default heuristic
+picks the first observed host whose leftmost label is not
+`dev|staging|stage|test|testing|qa|preview|beta|preprod|pre-prod`,
+so the typical "prod looks like `www.example.com`, staging like
+`staging.example.com`" pattern auto-resolves correctly on first
+install. One-click operator override on the admin UI fixes any
+mis-guess.
+
+Implications:
+
+- **One domain per tenant**, hard rule. A second storefront on a
+  different domain (e.g. a `.ca` variant of a `.com` apex) is a
+  separate Seekmodo tenant. Multi-tenant per user is already
+  shipped — add it from admin.seekmodo.com -> "+ Add storefront".
+- **Indexer safety**: the bulk-upsert cron returns null on a locked-
+  out host, so the production Typesense index is never overwritten
+  with a dev clone's product set.
+- **5-min change latency**: lock changes propagate on the
+  connector's next `tenant.snapshot` pull. The Zen Cart admin's
+  "Refresh now" button forces immediate propagation.
+
+Full operator-facing runbook (incl. recovery from a self-inflicted
+lockout): the `Storefront domain lock` section in the seekmodo
+monorepo's [`docs/runbooks/tenant-settings.md`](https://github.com/numinix/seekmodo/blob/main/docs/runbooks/tenant-settings.md).
+
 ## Documentation
 
 - [`docs/INSTALL.md`](docs/INSTALL.md) — install + first-pair + verify.
