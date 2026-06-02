@@ -4,6 +4,36 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.11 — 2026-06-02
+
+- **Public-MCP (anonymous-tier) discovery for AI agents (Sprint 14 PR 4).**
+  Two new discovery surfaces let third-party AI agents (ChatGPT,
+  Claude Desktop, Cursor, etc.) find the storefront's product-search
+  MCP endpoint at `https://<tenant_id>.mcp.seekmodo.com/mcp` without
+  any merchant intervention:
+
+  - **`/.well-known/mcp.json`** — a small JSON discovery document
+    served by a new early-init interceptor
+    (`catalog/includes/init_includes/init_numinix_seekmodo_well_known.php`,
+    registered at `autoLoadConfig[60]`). Advertises the gateway
+    endpoint, the `search` tool, the per-IP / per-(tenant,IP) rate
+    limits, and a link to the operator runbook. Requires a one-line
+    `.htaccess` rewrite (`RewriteRule ^\.well-known/mcp\.json$ index.php [L,QSA]`)
+    on stock Zen Cart docroots; falls through cleanly when missing.
+  - **`<link rel="mcp-server">` + `<meta name="mcp-server">`** —
+    injected into every storefront page's `<head>` via a new
+    `NOTIFY_HTML_HEAD_END` observer
+    (`NuminixSeekmodoMcpDiscoveryObserver`). No web-server config
+    required; works on stock Zen Cart 1.5.8 / 2.0 unmodified.
+
+  Both surfaces emit only when the connector is enabled
+  (`numinix_seekmodo_enabled()` true — i.e. paired, mode != off,
+  not domain-locked-out) and silently no-op otherwise. Every code
+  path is wrapped in `try/catch` — a discovery failure NEVER 500s a
+  storefront page.
+
+Full per-version detail: [`zc_plugins/Seekmodo/v1.0.11/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.11/CHANGELOG.md).
+
 ## v1.0.7 — 2026-05-31
 
 - **In-plugin auto-update — admin "Updates" page (Sprint 4 PR 2).**
