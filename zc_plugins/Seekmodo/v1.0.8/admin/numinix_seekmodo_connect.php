@@ -112,7 +112,7 @@ if (is_array($snapshot)) {
 
 $lastTransitions = array_slice($history, -5);
 
-require DIR_WS_INCLUDES . 'admin_html_header.php';
+require DIR_WS_INCLUDES . 'admin_html_head.php';
 ?>
 <!doctype html>
 <html <?= HTML_PARAMS ?>>
