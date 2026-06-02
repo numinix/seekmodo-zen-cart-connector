@@ -216,6 +216,76 @@ class ScriptedInstaller extends ScriptedInstallBase
         return true;
     }
 
+    /**
+     * v1.0.8 bridge fix for a Zen Cart core ≥ 2.2.0 bug.
+     *
+     * `Zencart\PluginSupport\ScriptedInstallerFactory::make()` builds
+     * the per-plugin installer with just `($dbConn, $errorContainer)`
+     * and never calls `setVersionDetails()`. Core's
+     * `doUpgrade()` then calls `updateZenCoreDbFields()`, which reads
+     * the typed `$pluginKey` + `$version` properties, and PHP throws
+     *
+     *     Typed property Zencart\PluginSupport\ScriptedInstaller::
+     *     $pluginKey must not be accessed before initialization
+     *
+     * which the Plugin Manager surfaces as a generic 500 right after
+     * the operator clicks "Upgrade".
+     *
+     * `doInstall()` / `doUninstall()` don't touch the typed
+     * properties, so install + uninstall still work — only the
+     * upgrade button is affected upstream. We bridge by deriving the
+     * three properties from `__DIR__` and forwarding to
+     * `setVersionDetails()` before delegating to the parent, so the
+     * fix Just Works on any Zen Cart that ever wires the factory
+     * correctly in a future patch (the precondition stays satisfied
+     * either way).
+     *
+     * @return bool|null
+     */
+    public function doUpgrade($oldVersion): ?bool
+    {
+        if (!isset($this->pluginKey) || !isset($this->version) || !isset($this->pluginDir)) {
+            // __DIR__ = .../zc_plugins/Seekmodo/v1.0.8/Installer
+            $pluginDir = dirname(__DIR__);
+            $version = basename($pluginDir);
+            $pluginKey = basename(dirname($pluginDir));
+            $this->setVersionDetails([
+                'pluginKey' => $pluginKey,
+                'pluginDir' => $pluginDir,
+                'version' => $version,
+                'oldVersion' => (string) $oldVersion,
+            ]);
+        }
+        return parent::doUpgrade($oldVersion);
+    }
+
+    /**
+     * Re-running `executeInstall()` is the idempotent upgrade path:
+     * every method it calls is either an INSERT IGNORE
+     * (`addConfigurationKey` -> `getConfigurationKeyDetails` short-
+     * circuit), a NOT-EXISTS-gated registration
+     * (`zen_register_admin_pages`), or an UPDATE that's a no-op when
+     * already in the target state (`hideGroupFromAdmin`,
+     * `renameLegacyGroup`). So upgrading from v1.0.7 to v1.0.8 will:
+     *
+     *   - back-fill the `admin_pages` rows for the
+     *     "Connect to Seekmodo" + "Seekmodo Updates" links if a
+     *     previous install used `install_connector.py`'s SQL bootstrap
+     *     and bypassed Zen Cart's Plugin Manager flow (in which case
+     *     `ensureAdminPage()` never ran),
+     *   - add the new v1.0.8 configuration rows
+     *     (`NUMINIX_SEEKMODO_LOCKED_DOMAIN` and any future ones),
+     *   - leave existing rows untouched.
+     *
+     * @param string $oldVersion
+     * @return bool
+     */
+    protected function executeUpgrade($oldVersion)
+    {
+        $result = $this->executeInstall();
+        return $result === null ? true : (bool) $result;
+    }
+
     protected function executeUninstall()
     {
         $this->deleteConfigurationKeys([
