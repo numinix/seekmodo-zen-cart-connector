@@ -4,6 +4,33 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.12 — 2026-06-02
+
+- **Static `.well-known/mcp.json` writer (Sprint 14 PR 4 follow-up,
+  2026-06-02).** v1.0.11's PHP-driven `.well-known/mcp.json`
+  interceptor required an `.htaccess` rewrite that doesn't ship in
+  stock Zen Cart and isn't reachable at all when the storefront is
+  installed in a `/catalog/` subdirectory (the root-level redirect
+  catches the URL before PHP sees it). v1.0.12 fixes both cases by
+  physically writing a real `.well-known/mcp.json` file (plus a
+  defence-in-depth `<Files "mcp.json"> Require all granted </Files>`
+  `.htaccess`) to **every viable docroot the connector can
+  resolve** — `DIR_FS_CATALOG`, `$_SERVER['DOCUMENT_ROOT']` when
+  distinct, and the parent of `DIR_FS_CATALOG` as a CLI fallback.
+  Apache serves the resulting file directly; no rewrite required.
+  Triggers: pair callback (immediate on Connect), `RemoteConfig::
+  writeThrough` (every snapshot poll), and an APCu-gated
+  once-per-hour refresh from the head observer so any already-paired
+  storefront self-heals on the next page render.
+- Idempotency: the writer reads existing on-disk content and skips
+  the write when it matches the canonical payload. Safe to call on
+  every storefront request; ~free when nothing has changed.
+- Failure posture unchanged from v1.0.11 — every code path is
+  wrapped in try/catch, the writer NEVER throws to its caller, and
+  a writer failure does NOT block pairing or 500 a storefront page.
+
+Full per-version detail: [`zc_plugins/Seekmodo/v1.0.12/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.12/CHANGELOG.md).
+
 ## v1.0.11 — 2026-06-02
 
 - **Public-MCP (anonymous-tier) discovery for AI agents (Sprint 14 PR 4).**
