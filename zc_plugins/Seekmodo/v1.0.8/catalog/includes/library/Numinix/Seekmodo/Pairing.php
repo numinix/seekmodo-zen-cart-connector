@@ -153,7 +153,24 @@ final class Pairing
 
         $publicKey = self::resolve_public_key($jwksUrl, (string)$kid);
         if (!function_exists('sodium_crypto_sign_verify_detached')) {
-            throw new \RuntimeException('libsodium not available; install php-sodium');
+            // Friendly, actionable error message — this is what the
+            // merchant sees in the seekmodo.com pairing dialog when
+            // their host doesn't ship the sodium extension. Avoid
+            // the generic "install php-sodium" message; on cPanel
+            // (the most common Zen Cart host) the package name is
+            // ea-php<NN>-php-sodium and a yum install + automatic
+            // FPM restart is all that's needed.
+            $phpVersion = explode('.', PHP_VERSION);
+            $phpMajorMinor = ($phpVersion[0] ?? '8') . ($phpVersion[1] ?? '1');
+            throw new \RuntimeException(
+                'PHP sodium extension is required but not loaded on this storefront (PHP '
+                . PHP_VERSION . '). On cPanel/EasyApache hosts (most common): '
+                . '`yum install -y ea-php' . $phpMajorMinor . '-php-sodium` as root, '
+                . 'then PHP-FPM will be restarted automatically. On Debian/Ubuntu: '
+                . '`apt-get install -y php' . $phpVersion[0] . '.' . ($phpVersion[1] ?? '1')
+                . '-sodium && systemctl restart php' . $phpVersion[0] . '.' . ($phpVersion[1] ?? '1')
+                . '-fpm`. Then click Connect again from the admin Tools menu.'
+            );
         }
         $signed = $h . '.' . $c;
         $sig = self::b64u_decode($s);

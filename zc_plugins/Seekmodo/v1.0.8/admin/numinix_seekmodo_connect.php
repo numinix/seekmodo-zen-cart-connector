@@ -54,17 +54,34 @@ $marketingBase = preg_replace('~/v1.*$~', '', (string)$marketingBase);
 
 $messages = [];
 
+// Preflight check: PHP sodium extension is required for JWT
+// verification in Pairing::verify_pair_callback(). Surface the
+// missing-extension state as a banner BEFORE the merchant clicks
+// Connect, instead of letting them get to the seekmodo.com page,
+// click Confirm and pair, and only THEN see the error. v1.0.8
+// regression — sodium ships with PHP 7.2+ but cPanel/EasyApache
+// builds intentionally omit it; the package must be installed
+// per-major-minor (ea-php81-php-sodium etc).
+$sodiumOk = function_exists('sodium_crypto_sign_verify_detached');
+
 if ($action === 'pair' && _seekmodo_check_csrf()) {
+    if (!$sodiumOk) {
+        $messages[] = ['type' => 'error', 'text' =>
+            'Cannot start pairing: PHP sodium extension is missing on this server. '
+            . 'See the warning below for the one-line install command.'
+        ];
+    } else {
     $catalogBase = (defined('HTTPS_CATALOG_SERVER') && HTTPS_CATALOG_SERVER)
         ? HTTPS_CATALOG_SERVER : (defined('HTTP_CATALOG_SERVER') ? HTTP_CATALOG_SERVER : '');
     $catalogPath = (defined('DIR_WS_CATALOG') ? DIR_WS_CATALOG : '/');
     $callbackUrl = rtrim((string)$catalogBase, '/') . $catalogPath . 'numinix_seekmodo_pair_callback.php';
 
-    try {
-        $url = Pairing::mint_install_token($marketingBase, $callbackUrl);
-        zen_redirect($url);
-    } catch (\Throwable $e) {
-        $messages[] = ['type' => 'error', 'text' => 'Failed to mint install token: ' . $e->getMessage()];
+        try {
+            $url = Pairing::mint_install_token($marketingBase, $callbackUrl);
+            zen_redirect($url);
+        } catch (\Throwable $e) {
+            $messages[] = ['type' => 'error', 'text' => 'Failed to mint install token: ' . $e->getMessage()];
+        }
     }
 }
 
@@ -167,6 +184,30 @@ require DIR_WS_INCLUDES . 'admin_html_head.php';
     <div class="msg msg-<?= $m['type'] ?>"><?= htmlspecialchars($m['text'], ENT_QUOTES, CHARSET) ?></div>
   <?php endforeach; ?>
 
+  <?php if (!$sodiumOk): ?>
+    <?php
+      $phpV = explode('.', PHP_VERSION);
+      $eaPkg = 'ea-php' . ($phpV[0] ?? '8') . ($phpV[1] ?? '1') . '-php-sodium';
+      $debPkg = 'php' . ($phpV[0] ?? '8') . '.' . ($phpV[1] ?? '1') . '-sodium';
+      $fpmSvc = 'php' . ($phpV[0] ?? '8') . '.' . ($phpV[1] ?? '1') . '-fpm';
+    ?>
+    <div class="msg msg-error">
+      <strong>PHP sodium extension missing — pairing will fail.</strong><br>
+      The connector needs <code>sodium_crypto_sign_verify_detached</code> to verify
+      the EdDSA pairing JWT from seekmodo.com. Your storefront is on PHP
+      <code><?= htmlspecialchars(PHP_VERSION, ENT_QUOTES, CHARSET) ?></code>
+      (SAPI <code><?= htmlspecialchars(PHP_SAPI, ENT_QUOTES, CHARSET) ?></code>)
+      and the extension is not loaded.
+      <br><br>
+      <strong>Fix (cPanel / EasyApache):</strong>
+      Run as root: <code>yum install -y <?= htmlspecialchars($eaPkg, ENT_QUOTES, CHARSET) ?></code>
+      &nbsp;— PHP-FPM is restarted automatically. Then refresh this page.
+      <br>
+      <strong>Fix (Debian / Ubuntu):</strong>
+      <code>apt-get install -y <?= htmlspecialchars($debPkg, ENT_QUOTES, CHARSET) ?> &amp;&amp; systemctl restart <?= htmlspecialchars($fpmSvc, ENT_QUOTES, CHARSET) ?></code>
+    </div>
+  <?php endif; ?>
+
   <p>
     <?php if ($isPaired): ?>
       <span class="badge badge-paired">Connected</span>
@@ -229,14 +270,14 @@ require DIR_WS_INCLUDES . 'admin_html_head.php';
       <button type="submit" name="action" value="refresh" class="btn btn-secondary">
         Refresh snapshot
       </button>
-      <button type="submit" name="action" value="pair" class="btn">
+      <button type="submit" name="action" value="pair" class="btn"<?= $sodiumOk ? '' : ' disabled title="PHP sodium extension is required — see warning above"' ?>>
         Re-pair
       </button>
       <a class="btn btn-secondary" href="https://admin.seekmodo.com/settings" target="_blank" rel="noopener">
         Manage settings
       </a>
     <?php else: ?>
-      <button type="submit" name="action" value="pair" class="btn">
+      <button type="submit" name="action" value="pair" class="btn"<?= $sodiumOk ? '' : ' disabled title="PHP sodium extension is required — see warning above"' ?>>
         Connect to Seekmodo
       </button>
     <?php endif; ?>
