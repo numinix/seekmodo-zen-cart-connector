@@ -274,12 +274,36 @@ class ScriptedInstaller extends ScriptedInstallBase
      * correctly in a future patch (the precondition stays satisfied
      * either way).
      *
+     * v1.0.13 follow-up — the override has to coexist with **two**
+     * upstream ScriptedInstaller signatures:
+     *
+     *   * Stock Zen Cart 2.0.1 ships `public function doUpgrade()`
+     *     (no parameters, no return type) and the same for
+     *     `executeUpgrade()`. `setVersionDetails()` and the typed
+     *     `$pluginKey/$version/$pluginDir` properties don't exist —
+     *     none of the bridge work is needed there.
+     *   * Zen Cart 2.0.1+ patched to v2.2.0 (and v2.2.0+ proper)
+     *     ships `public function doUpgrade($oldVersion): ?bool`,
+     *     plus the typed properties and `setVersionDetails()`.
+     *
+     * Tenants in the wild are split across both shapes (numinix.com
+     * = patched core; redlinestands = stock 2.0.1). A signature that
+     * hard-codes one shape fails LSP compatibility on the other and
+     * Plugin Manager 500's at class-load time. We keep the override
+     * permissive (`$oldVersion = null`, `: ?bool` return is covariant
+     * addition over the no-return-type parent) and detect the parent
+     * shape with Reflection at call time so the bridge runs only
+     * where it's needed.
+     *
      * @return bool|null
      */
-    public function doUpgrade($oldVersion): ?bool
+    public function doUpgrade($oldVersion = null): ?bool
     {
-        if (!isset($this->pluginKey) || !isset($this->version) || !isset($this->pluginDir)) {
-            // __DIR__ = .../zc_plugins/Seekmodo/v1.0.9/Installer
+        if (
+            method_exists(parent::class, 'setVersionDetails')
+            && (!isset($this->pluginKey) || !isset($this->version) || !isset($this->pluginDir))
+        ) {
+            // __DIR__ = .../zc_plugins/Seekmodo/v1.0.13/Installer
             $pluginDir = dirname(__DIR__);
             $version = basename($pluginDir);
             $pluginKey = basename(dirname($pluginDir));
@@ -287,10 +311,16 @@ class ScriptedInstaller extends ScriptedInstallBase
                 'pluginKey' => $pluginKey,
                 'pluginDir' => $pluginDir,
                 'version' => $version,
-                'oldVersion' => (string) $oldVersion,
+                'oldVersion' => (string) ($oldVersion ?? ''),
             ]);
         }
-        return parent::doUpgrade($oldVersion);
+
+        $parentMethod = new \ReflectionMethod(parent::class, 'doUpgrade');
+        $result = $parentMethod->getNumberOfParameters() > 0
+            ? parent::doUpgrade($oldVersion)
+            : parent::doUpgrade();
+
+        return $result === null ? null : (bool) $result;
     }
 
     /**
@@ -321,8 +351,13 @@ class ScriptedInstaller extends ScriptedInstallBase
      * @param string $oldVersion
      * @return bool
      */
-    protected function executeUpgrade($oldVersion)
+    protected function executeUpgrade($oldVersion = null)
     {
+        // Optional `$oldVersion` keeps this signature LSP-compatible
+        // with both ZC 2.0.1's `executeUpgrade()` and ZC 2.2.0+'s
+        // `executeUpgrade($oldVersion)`. We don't actually consult
+        // `$oldVersion` here — the upgrade path is just an
+        // idempotent re-run of `executeInstall()`.
         $result = $this->executeInstall();
         return $result === null ? true : (bool) $result;
     }
