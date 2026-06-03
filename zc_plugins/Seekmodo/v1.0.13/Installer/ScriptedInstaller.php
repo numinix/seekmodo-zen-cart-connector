@@ -149,10 +149,18 @@ class ScriptedInstaller extends ScriptedInstallBase
             'sort_order' => 1041,
         ]);
 
+        // CAUTION: keep configuration_description text free of the literal
+        // substring "NULL" (case-sensitive). Zen Cart's
+        // queryFactory::getBindVarValue() rewrites any 'string'-typed bind
+        // value matching the regex `/NULL/` to the SQL keyword `null`,
+        // which the configuration_description NOT-NULL column then
+        // rejects with "Column 'configuration_description' cannot be
+        // null" mid-upgrade. (See ZC core
+        // includes/classes/db/mysql/query_factory.php case 'string'.)
         $this->addConfigurationKey('NUMINIX_SEEKMODO_INDEX_TIMEOUT_MS', [
             'configuration_title' => 'Seekmodo: Index Timeout (ms)',
             'configuration_value' => '30000',
-            'configuration_description' => 'Per-call timeout for /v1/index (catalog upserts) in milliseconds. Cron path. Default <b>30000</b>; valid range 1000&ndash;120000. Bulk Typesense upserts of 500 docs/req routinely take 5&ndash;15s on a cold collection; the historical 250ms shared timeout was too tight and caused silent indexer NULLs.',
+            'configuration_description' => 'Per-call timeout for /v1/index (catalog upserts) in milliseconds. Cron path. Default <b>30000</b>; valid range 1000&ndash;120000. Bulk Typesense upserts of 500 docs/req routinely take 5&ndash;15s on a cold collection; the historical 250ms shared timeout was too tight and silently dropped indexer writes.',
             'configuration_group_id' => $groupId,
             'sort_order' => 1042,
         ]);
