@@ -50,7 +50,12 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    name: build + publish (manual fallback)
+    # Migrated to the self-hosted numinix-backup runner (mini PC) on 2026-06-03.
+    # workflow_dispatch-only fallback; routine releases ship operator-locally
+    # via tools/build_release.py --auto-pr. Reverting to ubuntu-latest if the
+    # mini PC is offline is a one-line change.
+    runs-on: [self-hosted, linux, x64, numinix-mini]
     timeout-minutes: 10
     steps:
       - name: Check out the connector repo
