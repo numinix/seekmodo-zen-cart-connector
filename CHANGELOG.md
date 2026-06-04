@@ -4,6 +4,34 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.14 — 2026-06-04
+
+- **Typeahead routes through the gateway's SuggestTool (Sprint 3 PR 6).**
+  v1.0.13 packed every typeahead keystroke into a `/v1/search` payload
+  so autocomplete impressions counted against the same metering bucket
+  as full-search SERPs. v1.0.14 swaps the default path to the
+  gateway's dedicated `SuggestTool` at `/v1/suggest`, which returns
+  three result blocks in one round-trip (keywords / products /
+  categories), meters the call against the new `searches_suggest`
+  display bucket separately from `searches_text`, and short-circuits
+  scraper keystroke storms via the same bot-gate the SERP uses.
+
+  Ships a drop-in client-side JS handler (`jscript_seekmodo_typeahead.js`,
+  150ms debounce, vanilla DOM, no jQuery dep) plus a tenant-side AJAX
+  endpoint (`catalog/numinix_seekmodo_suggest.php`) so unmodified
+  storefronts can opt into Seekmodo-driven typeahead without editing
+  their own search templates. Sites on a custom template need to copy
+  the JS file into their own template's `jscript/` folder — Zen Cart
+  doesn't auto-inherit `jscript_*.js` from `template_default`.
+
+  Operators can roll back to the v1.0.13 `/v1/search` typeahead path
+  per-call (`opts.use_search=true`) or globally
+  (`NUMINIX_SEEKMODO_TYPEAHEAD_USE_SEARCH=true`) for the cutover
+  window. Form-submit behaviour is intentionally unchanged — the
+  SERP still routes through `numinix_seekmodo_run_search()`.
+
+  Full detail in `zc_plugins/Seekmodo/v1.0.14/CHANGELOG.md`.
+
 ## v1.0.12 — 2026-06-02
 
 - **Static `.well-known/mcp.json` writer (Sprint 14 PR 4 follow-up,
