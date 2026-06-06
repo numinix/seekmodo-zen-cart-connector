@@ -913,6 +913,121 @@ if (!function_exists('_numinix_seekmodo_client_ip')) {
     }
 }
 
+if (!function_exists('_numinix_seekmodo_resolve_region_id')) {
+    /**
+     * Sprint 9 PR 5 — connector-attested region forwarding.
+     *
+     * Resolves the storefront-side `region_id` slug for the active
+     * shopper (e.g. 'us', 'ca', 'uk') so the gateway's RegionResolver
+     * can route them to the right per-region prices, merchandising
+     * rules, and LTR model. Forward-looking — every existing
+     * deployment ignores this entirely:
+     *
+     *   - The gateway short-circuits to legacy when the tenant's
+     *     `regions_enabled` column is 0 (every tenant on Sprint 9
+     *     day 0). The body field below is a no-op until a tenant
+     *     turns multi-region on from /admin/regions.
+     *
+     *   - This helper itself returns '' unless the storefront has
+     *     opted in by defining `NUMINIX_SEEKMODO_REGIONS_ENABLED`.
+     *     Without that, the search payload carries no `shopper_context`
+     *     map at all.
+     *
+     * Resolution order (first non-empty wins, mirrors the gateway's
+     * 5-step precedence for body+header rungs already handled
+     * gateway-side):
+     *
+     *   1. `NUMINIX_SEEKMODO_REGION_RESOLVER` — a callable name
+     *      (string). When defined and `is_callable()`, called with
+     *      no arguments and the returned slug is used. Lets a
+     *      multi-region storefront wire its own logic (e.g. read a
+     *      `customer_region` cookie that a header lookup wrote on
+     *      page load).
+     *
+     *   2. `NUMINIX_SEEKMODO_ZONE_REGION_MAP` — a JSON-encoded map
+     *      of Zen Cart zone_id => region slug. When defined, look
+     *      up the active shopper's `customers_zone_id` (logged-in)
+     *      OR the fallback country from the cart object. Returns
+     *      '' on miss; the gateway's IP geolocation / tenant default
+     *      rungs then take over.
+     *
+     *   3. `NUMINIX_SEEKMODO_DEFAULT_REGION_ID` — a static slug used
+     *      as a last resort when the dynamic lookups above all miss.
+     *      Useful for storefronts that ship one region today but
+     *      want the routing wired in advance.
+     *
+     * The returned slug is sanitised to the gateway's RegionContext
+     * pattern: lowercase letters/digits/_- only, max 64 chars. Empty
+     * string means "don't forward anything; let the gateway pick".
+     *
+     * @return string region slug, or '' to skip
+     */
+    function _numinix_seekmodo_resolve_region_id(): string
+    {
+        if (!defined('NUMINIX_SEEKMODO_REGIONS_ENABLED')
+            || !NUMINIX_SEEKMODO_REGIONS_ENABLED) {
+            return '';
+        }
+
+        $slug = '';
+
+        if (defined('NUMINIX_SEEKMODO_REGION_RESOLVER')) {
+            $cb = (string)NUMINIX_SEEKMODO_REGION_RESOLVER;
+            if ($cb !== '' && is_callable($cb)) {
+                $r = $cb();
+                if (is_string($r) && $r !== '') {
+                    $slug = $r;
+                }
+            }
+        }
+
+        if ($slug === '' && defined('NUMINIX_SEEKMODO_ZONE_REGION_MAP')) {
+            $raw = (string)NUMINIX_SEEKMODO_ZONE_REGION_MAP;
+            $map = $raw === '' ? null : json_decode($raw, true);
+            if (is_array($map) && $map !== []) {
+                $zoneId = 0;
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    if (!empty($_SESSION['customer_zone_id'])) {
+                        $zoneId = (int)$_SESSION['customer_zone_id'];
+                    } elseif (!empty($_SESSION['customer_country_id'])) {
+                        // Guests / pre-login lookups fall back to the
+                        // country id under a synthetic "country:<id>" key
+                        // so storefronts can encode both maps in one JSON.
+                        $zoneId = (int)$_SESSION['customer_country_id'];
+                        $countryKey = 'country:' . $zoneId;
+                        if (isset($map[$countryKey]) && is_string($map[$countryKey])) {
+                            $slug = (string)$map[$countryKey];
+                        }
+                    }
+                }
+                if ($slug === '' && $zoneId > 0
+                    && isset($map[(string)$zoneId])
+                    && is_string($map[(string)$zoneId])) {
+                    $slug = (string)$map[(string)$zoneId];
+                }
+            }
+        }
+
+        if ($slug === '' && defined('NUMINIX_SEEKMODO_DEFAULT_REGION_ID')) {
+            $d = (string)NUMINIX_SEEKMODO_DEFAULT_REGION_ID;
+            if ($d !== '') {
+                $slug = $d;
+            }
+        }
+
+        if ($slug === '') {
+            return '';
+        }
+        // Sanitise to RegionContext shape: lowercase, [a-z0-9_-], 2-64.
+        $slug = strtolower(trim($slug));
+        $slug = preg_replace('/[^a-z0-9_\-]+/', '', $slug);
+        if ($slug === '' || strlen($slug) < 2) {
+            return '';
+        }
+        return substr($slug, 0, 64);
+    }
+}
+
 if (!function_exists('_numinix_seekmodo_apply_sort_deprecations')) {
     /**
      * Rewrite known-stale sort-field tokens to their canonical
@@ -1187,6 +1302,21 @@ if (!function_exists('_numinix_seekmodo_build_search_payload')) {
         $payload['ip'] = _numinix_seekmodo_client_ip();
         if (!empty($_SERVER['HTTP_REFERER'])) {
             $payload['referer'] = substr((string)$_SERVER['HTTP_REFERER'], 0, 255);
+        }
+
+        // Sprint 9 PR 5 — forward-looking multi-region forwarding.
+        // The helper returns '' unless the storefront has explicitly
+        // opted in via NUMINIX_SEEKMODO_REGIONS_ENABLED (so legacy
+        // single-region storefronts still send the same body shape
+        // they did on Sprint 8 day 0). When the helper does return a
+        // slug, ride it under `shopper_context.region_id` — that's
+        // the envelope key the gateway's RegionResolver consults at
+        // step 2 of its 5-step precedence chain.
+        $regionId = _numinix_seekmodo_resolve_region_id();
+        if ($regionId !== '') {
+            $payload['shopper_context'] = [
+                'region_id' => $regionId,
+            ];
         }
 
         return $payload;
