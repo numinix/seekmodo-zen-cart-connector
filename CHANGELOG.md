@@ -4,6 +4,45 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.17 — 2026-06-08
+
+- **AKS-connector parity port (generic improvements only).** Two
+  features lifted from the AKS connector v1.3 (`numinix/aks-seekmodo-connector`,
+  2026-06-07) that aren't AKS- or vehicle-specific. Both are
+  additive and backwards-compatible — every existing tenant's
+  payload shape is unchanged in the no-trigger case.
+
+  1. **SKU / part-number exact-match boost** (port of AKS
+     Sprint 2's `EzNumberBooster`). Shopper queries that look
+     like a single-token SKU / part number (alphanumeric +
+     dashes/underscores/dots, 2-32 chars by default) now set
+     `prioritize_exact_match=true` on the gateway call so the
+     exact-SKU product floats to position 0 regardless of
+     textual relevance scoring. Multi-word natural-language
+     queries are unaffected. Configurable via the new
+     `NUMINIX_SEEKMODO_SKU_BOOST_ENABLED` (default `true`) and
+     `NUMINIX_SEEKMODO_SKU_BOOST_TRIGGER_REGEX`. Applies to the
+     full-search path AND the legacy `/v1/search`-based typeahead
+     fallback.
+
+  2. **Expanded tenant-unavailable graceful degradation** (port
+     of AKS v1.3's `Client::classifyByErrorCode()`). The
+     storefront has always fallen back to native Zen Cart `LIKE`
+     search on a `403 tenant_paused`; v1.0.17 expands the
+     recognised lifecycle vocabulary to also cover
+     `tenant_not_found`, `tenant_unknown`, `tenant_suspended`,
+     `tenant_disabled`, and applies the body peek to **both**
+     403 and 404 responses (the gateway emits 404 for
+     `tenant_not_found` / `tenant_unknown`, 403 for the rest).
+     Behaviourally the fallback to native search is unchanged —
+     `Client::call()` returns `null` on every 4xx exactly as
+     before — but the structured log line now distinguishes
+     `tenant_unavailable` (with `fallback_reason =
+     tenant_unavailable`) from the generic `caller_error` so
+     admin observability can attribute the volume correctly.
+
+  Full per-version detail: [`zc_plugins/Seekmodo/v1.0.17/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.17/CHANGELOG.md).
+
 ## v1.0.14 — 2026-06-04
 
 - **Typeahead routes through the gateway's SuggestTool (Sprint 3 PR 6).**

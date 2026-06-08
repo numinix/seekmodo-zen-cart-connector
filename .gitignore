@@ -15,3 +15,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Scratch / one-off deploy + verify scripts
+.tmp/
