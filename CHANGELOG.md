@@ -4,6 +4,45 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.18 — 2026-06-08
+
+- **Stable ed25519 release-signing key (`seekmodo-2026-06`).** The
+  prior label `marketing-2026-05` was aspirational — no production
+  build ever wrote a real public key under it. v1.0.13 shipped with
+  a literal `PLACEHOLDER_REPLACED_BY_BUILD_RELEASE_PY` string in
+  `admin/release-signing.pub`; v1.0.14–v1.0.17 shipped with a
+  per-build *ephemeral* keypair whose private half was generated on
+  the build host, used to sign that one zip, then discarded —
+  unverifiable forever from the operator's side. Every release since
+  v1.0.7 has therefore carried the `dev-ephemeral` flag that the
+  in-plugin UpdateClient refuses outright (i.e. **auto-update has
+  been silently broken since v1.0.7**).
+
+  v1.0.18 fixes this end-to-end: the build pipeline reads a real
+  ed25519 keypair from `~/.numinix/release-signing-<kid>.key`,
+  vendors the matching JWK into `admin/release-signing.pub`, emits
+  `sig_kid: seekmodo-2026-06` + `signed_with: file:<path>` in the
+  manifest, and (newly) vendors the pubkey **before** building the
+  zip so the shipped artifact actually carries the trust root.
+
+  **Operator action required (one-time):** v1.0.17 → v1.0.18 must be
+  a manual upgrade because v1.0.17's vendored pubkey carries
+  `kid: dev-ephemeral` and the v1.0.18 manifest entry will carry
+  `sig_kid: seekmodo-2026-06`. The in-plugin verifier raises
+  "manifest sig_kid (seekmodo-2026-06) != vendored kid
+  (dev-ephemeral); manual upgrade required to rotate keys" exactly
+  as documented in `UpdateClient`'s rotation contract. From v1.0.18
+  forward, the vendored key matches the kid we sign under, so
+  v1.0.18 → v1.0.19+ auto-updates flow normally. See
+  `docs/SIGNING_KEYS.md` in `numinix/seekmodo` for the rotation
+  runbook and the manual cutover steps for the live fleet.
+
+- **Build-pipeline parity with the WP connector.** The Zen Cart
+  build script now accepts the same hex- or base64-encoded 32-byte
+  ed25519 seed files as the WordPress one, so the same
+  `~/.numinix/release-signing-<kid>.key` on the operator's disk
+  serves both pipelines. No more PEM-only assumption.
+
 ## v1.0.17 — 2026-06-08
 
 - **AKS-connector parity port (generic improvements only).** Two
