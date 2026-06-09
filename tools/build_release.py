@@ -121,12 +121,23 @@ DIST_DIR = REPO_ROOT / "dist"
 
 # Where the ed25519 release-signing private key lives in production.
 # In dev/local we accept a RELEASE_SIGNING_KEY_PATH env override;
-# without one we fall back to a legacy marketing-jwt key path (M5) so
-# the existing CI rig keeps working without secret rotation, and only
-# then to an ephemeral in-memory keypair for first-time local runs.
+# without one we walk a priority list of well-known paths, preferring
+# the kid-namespaced path so future rotations can stage a new key on
+# disk before flipping `_RELEASE_SIGNING_KID`, with no clobbering of
+# the prior key. Only after exhausting every path do we fall back to
+# an ephemeral in-memory keypair (which the in-plugin UpdateClient
+# refuses outright via the `dev-ephemeral` flag, so production CI
+# **MUST** land in one of the file paths below).
+_RELEASE_SIGNING_KID = "seekmodo-2026-06"
 _RELEASE_SIGNING_KEY_DEFAULT = "/etc/numinix/release-signing.key"
 _RELEASE_SIGNING_KEY_LEGACY = "/etc/numinix/marketing-jwt.ed25519"
-_RELEASE_SIGNING_KID = "marketing-2026-05"
+
+# Note the LEGACY pre-rotation kid we still recognize in old manifests
+# / vendored pubkeys. Surfaced here for the operator-facing key-
+# inventory section of docs/SIGNING_KEYS.md, not consumed by this
+# script.  Earlier builds incorrectly labeled the seekmodo
+# release-signing key as `marketing-2026-05`; that label is dead.
+_LEGACY_RELEASE_SIGNING_KID = "marketing-2026-05"
 
 # Public download base. Every release zip lives at
 # ``<DOWNLOAD_BASE>/<basename>``; the manifest references this URL so
@@ -261,13 +272,56 @@ def _resolve_signing_key_path() -> Path | None:
     RELEASE_SIGNING_KEY_PATH override, falls through to the canonical
     /etc/numinix path, then the legacy marketing-jwt path."""
     override = os.environ.get("RELEASE_SIGNING_KEY_PATH", "").strip()
-    candidates = [override, _RELEASE_SIGNING_KEY_DEFAULT, _RELEASE_SIGNING_KEY_LEGACY]
+    home = Path.home()
+    candidates = [
+        override,
+        # Kid-namespaced paths (preferred).
+        str(home / ".numinix" / f"release-signing-{_RELEASE_SIGNING_KID}.key"),
+        f"/etc/numinix/release-signing-{_RELEASE_SIGNING_KID}.key",
+        # Legacy unnamed paths (fallback for unrotated builders).
+        _RELEASE_SIGNING_KEY_DEFAULT,
+        _RELEASE_SIGNING_KEY_LEGACY,
+        str(home / ".numinix" / "release-signing.key"),
+    ]
     for raw in candidates:
         if not raw:
             continue
         p = Path(raw)
         if p.is_file():
             return p
+    return None
+
+
+def _decode_seed_bytes(raw: bytes, key_path: Path) -> bytes | None:
+    """Try to interpret a key file's bytes as a 32-byte ed25519 seed.
+
+    Recognized formats:
+      - 32 bytes raw seed
+      - 64 ASCII hex chars (32-byte seed, hex-encoded)
+      - 44 ASCII base64 chars with padding, or 43 b64url-nopad chars
+
+    Returns the 32-byte seed or None if the bytes don't fit any of
+    these shapes (PEM and other formats are handled separately).
+    """
+    candidate = raw.strip()
+    if len(candidate) == 32:
+        return candidate
+    if len(candidate) == 64:
+        try:
+            return bytes.fromhex(candidate.decode("ascii"))
+        except (ValueError, UnicodeDecodeError):
+            return None
+    text = candidate.decode("ascii", errors="ignore")
+    if len(text) in (43, 44) and re.fullmatch(r"[A-Za-z0-9+/_=-]+", text):
+        pad = "=" * ((4 - len(text) % 4) % 4)
+        try:
+            decoded = base64.urlsafe_b64decode(text + pad)
+        except Exception:
+            try:
+                decoded = base64.b64decode(text + pad)
+            except Exception:
+                return None
+        return decoded if len(decoded) == 32 else None
     return None
 
 
@@ -283,20 +337,35 @@ def _load_or_generate_signing_key() -> tuple[Any, Any, str, str]:
     unverifiable builds.
 
     Backend selection:
-      1. cryptography (preferred) — handles PEM ed25519 keys.
-      2. pynacl (fallback) — handles 32-byte raw ed25519 keys only.
+      1. cryptography (preferred) — handles PEM ed25519 keys *and*
+         raw / hex / base64-encoded 32-byte seeds.
+      2. pynacl (fallback) — handles raw / hex / base64 seeds only.
       3. ephemeral (dev fallback) — generates a fresh keypair so the
          pipeline keeps producing a sig, but flags the build as
          dev-only.
+
+    The WP connector's ``tools/build_release.py`` accepts the same
+    file formats; keep these two scripts in sync so an operator can
+    use a single ``~/.numinix/release-signing-<kid>.key`` for both.
     """
     key_path = _resolve_signing_key_path()
     if _CRYPTO_BACKEND == "cryptography" and key_path is not None:
-        pem = key_path.read_bytes()
-        priv = _crypto_serialization.load_pem_private_key(pem, password=None)
-        if not isinstance(priv, Ed25519PrivateKey):  # type: ignore[arg-type]
-            raise SystemExit(
-                f"ERROR: {key_path} is not an ed25519 PEM private key."
-            )
+        raw = key_path.read_bytes()
+        seed = _decode_seed_bytes(raw, key_path)
+        if seed is not None:
+            priv = Ed25519PrivateKey.from_private_bytes(seed)  # type: ignore[union-attr]
+        else:
+            try:
+                priv = _crypto_serialization.load_pem_private_key(raw, password=None)
+            except ValueError as exc:
+                raise SystemExit(
+                    f"ERROR: {key_path} is neither a 32-byte ed25519 seed "
+                    f"(raw / hex / base64) nor a loadable PEM private key: {exc}"
+                )
+            if not isinstance(priv, Ed25519PrivateKey):  # type: ignore[arg-type]
+                raise SystemExit(
+                    f"ERROR: {key_path} is not an ed25519 PEM private key."
+                )
         pub = priv.public_key().public_bytes(
             encoding=_crypto_serialization.Encoding.Raw,
             format=_crypto_serialization.PublicFormat.Raw,
@@ -309,21 +378,18 @@ def _load_or_generate_signing_key() -> tuple[Any, Any, str, str]:
         return _CryptographySigner(), pub, f"file:{key_path}", _RELEASE_SIGNING_KID
 
     if _CRYPTO_BACKEND == "pynacl" and key_path is not None:
-        # PyNaCl signing keys are 32 raw bytes; if the on-disk file
-        # is PEM (most common for our deploy) and we don't have
-        # cryptography available, refuse loudly rather than emit a
-        # dev-ephemeral signature.
-        raw = key_path.read_bytes().strip()
-        if raw.startswith(b"-----BEGIN"):
+        raw = key_path.read_bytes()
+        seed = _decode_seed_bytes(raw, key_path)
+        if seed is None:
+            if raw.strip().startswith(b"-----BEGIN"):
+                raise SystemExit(
+                    f"ERROR: PyNaCl backend cannot read PEM key {key_path}; "
+                    "install `cryptography` on the build host."
+                )
             raise SystemExit(
-                f"ERROR: PyNaCl backend cannot read PEM key {key_path}; "
-                "install `cryptography` on the build host."
+                f"ERROR: expected a 32-byte ed25519 seed (raw / hex / base64) at {key_path}."
             )
-        if len(raw) != 32:
-            raise SystemExit(
-                f"ERROR: expected 32-byte raw ed25519 key at {key_path}, got {len(raw)} bytes."
-            )
-        signing = _NaclSigningKey(raw)  # type: ignore[misc]
+        signing = _NaclSigningKey(seed)  # type: ignore[misc]
         pub = bytes(signing.verify_key)
 
         class _NaclSigner:
@@ -367,20 +433,20 @@ def _load_or_generate_signing_key() -> tuple[Any, Any, str, str]:
     )
 
 
-def write_signature_sidecar(zip_path: Path) -> tuple[Path, str, bytes, str, str]:
-    """Sign the zip's bytes and write a `<zip>.sig` sidecar.  Returns
-    (sidecar_path, signature_b64url_nopad, public_key_raw_bytes,
-    key_source_label, kid)."""
-    signer, public_raw, key_source_label, kid = _load_or_generate_signing_key()
+def write_detached_signature_for_zip(zip_path: Path, signer: Any) -> tuple[Path, str]:
+    """Sign the zip's bytes and write a ``<zip>.sig`` sidecar.
+
+    Returns ``(sidecar_path, signature_b64url_nopad)``. Separated from
+    the keypair-resolution step so callers can vendor the pubkey
+    BEFORE building the zip (so the zip ships the right trust root),
+    then sign the finished zip AFTER. See main() for the order.
+    """
     payload = zip_path.read_bytes()
     sig = signer.sign(payload)
     sig_b64 = _b64url_nopad(sig)
     sidecar = zip_path.with_suffix(zip_path.suffix + ".sig")
     sidecar.write_text(sig_b64 + "\n", encoding="utf-8", newline="\n")
-    print(
-        f"  wrote {sidecar.relative_to(REPO_ROOT)} (key={key_source_label}, kid={kid})"
-    )
-    return sidecar, sig_b64, public_raw, key_source_label, kid
+    return sidecar, sig_b64
 
 
 def vendor_public_key(version_dir: Path, public_raw: bytes, kid: str) -> Path:
@@ -405,7 +471,6 @@ def vendor_public_key(version_dir: Path, public_raw: bytes, kid: str) -> Path:
         encoding="utf-8",
         newline="\n",
     )
-    print(f"  vendored public key -> {target.relative_to(REPO_ROOT)}")
     return target
 
 
@@ -632,6 +697,23 @@ def main() -> int:
         version_str = f"v{triple[0]}.{triple[1]}.{triple[2]}"
 
     print()
+    print(f"-- resolving release-signing keypair")
+    signer, public_raw, sig_source, sig_kid = _load_or_generate_signing_key()
+    # Vendor the matching public key into the per-version plugin
+    # tree BEFORE building the zip, so the zip we ship carries the
+    # same trust root the in-plugin verifier will use to validate
+    # the *next* release. Earlier builds vendored AFTER zipping,
+    # which left the shipped zip with whatever pubkey was committed
+    # in the source tree (typically a stale dev-ephemeral leftover)
+    # — silent bit-rot we paper-fixed for v1.0.18 + the
+    # seekmodo-2026-06 rotation. The source tree is also updated so
+    # the same content is committed in the PR that ships this
+    # version.
+    vendored_pub = vendor_public_key(version_dir, public_raw, sig_kid)
+    print(f"  vendored public key -> {vendored_pub.relative_to(REPO_ROOT)}")
+    print(f"  kid={sig_kid}, source={sig_source}")
+
+    print()
     print(f"-- zipping {version_dir.relative_to(REPO_ROOT)} -> {version_str}.zip")
     zip_path = build_zip(version_dir, version_str)
 
@@ -641,18 +723,8 @@ def main() -> int:
 
     print()
     print(f"-- ed25519 detached signature")
-    sig_sidecar_path, sig_b64, public_raw, sig_source, sig_kid = write_signature_sidecar(zip_path)
-    # Vendor a copy of the public key into the per-version plugin
-    # tree so the in-plugin verifier (Sprint 4 PR 2) can verify
-    # offline.  We do this AFTER the zip is built so the vendored
-    # key reflects the same keypair the CI run actually signed with;
-    # the plugin tree we just zipped doesn't contain this file yet,
-    # so we re-zip the version dir with the vendored key in place
-    # if --refresh-zip is set.  In normal CI the vendor step runs
-    # before the next release builds (i.e. the key is committed in
-    # the same PR that bumps the connector version), and we only
-    # rewrite the on-disk plugin tree.
-    vendor_public_key(version_dir, public_raw, sig_kid)
+    sig_sidecar_path, sig_b64 = write_detached_signature_for_zip(zip_path, signer)
+    print(f"  wrote {sig_sidecar_path.relative_to(REPO_ROOT)} (key={sig_source}, kid={sig_kid})")
 
     if args.manifest_path:
         print()
