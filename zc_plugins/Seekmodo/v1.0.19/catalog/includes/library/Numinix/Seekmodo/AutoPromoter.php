@@ -265,7 +265,7 @@ final class AutoPromoter
                 'observed_count'   => (int) ($snap['counters']['observed'] ?? 0),
                 'errors_count'     => (int) ($snap['counters']['errors'] ?? 0),
             ]);
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
             return false;
         }
     }

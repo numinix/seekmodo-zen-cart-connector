@@ -272,7 +272,7 @@ class Client
         try {
             $rc = new RemoteConfig($url, $tenant, $secret);
             return $rc->pull();
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
             return null;
         }
     }
