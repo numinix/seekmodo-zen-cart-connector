@@ -52,12 +52,28 @@ final class RemoteConfig
     /** @var callable|null hook for tests (signature: fn(string $level, string $msg, array $ctx): void) */
     private $logger;
 
+    // PHP 7.4-compatible property declarations. v1.0.19 ships to
+    // hosts ranging from ea-php74 (KIP) to ea-php83, so we cannot
+    // rely on PHP 8.0's constructor property promotion or 8.1's
+    // readonly modifier here. The semantics stay identical: the
+    // three values are assigned once in __construct and never
+    // mutated thereafter.
+    /** @var string */
+    private $url;
+    /** @var string */
+    private $tenantId;
+    /** @var string */
+    private $sharedSecret;
+
     public function __construct(
-        private readonly string $url,
-        private readonly string $tenantId,
-        private readonly string $sharedSecret,
+        string $url,
+        string $tenantId,
+        string $sharedSecret,
         ?callable $logger = null
     ) {
+        $this->url = $url;
+        $this->tenantId = $tenantId;
+        $this->sharedSecret = $sharedSecret;
         $this->logger = $logger;
     }
 
@@ -322,7 +338,7 @@ final class RemoteConfig
                     . ' last_modified = NOW()'
                     . " WHERE configuration_key = '" . zen_db_input($key) . "'"
                 );
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
                 // Best-effort — a single failed write doesn't fail the pull.
             }
         }

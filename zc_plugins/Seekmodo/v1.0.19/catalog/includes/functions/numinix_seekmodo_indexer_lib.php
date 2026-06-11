@@ -180,7 +180,7 @@ if (!function_exists('_numinix_seekmodo_indexer_request_first_run_if_needed')) {
             if (!$row->EOF) {
                 $value = (string) $row->fields['configuration_value'];
             }
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
             return;
         }
         if ($value === '1') {
@@ -223,7 +223,7 @@ if (!function_exists('_numinix_seekmodo_indexer_request_first_run_if_needed')) {
                 . " SET configuration_value = '' "
                 . " WHERE configuration_key = 'NUMINIX_TYPESENSE_LAST_INDEXED_AT'"
             );
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
             return;
         }
         if (function_exists('apcu_store')) {
@@ -252,7 +252,7 @@ if (!function_exists('_numinix_seekmodo_indexer_push_snapshot')) {
         }
         try {
             (new \Numinix\Seekmodo\AutoPromoter())->pushSnapshot('indexer_run');
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
             return;
         }
         if (function_exists('apcu_store')) {
