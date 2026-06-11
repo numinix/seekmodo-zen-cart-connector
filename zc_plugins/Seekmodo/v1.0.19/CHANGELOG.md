@@ -195,6 +195,20 @@ The CSS additions (`.msg-warn`, `.diag-table`, `.sev-*`) are
 self-contained and do not perturb the existing snapshot card or
 transitions table styling.
 
+### MODIFIED: `catalog/includes/library/Numinix/Seekmodo/RemoteConfig.php`
+
+`RemoteConfig::push()` now merges the EnvProbe map into the FSM
+push payload under the `env` key on every call. The gateway
+persists this so `admin.seekmodo.com` operators can spot tenants
+running with degraded environment (APCu missing, OPcache disabled,
+old PHP) before the merchant notices.
+
+Forward-compatible with pre-env gateways: `Store::pushSnapshot`
+is a per-key allowlist, so a gateway running the older v8 schema
+silently ignores the `env` field and the push still records the
+FSM state. No flag day required for the connector ↔ gateway
+roll-out — they can land independently in either order.
+
 ## Carries over from v1.0.18
 
 - Stable signing key `seekmodo-2026-06` vendored in

@@ -127,6 +127,15 @@ final class RemoteConfig
      * gateway. Never blocks the caller — failures are logged and
      * forgotten, the next push retries fresh.
      *
+     * v1.0.19+ — also ships an `env` map (PHP version, extension
+     * load state) so admin.seekmodo.com can flag tenants running
+     * with degraded environment (no APCu, OPcache disabled, …)
+     * before the merchant notices. The env map is built by
+     * {@see EnvProbe::current()} and merged into the push payload
+     * here. A pre-v1.0.19-env gateway silently ignores the extra
+     * key (Store::pushSnapshot is a per-key allowlist), so
+     * shipping the connector before the gateway PR is safe.
+     *
      * @param array<string, mixed> $fsm Keys: auto_state,
      *   auto_state_since (ISO 8601), auto_history (list of last 16
      *   transitions), observed_count, errors_count.
@@ -135,6 +144,13 @@ final class RemoteConfig
     {
         if ($fsm === []) {
             return false;
+        }
+        // EnvProbe lives next to RemoteConfig in the same library
+        // tree but the autoloader may not have run yet on the
+        // pre-paired path; class_exists triggers a load attempt
+        // and falls back to omitting env on failure.
+        if (class_exists(EnvProbe::class) && !array_key_exists('env', $fsm)) {
+            $fsm['env'] = EnvProbe::current();
         }
         $row = $this->call(['push' => $fsm], self::PUSH_TIMEOUT_MS);
         if (is_array($row)) {
