@@ -127,6 +127,74 @@ alongside searches.
   handler emits a JS `window.location.href = …` instead of throwing
   a "headers already sent" warning.
 
+## Connector environment self-diagnostics (additive)
+
+A merchant-facing addition to the **Tools → Connect to Seekmodo**
+admin page. Surfaces the host's PHP environment so a self-hosted
+operator can self-serve the most common causes of degraded mode
+(missing extensions, disabled OPcache, locked-domain split-brain)
+without contacting support.
+
+### NEW: `catalog/includes/library/Numinix/Seekmodo/EnvProbe.php`
+
+A 200-line read-only helper. Two callable surfaces:
+
+1.  `EnvProbe::current(): array` — snapshots PHP version, SAPI, and
+    a fixed list of extension-load flags (`sodium_loaded`,
+    `apcu_loaded`, `apcu_extension`, `opcache_enabled`,
+    `curl_loaded`, `openssl_loaded`, `mysqli_loaded`,
+    `intl_loaded`, `json_loaded`) plus the connector's
+    `server_time_unix`. Pure PHP, no I/O.
+2.  `EnvProbe::diagnostics(?array $env = null): array` — turns the
+    raw map into a list of `{label, value, severity, hint}` rows
+    keyed to four severity tiers (`ok`, `warn`, `fail`, `info`).
+    Hints are one-liner copy-paste install commands keyed to the
+    host's PHP version (so an `ea-php74` host gets
+    `ea-php74-pecl-apcu`, an `ea-php82` host gets
+    `ea-php82-pecl-apcu`).
+
+A third helper, `EnvProbe::lockedDomainStatus()`, compares
+`NUMINIX_SEEKMODO_LOCKED_DOMAIN` to `HTTPS_CATALOG_SERVER` and
+returns the same severity-tagged shape — surfacing the
+"locked domain doesn't match the storefront's actual host" case
+that previously caused silent fallback to native search.
+
+PHP 7.4-compatible (no `mixed`, `readonly`, enums, or constructor
+property promotion) — same posture as the rest of v1.0.19 after
+the back-port. Tested by `tests/V1019EnvProbeTest.php` for row
+shape, severity classification, and PHP-version-aware install
+package names.
+
+### MODIFIED: `admin/numinix_seekmodo_connect.php`
+
+Two new sections, both rendered only when the storefront is paired:
+
+1.  **APCu warning banner** (`msg-warn`, yellow). Mirrors the
+    existing sodium error block but as a recommendation rather
+    than a blocker — APCu missing means the connector reaches
+    `mcp.seekmodo.com` on every admin render and every storefront
+    search burst (instead of riding a 5-min cache), causing brief
+    "gateway unreachable" flickers and slightly slower search.
+    Pairing and search still work.
+
+    Three install paths in collapsible `<details>` so the banner
+    stays compact: cPanel/EasyApache `yum install -y
+    ea-phpXY-pecl-apcu` + WHM Multi PHP INI Editor instructions,
+    Debian/Ubuntu `apt-get install -y phpX.Y-apcu`, and a copy-
+    paste-ready support-ticket template (with one-click
+    `mailto:` button) for managed/shared-host merchants who can't
+    `yum` anything themselves.
+
+2.  **Diagnostics panel** under the Last 5 transitions table.
+    Renders the full `EnvProbe::diagnostics()` table plus the
+    locked-domain row. Color-coded check / warn / cross icons
+    matching severity, with each row's hint shown inline so the
+    fix is one click away.
+
+The CSS additions (`.msg-warn`, `.diag-table`, `.sev-*`) are
+self-contained and do not perturb the existing snapshot card or
+transitions table styling.
+
 ## Carries over from v1.0.18
 
 - Stable signing key `seekmodo-2026-06` vendored in

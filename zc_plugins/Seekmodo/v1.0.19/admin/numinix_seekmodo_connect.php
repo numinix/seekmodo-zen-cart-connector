@@ -20,6 +20,7 @@
 
 require 'includes/application_top.php';
 
+use Numinix\Seekmodo\EnvProbe;
 use Numinix\Seekmodo\Pairing;
 use Numinix\Seekmodo\RemoteConfig;
 
@@ -63,6 +64,14 @@ $messages = [];
 // builds intentionally omit it; the package must be installed
 // per-major-minor (ea-php81-php-sodium etc).
 $sodiumOk = function_exists('sodium_crypto_sign_verify_detached');
+
+// v1.0.19 — environment probe drives the APCu warning banner and the
+// Diagnostics panel below the snapshot. Cheap (no I/O), so it's safe
+// to call on every render. Falls back to a defensive empty map if
+// the EnvProbe class isn't loadable (e.g. during a partial upgrade
+// where the new file hasn't been deployed yet).
+$env = class_exists(EnvProbe::class) ? EnvProbe::current() : [];
+$apcuOk = !empty($env['apcu_loaded']);
 
 if ($action === 'pair' && _seekmodo_check_csrf()) {
     if (!$sodiumOk) {
@@ -153,6 +162,11 @@ require DIR_WS_INCLUDES . 'admin_html_head.php';
 .seekmodo-card .msg{padding:10px 14px;border-radius:6px;margin:12px 0;font-size:13px;}
 .seekmodo-card .msg-error{background:#fde2e2;color:#7a1a1a;}
 .seekmodo-card .msg-success{background:#dcfce7;color:#166534;}
+.seekmodo-card .msg-warn{background:#fef3c7;color:#7a5b00;border-left:4px solid #d4a017;}
+.seekmodo-card .msg-warn strong{color:#5a4400;}
+.seekmodo-card .msg-warn details{margin-top:8px;}
+.seekmodo-card .msg-warn details summary{cursor:pointer;font-weight:600;}
+.seekmodo-card .msg-warn pre{background:#fffbe6;border:1px solid #f0deb0;padding:8px 10px;border-radius:4px;font-size:12px;white-space:pre-wrap;word-break:break-word;margin:6px 0;}
 .seekmodo-card .msg-paused{background:#fde2e2;color:#7a1a1a;border-left:4px solid #b91c1c;}
 .seekmodo-card .msg-paused strong{display:block;margin-bottom:4px;}
 .seekmodo-card .kv{display:grid;grid-template-columns:140px 1fr;gap:6px 12px;font-size:13px;margin:12px 0;}
@@ -162,6 +176,17 @@ require DIR_WS_INCLUDES . 'admin_html_head.php';
 .seekmodo-card table.transitions th,.seekmodo-card table.transitions td{padding:6px 8px;border-bottom:1px solid #eee;text-align:left;vertical-align:top;}
 .seekmodo-card table.transitions th{background:#f9fafb;font-weight:600;}
 .seekmodo-card table.transitions td.reason{color:#6b7280;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;}
+.seekmodo-card table.diag{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;}
+.seekmodo-card table.diag th,.seekmodo-card table.diag td{padding:7px 10px;border-bottom:1px solid #eee;text-align:left;vertical-align:top;}
+.seekmodo-card table.diag th{background:#f9fafb;font-weight:600;}
+.seekmodo-card table.diag td.value{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;}
+.seekmodo-card table.diag td.hint{color:#6b7280;font-size:12px;}
+.seekmodo-card table.diag tr.sev-ok td.label::before{content:"\2713 ";color:#127436;font-weight:700;}
+.seekmodo-card table.diag tr.sev-warn td.label::before{content:"\26A0 ";color:#a16207;font-weight:700;}
+.seekmodo-card table.diag tr.sev-fail td.label::before{content:"\2717 ";color:#b91c1c;font-weight:700;}
+.seekmodo-card table.diag tr.sev-info td.label::before{content:"\2022 ";color:#6b7280;}
+.seekmodo-card table.diag tr.sev-warn{background:#fffdf6;}
+.seekmodo-card table.diag tr.sev-fail{background:#fff7f7;}
 </style>
 </head>
 <body>
@@ -205,6 +230,69 @@ require DIR_WS_INCLUDES . 'admin_html_head.php';
       <br>
       <strong>Fix (Debian / Ubuntu):</strong>
       <code>apt-get install -y <?= htmlspecialchars($debPkg, ENT_QUOTES, CHARSET) ?> &amp;&amp; systemctl restart <?= htmlspecialchars($fpmSvc, ENT_QUOTES, CHARSET) ?></code>
+    </div>
+  <?php endif; ?>
+
+  <?php if ($isPaired && !$apcuOk): ?>
+    <?php
+      // Mirrors the sodium block above but as a warning, not an error
+      // — APCu missing means degraded performance / occasional
+      // "gateway unreachable" flickers, not a broken connector.
+      // Severity tier matches EnvProbe::SEV_WARN.
+      $phpVa = explode('.', PHP_VERSION);
+      $eaApcu  = 'ea-php' . ($phpVa[0] ?? '8') . ($phpVa[1] ?? '1') . '-pecl-apcu';
+      $debApcu = 'php' . ($phpVa[0] ?? '8') . '.' . ($phpVa[1] ?? '1') . '-apcu';
+      $fpmSvcA = 'php' . ($phpVa[0] ?? '8') . '.' . ($phpVa[1] ?? '1') . '-fpm';
+      $apcuExtPresent = !empty($env['apcu_extension']);
+      $supportSubject = 'Enable APCu PHP extension for ' . PHP_VERSION;
+      $supportBody = "Hi,\n\nMy Zen Cart store needs the `apcu` PHP extension enabled "
+        . "for PHP " . PHP_VERSION . ". Could you install the "
+        . "`{$eaApcu}` package (cPanel/EasyApache 4) or `{$debApcu}` "
+        . "(Debian/Ubuntu) and set `apc.enabled=1` in our php.ini? "
+        . "It's a standard PECL extension and doesn't require any "
+        . "additional configuration. The Seekmodo search plugin uses "
+        . "it to cache configuration locally; without it, every admin "
+        . "page render makes an outbound HTTPS request to "
+        . "mcp.seekmodo.com.\n\nThanks!";
+    ?>
+    <div class="msg msg-warn">
+      <strong>APCu missing &mdash; Seekmodo is running in degraded mode.</strong><br>
+      <?php if ($apcuExtPresent): ?>
+        The APCu extension is loaded but disabled (<code>apc.enabled=0</code>).
+      <?php else: ?>
+        The PHP APCu extension is not loaded on this server.
+      <?php endif; ?>
+      Without it, the connector reaches <code>mcp.seekmodo.com</code>
+      on every admin page render and every storefront search burst,
+      instead of riding a 5-minute cache. You may see brief
+      &ldquo;gateway unreachable&rdquo; banners during normal network
+      hiccups, and your storefront search will be slightly slower.
+      Pairing and search still work.
+      <details>
+        <summary>Fix &mdash; cPanel / EasyApache 4 (root SSH or WHM)</summary>
+        <pre>yum install -y <?= htmlspecialchars($eaApcu, ENT_QUOTES, CHARSET) ?>
+# PHP-FPM is restarted automatically by the cPanel post-install hook.
+# If you used WHM > Software > EasyApache 4 instead, click "Provision"
+# to apply, then "Tools" > "Multi PHP INI Editor" and set
+# apc.enabled = 1 for your storefront's PHP version.</pre>
+      </details>
+      <details>
+        <summary>Fix &mdash; Debian / Ubuntu (root SSH)</summary>
+        <pre>apt-get install -y <?= htmlspecialchars($debApcu, ENT_QUOTES, CHARSET) ?>
+systemctl restart <?= htmlspecialchars($fpmSvcA, ENT_QUOTES, CHARSET) ?></pre>
+      </details>
+      <details>
+        <summary>Fix &mdash; managed / shared hosting (no SSH access)</summary>
+        Send your hosting provider this message:
+        <pre><?= htmlspecialchars($supportBody, ENT_QUOTES, CHARSET) ?></pre>
+        <a href="mailto:?subject=<?= rawurlencode($supportSubject) ?>&amp;body=<?= rawurlencode($supportBody) ?>" class="btn btn-secondary" style="margin-top:6px;">Open in email</a>
+      </details>
+      <p style="margin:10px 0 0 0;font-size:12px;color:#6b5400;">
+        Once installed, click <strong>Refresh snapshot</strong> below
+        and this banner will clear. The Diagnostics panel further
+        down lists the full set of PHP extensions the connector cares
+        about.
+      </p>
     </div>
   <?php endif; ?>
 
@@ -255,6 +343,40 @@ require DIR_WS_INCLUDES . 'admin_html_head.php';
               <td class="reason"><?= htmlspecialchars((string)($t['reason'] ?? ''), ENT_QUOTES, CHARSET) ?></td>
             </tr>
           <?php endforeach; ?>
+        </tbody>
+      </table>
+    <?php endif; ?>
+
+    <?php if (class_exists(EnvProbe::class)): ?>
+      <h2>Diagnostics</h2>
+      <p style="font-size:12px;color:#6b7280;margin:0 0 8px 0;">
+        Snapshot of the PHP extensions and runtime config the connector
+        depends on. <strong>Required</strong> rows in red mean a real
+        feature is broken; <strong>recommended</strong> rows in yellow
+        mean degraded performance / extra outbound traffic.
+      </p>
+      <table class="diag">
+        <thead><tr><th>Check</th><th>Value</th><th>Hint</th></tr></thead>
+        <tbody>
+          <?php foreach (EnvProbe::diagnostics($env) as $row): ?>
+            <tr class="sev-<?= htmlspecialchars($row['severity'], ENT_QUOTES, CHARSET) ?>">
+              <td class="label"><?= htmlspecialchars($row['label'], ENT_QUOTES, CHARSET) ?></td>
+              <td class="value"><?= htmlspecialchars($row['value'], ENT_QUOTES, CHARSET) ?></td>
+              <td class="hint"><?= htmlspecialchars($row['hint'], ENT_QUOTES, CHARSET) ?></td>
+            </tr>
+          <?php endforeach; ?>
+          <?php
+            // Locked-domain status — separate from the EnvProbe
+            // extension grid because it depends on Zen Cart's
+            // HTTPS_CATALOG_SERVER which isn't a PHP extension.
+            // Same severity tiers / row class.
+            list($ldSev, $ldCode, $ldDetail) = EnvProbe::lockedDomainStatus();
+          ?>
+          <tr class="sev-<?= htmlspecialchars($ldSev, ENT_QUOTES, CHARSET) ?>">
+            <td class="label">Locked domain</td>
+            <td class="value"><?= htmlspecialchars($ldCode, ENT_QUOTES, CHARSET) ?></td>
+            <td class="hint"><?= htmlspecialchars($ldDetail, ENT_QUOTES, CHARSET) ?></td>
+          </tr>
         </tbody>
       </table>
     <?php endif; ?>
