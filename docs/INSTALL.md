@@ -12,6 +12,66 @@ If you're upgrading from an existing install, skip to
 
 ---
 
+## 0. Recommended PHP extensions
+
+The connector self-checks the PHP environment and surfaces the
+result on **Tools → Connect to Seekmodo** (under *Diagnostics*),
+once paired. None of these are install-time gates — the plugin
+loads on PHP 7.4+ regardless — but each one matters for steady-state
+behaviour. Skim this list before install so the diagnostics panel is
+boring on day 1.
+
+| Extension | Required? | Why it matters |
+|---|---|---|
+| `sodium` | **Required** | Pairing uses ed25519 to verify the Seekmodo callback. Missing sodium fails pairing outright. |
+| `apcu` (with `apc.enabled=1`) | Strongly recommended | The connector caches the gateway snapshot for 5 minutes in APCu. Without it, every storefront request re-pulls the snapshot — admin pages lag and you'll see "gateway unreachable" flicker on the connector admin page even when the gateway is fine. **This was the production-stability cliff that drove §0.6 P1-4** — before v1.0.19 the connector would lock up admin pages on hosts without APCu. |
+| `opcache` (`opcache.enable=1`) | Strongly recommended | Standard PHP perf, not specific to Seekmodo. PHP reparses every request without it; the connector ships ~2k lines of code that don't need re-tokenizing on every page render. |
+| `curl` | Required | Connector uses curl for outbound calls to `mcp.seekmodo.com`. |
+| `openssl` | Required | TLS for the curl calls; also belt-and-braces for `random_bytes()` on hosts where libsodium's PRNG isn't available. |
+| `mysqli` | Required | Zen Cart's standard DB driver. Already installed on any Zen Cart 1.5.8+ host. |
+| `intl` (provides IDN) | Optional | Used to canonicalize internationalized storefront hostnames before sending them to the gateway's locked-domain check. Pure-ASCII shops don't need it. |
+
+Quick check from the host:
+
+```bash
+php -v                                # need >= 7.4
+php -m | grep -E 'sodium|apcu|opcache|curl|openssl|mysqli|intl'
+```
+
+If `apcu` is missing on **cPanel / EasyApache 4**:
+
+```bash
+yum install -y ea-php81-php-pecl-apcu     # adjust ea-phpXX to your runtime
+```
+
+If `apcu` is missing on **Debian / Ubuntu**:
+
+```bash
+apt-get install -y php8.1-apcu            # adjust 8.1 to your runtime
+phpenmod apcu
+systemctl restart php8.1-fpm apache2      # or nginx
+```
+
+If you're on **managed hosting** without shell access, paste this
+ticket into your provider's support form (replace the version):
+
+> Subject: please enable the apcu PHP extension
+>
+> Hello — our Zen Cart storefront uses the Seekmodo connector,
+> which expects APCu to be loaded with `apc.enabled=1` (and
+> `apc.enable_cli=1` if cron tasks call PHP directly). Could
+> you install the `php-pecl-apcu` package for our PHP runtime
+> and confirm `php -m | grep apcu` shows the extension loaded?
+> Thanks.
+
+After install, refresh **Tools → Connect to Seekmodo**; the APCu
+row in the *Diagnostics* table should flip from yellow to green.
+
+The matching operator-side surface lives at **admin.seekmodo.com →
+Settings**, where the same checks render in a *Connector
+environment* card (v1.0.19+ pushes the env data up on every FSM
+update).
+
 ## 1. Download the plugin
 
 Always download the **signed** zip from `seekmodo.com/plugins`:

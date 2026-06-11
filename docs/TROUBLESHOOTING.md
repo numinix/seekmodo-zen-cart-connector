@@ -88,6 +88,57 @@ minutes, RemoteConfig::pull() is failing silently. Set
 `NUMINIX_SEEKMODO_DEBUG=true` in `configuration` and look for
 `remote_config_pull` lines in `<docroot>/logs/numinix_seekmodo.log`.
 
+## "Connector admin says 'gateway unreachable' but mcp.seekmodo.com is up"
+
+The most common cause for a lying *gateway unreachable* banner is
+**the storefront PHP runtime is missing APCu** (or has it loaded
+but with `apc.enabled=0`). The connector caches the gateway
+snapshot in APCu for 5 minutes; without that cache, every admin
+page render and every storefront search burst makes a fresh
+gateway call. On a slow shared host, the resulting fan-out blows
+through the storefront's outbound concurrency budget and the
+*synchronous* gateway call that powers the admin status block
+times out — even though the gateway itself is healthy.
+
+How to confirm you're seeing this:
+
+1. Open **Tools → Connect to Seekmodo** in the Zen Cart admin.
+   The *Diagnostics* section (v1.0.19+) lists each PHP extension
+   with a colour-coded badge.
+2. The APCu row will show **degraded** with a yellow bullet and
+   an inline hint that begins with *"Without APCu the connector
+   reaches the gateway on every admin page render…"*.
+3. The page also renders an explicit yellow warning banner above
+   the snapshot block when APCu is missing — you can't miss it.
+
+Fix:
+
+- **cPanel / EasyApache 4**: WHM → Software → EasyApache 4 →
+  Customize → PHP Extensions → enable `php-pecl-apcu` for the
+  PHP version powering the storefront, then **Provision**. Then
+  WHM → Service Configuration → PHP-FPM → restart, or restart
+  the matching Apache PHP-FPM pool from the same screen.
+  Verify with `/usr/local/cpanel/3rdparty/bin/php -m | grep apcu`.
+  Confirm with `php -i | grep -E '^apc\\.(enabled|enable_cli)'`
+  — both should be `On`.
+- **Debian / Ubuntu**: `apt-get install -y php8.1-apcu` (adjust
+  `8.1` to your runtime), then `phpenmod apcu`, then restart the
+  matching `php-fpm` and web server. Confirm with
+  `php -m | grep apcu`.
+- **Managed / shared host**: paste the ticket template from
+  [`INSTALL.md` § 0](INSTALL.md#0-recommended-php-extensions) into
+  your provider's support form. Most managed hosts will turn APCu
+  on the same business day.
+
+After APCu is loaded, the next admin-page render picks up the cache
+on its own — no plugin reinstall needed.
+
+If APCu is loaded and the banner is still firing, check the
+storefront's outbound connectivity (see
+[Outbound connectivity](#outbound-connectivity) above) and
+[`https://status.seekmodo.com`](https://status.seekmodo.com)
+before assuming a connector bug.
+
 ## "Search is returning nothing where it used to return results"
 
 Almost always the gateway's circuit breaker is open and the storefront
