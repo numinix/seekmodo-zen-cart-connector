@@ -4,6 +4,30 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.20 — 2026-06-11
+
+- **Typeahead-perf parity with the WordPress connector v0.5.0
+  (SM-602 phase B).** The storefront-side typeahead JS now keeps a
+  32-entry LRU cache keyed on `(max, normalized q)` so backspacing
+  `boats -> boat` and retyping back to `boats` only pays one
+  network round trip. Adds a `lastQ` guard so a slow `boa` response
+  arriving after the user has moved on to `boats` can't overwrite
+  the freshly-rendered dropdown.
+
+  JS-only change — no PHP, no schema, no gateway-call shape shifts.
+  Phase C (browser-token gateway-direct fetch) is queued for
+  v1.0.21 because the Zen Cart connector doesn't mint browser
+  tokens today; the flat-rows `/v1/typeahead` migration is queued
+  behind it.
+
+  Spec: `seekmodo/docs/CONNECTOR_TYPEAHEAD_SPEC.md`.
+
+## v1.0.19 — 2026-06-11
+
+- **Category landing-page redirect** (search-features-plan Sprint 6
+  PR 1) — Klevu / Algolia parity for navigational-intent queries.
+  See `zc_plugins/Seekmodo/v1.0.19/CHANGELOG.md` for the full detail.
+
 ## v1.0.18 — 2026-06-08
 
 - **Stable ed25519 release-signing key (`seekmodo-2026-06`).** The
