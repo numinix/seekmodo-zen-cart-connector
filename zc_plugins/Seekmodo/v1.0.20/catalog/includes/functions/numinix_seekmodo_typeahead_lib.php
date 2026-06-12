@@ -120,6 +120,44 @@ if (!function_exists('numinix_seekmodo_run_typeahead')) {
             return null;
         }
 
+        // Result cache — same shape and rationale as the SERP cache
+        // in numinix_seekmodo_search_lib.php. Shopper sessions
+        // typically issue 3-6 typeahead requests per character ("p",
+        // "pi", "pin", "pint", ...) and the user backspaces / retypes
+        // often, so repeat queries within a 5-minute window are very
+        // common. Caching turns the gateway round-trip (~500-900ms)
+        // into a single-digit-ms file read.
+        //
+        // Cache TTL is intentionally short (180s) for typeahead so
+        // operator suggestion edits (curated keywords / promoted
+        // products on the gateway) propagate quickly. SERP cache
+        // uses 300s.
+        $cacheTtlS = 180;
+        $cacheBypass = isset($_GET['seekmodo_nocache']) && (string)$_GET['seekmodo_nocache'] === '1';
+        $useCache = ($mode === 'enforce')
+            && !$cacheBypass
+            && function_exists('_numinix_seekmodo_search_cache_get');
+        $cacheKey = null;
+        $cacheBackend = null;
+        if ($useCache) {
+            $tenant = function_exists('numinix_seekmodo_tenant_id')
+                ? (string)numinix_seekmodo_tenant_id()
+                : (string)(defined('NUMINIX_SEEKMODO_TENANT_ID') ? NUMINIX_SEEKMODO_TENANT_ID : '');
+            $cacheKey = 'sm_typeahead_v1:' . $tenant . ':'
+                . sha1(json_encode([
+                    'q'    => mb_strtolower($q),
+                    'max'  => $max,
+                    'opts' => $opts,
+                    'lang' => isset($_SESSION['languages_id']) ? (int)$_SESSION['languages_id'] : 1,
+                ], JSON_UNESCAPED_UNICODE));
+            $cached = _numinix_seekmodo_search_cache_get($cacheKey, $cacheTtlS, $cacheBackend);
+            if (is_array($cached) && isset($cached['result']) && is_array($cached['result'])) {
+                $GLOBALS['_numinix_seekmodo_last_typeahead_cache'] = 'hit-' . ($cacheBackend ?: 'unknown');
+                return $cached['result'];
+            }
+            $GLOBALS['_numinix_seekmodo_last_typeahead_cache'] = 'miss';
+        }
+
         // Sprint 3 PR 6 — typeahead routes through the gateway's
         // dedicated SuggestTool (/v1/suggest) by default. The legacy
         // /v1/search path is still wired (operators flip with
@@ -145,11 +183,27 @@ if (!function_exists('numinix_seekmodo_run_typeahead')) {
                 ) === 'true');
             }
             if (!$forceSearch) {
-                return _numinix_seekmodo_typeahead_via_suggest($q, $max, $opts);
+                $result = _numinix_seekmodo_typeahead_via_suggest($q, $max, $opts);
+                if ($useCache && $cacheKey !== null && is_array($result)) {
+                    _numinix_seekmodo_search_cache_put(
+                        $cacheKey,
+                        ['result' => $result, 'cached_at' => time()],
+                        $cacheTtlS
+                    );
+                }
+                return $result;
             }
         }
 
-        return _numinix_seekmodo_typeahead_via_search($q, $max, $opts);
+        $result = _numinix_seekmodo_typeahead_via_search($q, $max, $opts);
+        if ($useCache && $cacheKey !== null && is_array($result)) {
+            _numinix_seekmodo_search_cache_put(
+                $cacheKey,
+                ['result' => $result, 'cached_at' => time()],
+                $cacheTtlS
+            );
+        }
+        return $result;
     }
 }
 
