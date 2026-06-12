@@ -632,6 +632,74 @@ if (!function_exists('numinix_seekmodo_run_search')) {
             return null;
         }
 
+        // Enforce-mode result cache (APCu, short TTL). Shopper-facing
+        // SERPs / typeahead can hit the gateway dozens of times for a
+        // single user session (initial search + every sortby toggle +
+        // every pagination click), and the gateway round-trip is the
+        // single largest contributor to listing latency (~500–900ms in
+        // production). For shopper-facing requests, a hit on this
+        // cache turns a SERP from ~1s to ~150ms.
+        //
+        // Scope and safety:
+        //   - Only active in enforce mode. Shadow-mode prospects MUST
+        //     ship every storefront search to the gateway so the
+        //     trainer has full coverage; off/locked already short-
+        //     circuit above.
+        //   - Cached envelope retains the gateway's `meta` so the
+        //     click beacon's `search_event_id` and filter signature
+        //     replay correctly on cached hits (slightly less granular
+        //     attribution, but the trainer can dedupe by search_row).
+        //   - Result-set is the merged response BEFORE shopper sorting
+        //     / pagination — those happen entirely in MySQL against
+        //     the IN-list, so a single cached entry serves all sort
+        //     orders and page numbers for that query+filter combo.
+        //   - Failures (null result) are NOT cached, to avoid masking
+        //     transient gateway outages.
+        //   - Disabled when the `seekmodo_nocache=1` debug param is
+        //     present so operators can compare cached vs uncached
+        //     timings without flushing the cache.
+        $cacheTtlS = 300;
+        $cacheBypass = isset($_GET['seekmodo_nocache']) && (string)$_GET['seekmodo_nocache'] === '1';
+        $useCache = ($mode === 'enforce') && !$cacheBypass;
+        $cacheKey = null;
+        $cacheBackend = null; // 'apcu' | 'file' | null
+        if ($useCache) {
+            $tenant = function_exists('numinix_seekmodo_tenant_id')
+                ? (string)numinix_seekmodo_tenant_id()
+                : (string)(defined('NUMINIX_SEEKMODO_TENANT_ID') ? NUMINIX_SEEKMODO_TENANT_ID : '');
+            $keyParts = [
+                'kw'   => isset($params['keyword']) ? mb_strtolower(trim((string)$params['keyword'])) : '',
+                'desc' => isset($params['search_in_description']) ? (int)$params['search_in_description'] : 0,
+                'cat'  => isset($params['categories_id']) ? (int)$params['categories_id'] : 0,
+                'mfr'  => isset($params['manufacturers_id']) ? (int)$params['manufacturers_id'] : 0,
+                'pfr'  => isset($params['pfrom']) ? (float)$params['pfrom'] : 0.0,
+                'pto'  => isset($params['pto']) ? (float)$params['pto'] : 0.0,
+                'lang' => isset($_SESSION['languages_id']) ? (int)$_SESSION['languages_id'] : 1,
+            ];
+            $cacheKey = 'sm_search_v1:' . $tenant . ':' . sha1(json_encode($keyParts, JSON_UNESCAPED_UNICODE));
+            $cached = _numinix_seekmodo_search_cache_get($cacheKey, $cacheTtlS, $cacheBackend);
+            if (is_array($cached) && isset($cached['result']) && is_array($cached['result'])) {
+                if (isset($cached['meta']['search_event_id'])
+                    && function_exists('_numinix_seekmodo_remember_search_event')) {
+                    _numinix_seekmodo_remember_search_event([
+                        'search_event_id' => (int)$cached['meta']['search_event_id'],
+                        'keyword'         => isset($params['keyword']) ? (string)$params['keyword'] : '',
+                        'filter_by'       => isset($cached['meta']['filter_by']) ? (string)$cached['meta']['filter_by'] : '',
+                        'filters'         => isset($cached['meta']['filters']) && is_array($cached['meta']['filters'])
+                            ? $cached['meta']['filters'] : [],
+                        'filter_hash'     => isset($cached['meta']['filters']['hash'])
+                            ? (string)$cached['meta']['filters']['hash'] : null,
+                        'recorded_at'     => time(),
+                    ]);
+                }
+                $GLOBALS['_numinix_seekmodo_last_search_cache'] = 'hit-' . ($cacheBackend ?: 'unknown');
+                return $cached['result'];
+            }
+            $GLOBALS['_numinix_seekmodo_last_search_cache'] = 'miss';
+        } else {
+            $GLOBALS['_numinix_seekmodo_last_search_cache'] = $cacheBypass ? 'bypass' : 'disabled';
+        }
+
         // Build the gateway-side payload. The gateway's SearchTool
         // accepts the same param shape Typesense does plus a few
         // tenant-aware extras; we pass through the storefront's
@@ -755,7 +823,142 @@ if (!function_exists('numinix_seekmodo_run_search')) {
             ]);
         }
 
-        return _numinix_seekmodo_normalize_response($merged, $params);
+        $normalized = _numinix_seekmodo_normalize_response($merged, $params);
+
+        // Store the normalized result + a slim copy of the gateway
+        // meta envelope so future hits can replay the search_event_id
+        // for click-beacon attribution. Only cache real results --
+        // null normalizes (empty hits) shouldn't sit in cache long.
+        if ($useCache && $cacheKey !== null && is_array($normalized)) {
+            $metaSlim = [];
+            if (isset($firstResp['meta']) && is_array($firstResp['meta'])) {
+                if (isset($firstResp['meta']['search_event_id'])) {
+                    $metaSlim['search_event_id'] = $firstResp['meta']['search_event_id'];
+                }
+                if (isset($firstResp['meta']['filters'])) {
+                    $metaSlim['filters'] = $firstResp['meta']['filters'];
+                }
+            }
+            if (isset($payload['filter_by'])) {
+                $metaSlim['filter_by'] = (string)$payload['filter_by'];
+            }
+            _numinix_seekmodo_search_cache_put($cacheKey, [
+                'result'    => $normalized,
+                'meta'      => $metaSlim,
+                'cached_at' => time(),
+            ], $cacheTtlS);
+        }
+
+        return $normalized;
+    }
+}
+
+if (!function_exists('_numinix_seekmodo_search_cache_dir')) {
+    /**
+     * Resolve and lazily create the file-cache directory used by the
+     * search response cache when APCu is unavailable. We tier through
+     * three location candidates so the cache works whether the host
+     * uses cPanel's per-user tmp dir, Zen Cart's SQL cache dir, or
+     * the OS temp dir as a last resort.
+     */
+    function _numinix_seekmodo_search_cache_dir(): ?string
+    {
+        static $resolved;
+        if ($resolved !== null) {
+            return $resolved === '' ? null : $resolved;
+        }
+        $candidates = [];
+        if (defined('DIR_FS_SQL_CACHE') && DIR_FS_SQL_CACHE !== '') {
+            $candidates[] = rtrim(DIR_FS_SQL_CACHE, '/') . '/numinix_seekmodo';
+        }
+        if (defined('DIR_FS_CATALOG') && DIR_FS_CATALOG !== '') {
+            $candidates[] = rtrim(DIR_FS_CATALOG, '/') . '/cache/numinix_seekmodo';
+        }
+        $candidates[] = sys_get_temp_dir() . '/numinix_seekmodo';
+        foreach ($candidates as $dir) {
+            if (is_dir($dir) || @mkdir($dir, 0775, true)) {
+                if (is_writable($dir)) {
+                    $resolved = $dir;
+                    return $resolved;
+                }
+            }
+        }
+        $resolved = '';
+        return null;
+    }
+}
+
+if (!function_exists('_numinix_seekmodo_search_cache_get')) {
+    /**
+     * Read a cached search response. Tries APCu first (microseconds)
+     * and falls back to a per-tenant file cache (~1ms). The TTL is
+     * authoritative on read: stale files are deleted on demand so we
+     * don't accumulate dead entries on idle environments.
+     */
+    function _numinix_seekmodo_search_cache_get(string $key, int $ttlS, ?string &$backend = null)
+    {
+        $backend = null;
+        if (function_exists('apcu_fetch')) {
+            $ok = false;
+            $val = apcu_fetch($key, $ok);
+            if ($ok && is_array($val)) {
+                $backend = 'apcu';
+                return $val;
+            }
+        }
+        $dir = _numinix_seekmodo_search_cache_dir();
+        if ($dir === null) {
+            return null;
+        }
+        $file = $dir . '/' . sha1($key) . '.cache';
+        if (!is_file($file)) {
+            return null;
+        }
+        $age = time() - (int)@filemtime($file);
+        if ($age > $ttlS) {
+            @unlink($file);
+            return null;
+        }
+        $raw = @file_get_contents($file);
+        if ($raw === false || $raw === '') {
+            return null;
+        }
+        $decoded = @unserialize($raw, ['allowed_classes' => false]);
+        if (!is_array($decoded)) {
+            return null;
+        }
+        $backend = 'file';
+        return $decoded;
+    }
+}
+
+if (!function_exists('_numinix_seekmodo_search_cache_put')) {
+    /**
+     * Write a cached search response to both APCu (if available) and
+     * the file cache. The file backend gives us cross-FPM-worker
+     * sharing on hosts where APCu isn't installed (which is the
+     * default for cPanel ea-php7x FPM pools — common in the
+     * connector's hosted shared-hosting target).
+     */
+    function _numinix_seekmodo_search_cache_put(string $key, array $value, int $ttlS): void
+    {
+        if (function_exists('apcu_store')) {
+            @apcu_store($key, $value, $ttlS);
+        }
+        $dir = _numinix_seekmodo_search_cache_dir();
+        if ($dir === null) {
+            return;
+        }
+        $file = $dir . '/' . sha1($key) . '.cache';
+        $tmp = $file . '.tmp.' . getmypid();
+        $payload = @serialize($value);
+        if ($payload === false) {
+            return;
+        }
+        if (@file_put_contents($tmp, $payload, LOCK_EX) !== false) {
+            @chmod($tmp, 0664);
+            @rename($tmp, $file);
+        }
     }
 }
 
