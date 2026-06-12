@@ -4,6 +4,58 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.21 — 2026-06-12
+
+- **SM-606 Universal Suggest Widget.** Storefront typeahead now ships
+  the new `<seekmodo-suggest>` web component (the same custom element
+  the WordPress / BigCommerce / AKS connectors enqueue) and renders
+  the rich `/v1/suggest` envelope — recent + did-you-mean + keywords
+  + trending + products + categories + "View all N results" CTA —
+  all from one server round-trip. The legacy v1.0.14-era three-section
+  vanilla-JS dropdown is preserved on disk at
+  `seekmodo_typeahead.legacy.js` and enabled via the
+  `NUMINIX_SEEKMODO_SUGGEST_USE_LEGACY` constant (default false) for
+  one major-version cycle so a site with bespoke CSS tied to the old
+  dropdown markup can defer the swap.
+
+  Wiring:
+
+  - New `NuminixSeekmodoSuggestObserver` (`NOTIFY_HTML_HEAD_END`)
+    emits `<meta name="seekmodo:tenant|gateway|refresh|token">` so
+    the bundled SDK can resolve config on first access, then injects
+    `<script src=".../seekmodo_suggest.bundle.js" defer></script>`
+    plus a tiny inline autoboot that walks the same
+    `input[name="keyword"]`, `input#keyword`,
+    `input[data-seekmodo-typeahead]` selectors the legacy JS
+    auto-attached to.
+  - `catalog/numinix_seekmodo_suggest.php` keeps its existing
+    JSON-suggest route AND adds a new `?action=browser-token` route
+    that returns `{token, expires_at, session_id}` so a long-running
+    tab can refresh the gateway-direct JWT without a page reload.
+  - Browser-token mint is APCu-cached per-tenant (~1 mint / 4 min
+    regardless of keystroke volume) — same posture as the WP
+    connector's transient cache.
+
+  KIP's `numinix_seekmodo_suggest.php` catalog-root override (the
+  per-token multi-recall blend) is now redundant: WS-2 absorbed the
+  same interleave logic into `SuggestTool::loadTypesenseBlocks`, so
+  the bespoke shim can be deleted on the next KIP push.
+
+  Operator overrides (all constants):
+
+  - `NUMINIX_SEEKMODO_SUGGEST_ENABLED` (default true)
+  - `NUMINIX_SEEKMODO_SUGGEST_USE_LEGACY` (default false)
+  - `NUMINIX_SEEKMODO_SUGGEST_BLOCKS` — CSV of blocks in render
+    order; default `recent,did_you_mean,keywords,trending,products,
+    categories`.
+  - `NUMINIX_SEEKMODO_SUGGEST_VIEW_ALL_HREF` — URL template for the
+    "View all N results" CTA. Default: Zen Cart core SERP URL.
+
+  Bundle size: 22.6 KB raw / 7.25 KB gzip — under the 12 KB gzip
+  plan target.
+
+  Spec: `seekmodo/docs/CONNECTOR_TYPEAHEAD_SPEC.md` Phase E.
+
 ## v1.0.20 — 2026-06-11
 
 - **Typeahead-perf parity with the WordPress connector v0.5.0
