@@ -65,6 +65,11 @@ declare(strict_types=1);
 // plugin-dir URL hit ZC's session bootstrap with the wrong CWD and
 // 302-redirected to the storefront home before the route handler
 // could run.
+//
+// We chdir() to the live catalog root BEFORE requiring
+// application_top.php because ZC's bootstrap does relative requires
+// throughout (init_includes/, modules/, etc.) and silently
+// short-circuits to a redirect when the CWD isn't the catalog root.
 $applicationTopCandidates = [
     __DIR__ . '/includes/application_top.php',
     __DIR__ . '/../../../../includes/application_top.php',
@@ -81,6 +86,12 @@ if ($applicationTopPath === null) {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['ok' => false, 'error' => 'application_top_not_found']);
     return;
+}
+// catalog root = parent of the includes/ dir holding application_top.php
+$includesDir = dirname((string) realpath($applicationTopPath));
+$catalogRoot = dirname($includesDir);
+if ($catalogRoot !== '' && is_dir($catalogRoot)) {
+    chdir($catalogRoot);
 }
 require $applicationTopPath;
 

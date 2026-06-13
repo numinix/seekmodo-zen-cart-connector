@@ -4,19 +4,24 @@ declare(strict_types=1);
 
 /**
  * v1.0.21 (SM-606) — universal suggest-widget enqueue.
- * v1.0.22 (2026-06-13) — bundle / refresh URL now point at the plugin's
- *   own on-disk location (`/catalog/zc_plugins/Seekmodo/v<version>/catalog/...`)
- *   instead of the live template tree. Zen Cart 2.x's plugin loader merges
- *   PHP includes via auto_loaders but does NOT merge static assets or
- *   catalog-root PHP shims into the live catalog filesystem, so the
- *   v1.0.21 URLs returned 404/406 / 302-back-to-root on every storefront.
+ * v1.0.22 (2026-06-13) — bundle URL now points at the plugin's own
+ *   on-disk location (`/catalog/zc_plugins/Seekmodo/v<version>/catalog/...`)
+ *   instead of the live template tree. Zen Cart 2.x's plugin loader
+ *   merges PHP includes via auto_loaders but does NOT merge static
+ *   assets into the live catalog filesystem, so the v1.0.21 bundle URL
+ *   returned 404/406 on every storefront. The `.js` extension is
+ *   allowed by ZC's stock `zc_plugins/.htaccess` so the file is
+ *   reachable in-place — no per-tenant copy step needed. Catalog-root
+ *   PHP shims (`numinix_seekmodo_suggest.php` etc.) still need to be
+ *   deployed at the live catalog root because the same `.htaccess`
+ *   denies direct HTTP access to PHP files inside `zc_plugins/`.
  *
  * Hooks `NOTIFY_HTML_HEAD_END` and emits:
  *
  *   1. `<meta name="seekmodo:tenant|gateway|refresh|token">` so the
  *      bundled SDK inside `<seekmodo-suggest>` can resolve config on
  *      first access (token is mint-cached for ~5 min via APCu; refresh
- *      URL is `catalog/zc_plugins/Seekmodo/v<version>/catalog/numinix_seekmodo_suggest.php?action=browser-token`
+ *      URL is `catalog/numinix_seekmodo_suggest.php?action=browser-token`
  *      so a long-running tab can mint a fresh JWT without a page
  *      reload).
  *   2. `<script src=".../seekmodo_suggest.bundle.js">` — the
@@ -276,18 +281,20 @@ final class NuminixSeekmodoSuggestObserver extends base
     }
 
     /**
-     * Browser-token refresh URL. The PHP shim already routes a
-     * `?action=browser-token` request through `Client::tenantToken` and
-     * returns `{token, expires_at, session_id}` in the shape the
+     * Browser-token refresh URL. The PHP shim lives at the live
+     * catalog root (`/catalog/numinix_seekmodo_suggest.php`) and
+     * routes `?action=browser-token` through `Client::tenantToken`,
+     * returning `{token, expires_at, session_id}` in the shape the
      * `<seekmodo-suggest>` SDK expects.
      *
-     * v1.0.22 fix: the shim is invoked from inside the plugin's
-     * versioned dir (`/catalog/zc_plugins/Seekmodo/v<version>/catalog/numinix_seekmodo_suggest.php`).
-     * `numinix_seekmodo_suggest.php` was updated in the same release
-     * to resolve `includes/application_top.php` via `__DIR__` so it
-     * works at either the live catalog root or its plugin-dir home,
-     * which keeps backwards compatibility with tenants that have
-     * already symlinked / copied the shim into the live catalog tree.
+     * v1.0.22 deploys the shim file via the tenant repo's rsync
+     * pipeline (it has to land at the live catalog root because Zen
+     * Cart ships a `zc_plugins/.htaccess` that denies direct HTTP
+     * access to PHP files under `zc_plugins/`). The shim itself is
+     * `__DIR__`-rooted (see `numinix_seekmodo_suggest.php`) so if a
+     * future deploy ever does land it inside the plugin dir, it'll
+     * still resolve `includes/application_top.php` correctly — that
+     * patch is defensive, not load-bearing.
      */
     private function refreshUrl(): string
     {
@@ -295,10 +302,8 @@ final class NuminixSeekmodoSuggestObserver extends base
             return '';
         }
         $base = (string) constant('DIR_WS_CATALOG');
-        $version = $this->pluginVersion();
 
-        return $base . 'zc_plugins/Seekmodo/' . $version
-            . '/catalog/numinix_seekmodo_suggest.php?action=browser-token';
+        return $base . 'numinix_seekmodo_suggest.php?action=browser-token';
     }
 
     /**

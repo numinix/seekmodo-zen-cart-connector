@@ -4,35 +4,49 @@
 
 v1.0.22 is an **asset-URL hotfix on top of v1.0.21**. The v1.0.21
 release emitted the new `<seekmodo-suggest>` bundle as
-`/catalog/includes/templates/template_default/jscript/seekmodo_suggest.bundle.js`
-and the browser-token refresh URL as
-`/catalog/numinix_seekmodo_suggest.php?action=browser-token`, but Zen
-Cart 2.x's plugin loader merges PHP includes via `auto_loaders` only —
-it does **not** merge static assets or catalog-root PHP shims into the
-live catalog filesystem. The bundle URL therefore returned 404/406 on
-every storefront and the refresh URL 302-redirected to the storefront
-home before the route handler could run, so the universal suggest
-widget never reached the browser and shoppers continued to see the
-legacy search UX.
+`/catalog/includes/templates/template_default/jscript/seekmodo_suggest.bundle.js`,
+but Zen Cart 2.x's plugin loader merges PHP includes via
+`auto_loaders` only — it does **not** merge static assets into the
+live catalog template tree. The bundle URL therefore returned 404/406
+on every storefront, the `<seekmodo-suggest>` web component never
+loaded, and shoppers continued to see the legacy search UX (input box
+with no rich dropdown).
 
-v1.0.22 fixes this without requiring any per-tenant deploy step:
+v1.0.22 fixes this without requiring any per-tenant copy step:
 
 - `NuminixSeekmodoSuggestObserver::bundleSrc()` now emits the bundle
   URL pointing at the plugin's own versioned directory
   (`/catalog/zc_plugins/Seekmodo/v1.0.22/catalog/includes/templates/template_default/jscript/seekmodo_suggest.bundle.js`),
-  where the file actually lives.
-- `NuminixSeekmodoSuggestObserver::refreshUrl()` likewise points at
-  `/catalog/zc_plugins/Seekmodo/v1.0.22/catalog/numinix_seekmodo_suggest.php?action=browser-token`.
-- The catalog-root PHP shims (`numinix_seekmodo_suggest.php`,
-  `numinix_seekmodo_recommend.php`, `numinix_seekmodo_pair_callback.php`,
-  `numinix_seekmodo_forget_me.php`) now resolve
-  `includes/application_top.php` via a `__DIR__`-rooted candidate list
-  so they work both at the live catalog root (legacy tenant deploys
-  that hand-copied them there) and at the plugin's versioned dir (the
-  v1.0.22+ URL the observer emits).
+  where the file actually lives. ZC's stock `zc_plugins/.htaccess`
+  allows direct HTTP access to `.js` files, so the bundle is
+  reachable in-place — no rsync into the active template's `jscript/`
+  folder needed.
+- Version is derived from `__DIR__` via a new `pluginVersion()` helper
+  so the observer stays self-consistent across future version bumps.
+
+The browser-token refresh URL keeps the v1.0.21 path
+(`/catalog/numinix_seekmodo_suggest.php?action=browser-token`)
+because `zc_plugins/.htaccess` denies direct HTTP access to `.php`
+files inside `zc_plugins/` — that's intentional Zen Cart hardening
+and we don't override it. The shim file therefore still needs to
+live at the live catalog root; tenant repos that ship through the
+rsync-from-git deploy flow keep a committed copy of each
+catalog-root shim alongside the rest of the storefront tree (same
+posture as `numinix_seekmodo_pair_callback.php`, which has been
+deployed this way since v1.0.13).
+
+As defensive belt-and-suspenders, the four catalog-root PHP shims
+(`numinix_seekmodo_suggest.php`, `numinix_seekmodo_recommend.php`,
+`numinix_seekmodo_pair_callback.php`, `numinix_seekmodo_forget_me.php`)
+gained a `__DIR__`-rooted `application_top.php` resolver plus a
+`chdir()` to the catalog root before requiring it. This is a no-op
+when the file is at the live catalog root (CWD already correct) and
+makes the shim runnable from any nested location — useful for
+operators who symlink or otherwise embed the shim inside the plugin
+tree.
 
 No configuration, schema, or behavioral changes beyond making the
-v1.0.21 storefront UX reach the browser. Sites already on v1.0.21
+v1.0.21 storefront bundle reach the browser. Sites already on v1.0.21
 upgrade via the standard Zen Cart Plugin Manager "Upgrade" button (or
 auto-promotion path); the upgrade is idempotent.
 
