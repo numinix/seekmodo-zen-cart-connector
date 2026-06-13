@@ -4,6 +4,27 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.21 — 2026-06-12 (in-place refresh, SM-606 follow-up)
+
+- **Self-anchoring suggest bundle.** Refreshed the pinned
+  `seekmodo_suggest.bundle.js` to the build that ships SM-606's
+  self-anchoring + legacy-widget suppression behavior
+  (numinix/seekmodo commit e5f6090). The dropdown now pins itself
+  as a `position:fixed` overlay anchored to its bound input, tracks
+  scroll/resize/orientationchange/visualViewport/focusin, and
+  exposes `anchor`, `anchor-offset`, `anchor-min-width`, and
+  `suppress-legacy` attributes. Bundle is 8.4 KB gzipped (up ~1.15
+  KB; still under the 12 KB SDK budget).
+- **Default `suppress-legacy`.** The autoboot config now stamps
+  `suppress-legacy="jquery-ui,seekmodo-typeahead"` on every
+  `<seekmodo-suggest>` it spawns. On first focus of the bound
+  input, the widget calls `$(input).autocomplete('destroy')` (if
+  jQuery UI is bound) and hides any sibling
+  `<seekmodo-typeahead input="...">` element, so the rich dropdown
+  doesn't get shadowed by either legacy widget. Unrelated forms
+  (KIP / Numinix dropdown-cart suggest, wishlist suggest) keep
+  their legacy widget because we only target inputs by id.
+
 ## v1.0.21 — 2026-06-12
 
 - **SM-606 Universal Suggest Widget.** Storefront typeahead now ships

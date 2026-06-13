@@ -325,6 +325,16 @@ final class NuminixSeekmodoSuggestObserver extends base
                 'debounce-ms' => '150',
                 'limit'       => '5',
                 'cache-size'  => '32',
+                // SM-606 follow-up: the bundle's `suppress-legacy`
+                // attribute tears down sibling typeahead widgets bound
+                // to the same input on first focus. Zen Cart catalogs
+                // commonly ship jQuery UI autocomplete (the stock
+                // search box uses it on some templates) and a few
+                // bespoke storefronts (KIP, for one) still keep the
+                // Sprint-7 `<seekmodo-typeahead>` enqueued during the
+                // v1.0.20 → v1.0.21 cutover. Suppress both by default
+                // so the rich dropdown doesn't get shadowed.
+                'suppress-legacy' => 'jquery-ui,seekmodo-typeahead',
             ],
         ];
         $json = json_encode($cfg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
