@@ -2,17 +2,43 @@
 
 ## Summary
 
-v1.0.22 is an **asset-URL hotfix on top of v1.0.21**. The v1.0.21
-release emitted the new `<seekmodo-suggest>` bundle as
-`/catalog/includes/templates/template_default/jscript/seekmodo_suggest.bundle.js`,
-but Zen Cart 2.x's plugin loader merges PHP includes via
-`auto_loaders` only — it does **not** merge static assets into the
-live catalog template tree. The bundle URL therefore returned 404/406
-on every storefront, the `<seekmodo-suggest>` web component never
-loaded, and shoppers continued to see the legacy search UX (input box
-with no rich dropdown).
+v1.0.22 is an **SM-606 universal-suggest plumbing fixup on top of
+v1.0.21**. v1.0.21 shipped the new `<seekmodo-suggest>` bundle but
+three independent bugs in the plumbing meant the new dropdown never
+actually rendered on any storefront, so shoppers continued to see
+the legacy search UX (input box with no rich dropdown):
 
-v1.0.22 fixes this without requiring any per-tenant copy step:
+1. **Bundle URL pointed at the live template tree.** v1.0.21 emitted
+   `/catalog/includes/templates/template_default/jscript/seekmodo_suggest.bundle.js`,
+   but Zen Cart 2.x's plugin loader merges PHP includes via
+   `auto_loaders` only — it does **not** merge static assets into the
+   live catalog template tree. The bundle URL therefore returned
+   404/406 on every storefront.
+2. **`numinix_seekmodo_client()` public accessor was never written.**
+   The v1.0.21 observer's inline browser-token mint
+   (`NuminixSeekmodoSuggestObserver::browserToken()`) and the four
+   catalog-root PHP shims (`numinix_seekmodo_suggest.php` etc.) all
+   `function_exists('numinix_seekmodo_client')` then call the
+   function — but the library only ever exposed
+   `_numinix_seekmodo_client()` (underscore-prefixed). The
+   function-exists guard meant the storefront never errored out — it
+   just silently served `<meta name="seekmodo:token" content="">`
+   (no inline token) and `{"error":"unpaired"}` from the refresh
+   shim, so the `<seekmodo-suggest>` bundle had no way to reach the
+   gateway even when the storefront was paired correctly.
+3. **PHP shims lived only inside the plugin tree.** v1.0.21 assumed
+   the catalog-root PHP shims would be reachable at
+   `/catalog/numinix_seekmodo_suggest.php` etc., but Zen Cart's
+   plugin loader doesn't route them and ZC ships a stock
+   `zc_plugins/.htaccess` that denies direct HTTP access to `.php`
+   files under `zc_plugins/` (intentional ZC hardening). The shims
+   have to be deployed at the live catalog root via the tenant
+   repo's rsync-from-git pipeline. v1.0.13 already did this for
+   `numinix_seekmodo_pair_callback.php`; the other three shims were
+   missed in the v1.0.21 release.
+
+v1.0.22 fixes all three bugs without requiring any per-tenant copy
+step beyond a single new catalog-root commit per tenant repo:
 
 - `NuminixSeekmodoSuggestObserver::bundleSrc()` now emits the bundle
   URL pointing at the plugin's own versioned directory
@@ -20,9 +46,20 @@ v1.0.22 fixes this without requiring any per-tenant copy step:
   where the file actually lives. ZC's stock `zc_plugins/.htaccess`
   allows direct HTTP access to `.js` files, so the bundle is
   reachable in-place — no rsync into the active template's `jscript/`
-  folder needed.
-- Version is derived from `__DIR__` via a new `pluginVersion()` helper
-  so the observer stays self-consistent across future version bumps.
+  folder needed. Version is derived from `__DIR__` via a new
+  `pluginVersion()` helper so the observer stays self-consistent
+  across future version bumps.
+- `includes/functions/numinix_seekmodo_client.php` now exports a
+  public `numinix_seekmodo_client(): ?\Numinix\Seekmodo\Client`
+  wrapper that aliases the existing `_numinix_seekmodo_client()`
+  internal helper. Storefront observer's inline browser-token mint
+  and all four catalog-root PHP shims now resolve the SDK Client
+  correctly and can mint a real `tenants/token` JWT (or call
+  `recommend.*` / `tenant.shopper.forget` on the gateway). Without
+  this fix the connector would emit the new `<seekmodo-suggest>`
+  meta tags + bundle script tag fine, but every browser-token
+  refresh attempt would 503 with `{"error":"unpaired"}` and the
+  bundle would silently fall back to "no dropdown".
 
 The browser-token refresh URL keeps the v1.0.21 path
 (`/catalog/numinix_seekmodo_suggest.php?action=browser-token`)
