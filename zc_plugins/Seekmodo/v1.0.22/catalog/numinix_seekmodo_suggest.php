@@ -122,12 +122,16 @@ if (($_GET['action'] ?? '') === 'browser-token') {
         return;
     }
     $client = numinix_seekmodo_client();
-    if (!is_object($client) || !method_exists($client, 'callTool')) {
+    if (!is_object($client) || !method_exists($client, 'mintBrowserToken')) {
         http_response_code(503);
         echo json_encode(['error' => 'client_unavailable']);
         return;
     }
-    $resp = $client->callTool('tenants/token', ['ttl_seconds' => 300]);
+    // v1.0.22 fixup: mintBrowserToken() POSTs /v1/tenants/token
+    // directly, bypassing callTool()'s dot-only tool-name regex.
+    // v1.0.21 used callTool('tenants/token') which short-circuited
+    // to null on the regex check and surfaced as `mint_failed`.
+    $resp = $client->mintBrowserToken(300);
     if (!is_array($resp) || !isset($resp['token'], $resp['expires_at'])) {
         http_response_code(503);
         echo json_encode(['error' => 'mint_failed']);

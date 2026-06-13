@@ -492,6 +492,53 @@ class Client
         return $this->call('/v1/' . $toolName, $args, $this->searchTimeoutMs);
     }
 
+    /**
+     * v1.0.22 (SM-606 fixup): POST /v1/tenants/token — mint a
+     * short-lived browser-scoped JWT for the storefront's SDK.
+     *
+     * Distinct from {@see callTool()} because the gateway exposes
+     * this as a non-tool admin endpoint (slash-separated path, not
+     * a dot-separated tool catalog name). `callTool('tenants/token')`
+     * trips the dot-only regex on line 488 and short-circuits to
+     * null with a `call_tool_bad_name` warning — which is what
+     * v1.0.21 (and the first two v1.0.22 fixup commits) silently
+     * did, manifesting as `{"error":"mint_failed"}` 503s from the
+     * `numinix_seekmodo_suggest.php?action=browser-token` shim and
+     * empty `<meta name="seekmodo:token">` from the head observer.
+     *
+     * The wire shape mirrors the gateway's own response (Sprint 7
+     * PR 2): `{token, expires_at, issued_at, scope, session_id,
+     * token_type}`. Callers typically only consume `token` +
+     * `expires_at`; the rest is included so the WP connector's
+     * `Frontend\TypeaheadUI` snapshot can pass-through the same
+     * envelope to the SDK without a translation layer.
+     *
+     * Failure semantics are identical to the rest of the Client
+     * surface: every error path returns null and the caller MUST
+     * fall back gracefully (the storefront falls back to the
+     * legacy search UX; the shim returns 503 with a structured
+     * JSON error body the SDK can introspect).
+     *
+     * @param int $ttlSeconds Requested TTL (floored at 30, ceil 900
+     *                        by the gateway). Defaults to 300 to
+     *                        match the gateway's own default and
+     *                        the WP connector's BrowserToken::MINT_TTL_S.
+     * @param string $sid     Optional storefront-side session id so
+     *                        downstream bot-check correlates the JWT
+     *                        mint with the storefront's own
+     *                        analytics. Empty string means "let the
+     *                        gateway synthesise one".
+     * @return array<string,mixed>|null
+     */
+    public function mintBrowserToken(int $ttlSeconds = 300, string $sid = ''): ?array
+    {
+        $body = ['ttl_seconds' => max(30, min(900, $ttlSeconds))];
+        if ($sid !== '') {
+            $body['sid'] = substr($sid, 0, 64);
+        }
+        return $this->call('/v1/tenants/token', $body, $this->searchTimeoutMs);
+    }
+
     private function call(string $path, array $body, int $timeoutMs): ?array
     {
         if (!$this->isEnabled()) {
