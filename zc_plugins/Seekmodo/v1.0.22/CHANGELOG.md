@@ -4,7 +4,7 @@
 
 v1.0.22 is an **SM-606 universal-suggest plumbing fixup on top of
 v1.0.21**. v1.0.21 shipped the new `<seekmodo-suggest>` bundle but
-three independent bugs in the plumbing meant the new dropdown never
+four independent bugs in the plumbing meant the new dropdown never
 actually rendered on any storefront, so shoppers continued to see
 the legacy search UX (input box with no rich dropdown):
 
@@ -36,6 +36,19 @@ the legacy search UX (input box with no rich dropdown):
    repo's rsync-from-git pipeline. v1.0.13 already did this for
    `numinix_seekmodo_pair_callback.php`; the other three shims were
    missed in the v1.0.21 release.
+4. **`callTool('tenants/token', ...)` short-circuited on a regex
+   check.** The browser-token mint path called
+   `Client::callTool('tenants/token', ['ttl_seconds' => 300])`, but
+   `callTool()`'s tool-name regex
+   (`^[A-Za-z0-9_.\-]{2,128}$`) intentionally rejects slashes — the
+   gateway's tool catalog is dot-separated (`tenant.shopper.forget`,
+   `recommend.related`, etc.) and `tenants/token` is not actually
+   a tool but a non-tool admin endpoint (Sprint 7 PR 2 in the
+   gateway repo). The regex rejection meant every browser-token
+   mint silently returned null and surfaced as
+   `{"error":"mint_failed"}` from the refresh-URL shim and an
+   empty inline `<meta name="seekmodo:token">` from the head
+   observer — even after bugs 1, 2, and 3 above were fixed.
 
 v1.0.22 fixes all three bugs without requiring any per-tenant copy
 step beyond a single new catalog-root commit per tenant repo:
@@ -60,6 +73,17 @@ step beyond a single new catalog-root commit per tenant repo:
   meta tags + bundle script tag fine, but every browser-token
   refresh attempt would 503 with `{"error":"unpaired"}` and the
   bundle would silently fall back to "no dropdown".
+- `Client::mintBrowserToken(int $ttlSeconds = 300, string $sid = ''): ?array`
+  is a new public method that POSTs `/v1/tenants/token` directly
+  (bypassing `callTool()`'s dot-only regex). The two callsites
+  that used to pass `'tenants/token'` to `callTool()` (the head
+  observer's `browserToken()` and the suggest shim's
+  `?action=browser-token` branch) now call `mintBrowserToken()`
+  instead. Wire shape matches the gateway's
+  `{token, expires_at, issued_at, scope, session_id, token_type}`
+  envelope — callers typically only need `token` + `expires_at`
+  but the rest is passed through so the WP-equivalent
+  `Frontend\TypeaheadUI` payload can be served identically.
 
 The browser-token refresh URL keeps the v1.0.21 path
 (`/catalog/numinix_seekmodo_suggest.php?action=browser-token`)

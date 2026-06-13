@@ -332,10 +332,15 @@ final class NuminixSeekmodoSuggestObserver extends base
                 }
             }
             $client = numinix_seekmodo_client();
-            if (!is_object($client) || !method_exists($client, 'callTool')) {
+            if (!is_object($client) || !method_exists($client, 'mintBrowserToken')) {
                 return '';
             }
-            $resp = $client->callTool('tenants/token', ['ttl_seconds' => 300]);
+            // v1.0.22 fixup: was callTool('tenants/token', …) which
+            // tripped the dot-only regex on Client::callTool() and
+            // returned null. mintBrowserToken() POSTs the gateway's
+            // /v1/tenants/token endpoint directly via the same HMAC
+            // envelope.
+            $resp = $client->mintBrowserToken(300);
             if (!is_array($resp) || !isset($resp['token'], $resp['expires_at'])) {
                 return '';
             }
