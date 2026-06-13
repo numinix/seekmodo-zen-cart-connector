@@ -221,6 +221,52 @@ if (!function_exists('_numinix_seekmodo_client')) {
     }
 }
 
+if (!function_exists('numinix_seekmodo_client')) {
+    /**
+     * v1.0.22 (SM-606 fixup): public accessor for the lazy-cached SDK
+     * Client.
+     *
+     * External code paths reference this by name (via
+     * `function_exists('numinix_seekmodo_client')` gates) and expect
+     * an object with a `callTool($name, $args)` method on success or
+     * null on disabled/circuit-open/unpaired:
+     *
+     *   - NuminixSeekmodoSuggestObserver::browserToken() inlines a
+     *     fresh `tenants/token` mint into the `<meta name="seekmodo:token">`
+     *     tag so the bundle skips a refresh round-trip on first
+     *     render.
+     *   - The catalog-root `numinix_seekmodo_suggest.php` shim mints
+     *     the same token when the `<seekmodo-suggest>` bundle hits
+     *     the refresh URL after the inline token expires.
+     *   - The `numinix_seekmodo_recommend.php` shim hits the gateway
+     *     for `recommend.{algorithm}` calls.
+     *   - The `numinix_seekmodo_forget_me.php` shim wires the GDPR/
+     *     CCPA shopper-data deletion request through the gateway.
+     *
+     * Internal callers in this file keep using
+     * `_numinix_seekmodo_client()` directly because they're inside
+     * the same compilation unit and the underscore prefix is the
+     * historic convention. The wrapper is intentionally an alias —
+     * keeping a single backing instance means the AutoPromoter /
+     * circuit-breaker state is shared across all call sites.
+     *
+     * Why the typo (no public function in v1.0.21): SM-606 added the
+     * external touchpoints (observer browserToken() + the four
+     * catalog-root shims) but referenced a planned-but-never-written
+     * public name. The function-exists guard in the call sites
+     * meant the storefront never errored out — it just silently
+     * served `<meta name="seekmodo:token" content="">` (no inline
+     * token) and `{"error":"unpaired"}` from the shim, so shoppers
+     * fell back to the legacy search UX on every storefront and the
+     * new `<seekmodo-suggest>` web component never reached the
+     * gateway.
+     */
+    function numinix_seekmodo_client(): ?\Numinix\Seekmodo\Client
+    {
+        return _numinix_seekmodo_client();
+    }
+}
+
 if (!function_exists('numinix_seekmodo_search')) {
     /**
      * POST /v1/search — returns the decoded gateway response on
