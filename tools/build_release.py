@@ -128,7 +128,7 @@ DIST_DIR = REPO_ROOT / "dist"
 # an ephemeral in-memory keypair (which the in-plugin UpdateClient
 # refuses outright via the `dev-ephemeral` flag, so production CI
 # **MUST** land in one of the file paths below).
-_RELEASE_SIGNING_KID = "seekmodo-2026-06"
+_RELEASE_SIGNING_KID = "seekmodo-2026-06-r2"
 _RELEASE_SIGNING_KEY_DEFAULT = "/etc/numinix/release-signing.key"
 _RELEASE_SIGNING_KEY_LEGACY = "/etc/numinix/marketing-jwt.ed25519"
 

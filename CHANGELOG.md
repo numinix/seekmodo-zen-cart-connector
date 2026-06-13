@@ -4,6 +4,34 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.21 — 2026-06-13 (in-place refresh #2, signing-key rotation)
+
+- **Release-signing key rotation to `seekmodo-2026-06-r2`.** The
+  original `seekmodo-2026-06` ed25519 private key was unrecoverable
+  from accessible storage (per the JWKS rotation notes at
+  `https://seekmodo.com/.well-known/release-signing-keys.json`), so
+  Zen Cart releases now mint under the same `seekmodo-2026-06-r2`
+  keypair the WordPress connector adopted on 2026-06-10. Updates:
+  - `tools/build_release.py` declares `_RELEASE_SIGNING_KID =
+    "seekmodo-2026-06-r2"` (the on-disk file at
+    `/etc/numinix/release-signing-seekmodo-2026-06-r2.key` is the
+    only release-signing key present on seek-api01).
+  - `zc_plugins/Seekmodo/v1.0.21/admin/release-signing.pub` is
+    re-vendored with the r2 public key (`x =
+    ozNs5QQUhP6YNjE_KffhJqYtDQL8m2mHzWNivlhgoPA`).
+  - The marketing-site JWKS now lists `seekmodo-2026-06-r2.signs`
+    as `["wordpress", "zen_cart"]` and demotes `seekmodo-2026-06`
+    to `accepted` with empty `signs` (kept in the JWKS for audit
+    of v1.0.18..v1.0.20 artefacts).
+  - **Upgrade friction:** sites on v1.0.18..v1.0.20 with auto-
+    update enabled cannot apply v1.0.21 through the in-plugin
+    verifier; `UpdateClient::verifySignature()` will refuse with
+    "manifest sig_kid (seekmodo-2026-06-r2) != vendored kid
+    (seekmodo-2026-06); manual upgrade required to rotate keys".
+    Operators reinstall via Zen Cart's Plugin Manager and the
+    next auto-update (v1.0.21 -> v1.0.22+) will succeed because
+    v1.0.21 vendors the r2 trust root.
+
 ## v1.0.21 — 2026-06-12 (in-place refresh, SM-606 follow-up)
 
 - **Self-anchoring suggest bundle.** Refreshed the pinned
