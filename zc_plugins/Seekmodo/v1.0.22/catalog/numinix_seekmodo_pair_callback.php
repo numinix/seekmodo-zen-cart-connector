@@ -38,6 +38,11 @@ if ($applicationTopPath === null) {
     echo json_encode(['ok' => false, 'error' => 'application_top_not_found']);
     return;
 }
+$includesDir = dirname((string) realpath($applicationTopPath));
+$catalogRoot = dirname($includesDir);
+if ($catalogRoot !== '' && is_dir($catalogRoot)) {
+    chdir($catalogRoot);
+}
 require $applicationTopPath;
 
 use Numinix\Seekmodo\Pairing;
