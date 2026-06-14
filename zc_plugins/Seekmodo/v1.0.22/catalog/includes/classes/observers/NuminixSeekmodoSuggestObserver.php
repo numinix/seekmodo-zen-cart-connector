@@ -4,6 +4,14 @@ declare(strict_types=1);
 
 /**
  * v1.0.21 (SM-606) — universal suggest-widget enqueue.
+ * v1.0.22 (2026-06-14, fix-pack #4) — autoboot now wires a
+ *   `seekmodo-suggest:row-click` listener that handles navigation. The
+ *   web component is intentionally inert on click (it emits a
+ *   CustomEvent and lets the host decide where to send the shopper);
+ *   without this listener clicks on product rows visually highlighted
+ *   the row but produced no navigation at all (the bug reported on
+ *   redlinestands.com / poco-marine.com / numinix.com / numinix.ca
+ *   after the v1.0.22 universal-suggest rollout).
  * v1.0.22 (2026-06-13) — bundle URL now points at the plugin's own
  *   on-disk location (`/catalog/zc_plugins/Seekmodo/v<version>/catalog/...`)
  *   instead of the live template tree. Zen Cart 2.x's plugin loader
@@ -460,6 +468,52 @@ final class NuminixSeekmodoSuggestObserver extends base
     });
     mo.observe(document.documentElement, { childList: true, subtree: true });
   }
+  // ---- Row-click navigation (v1.0.22 fix-pack #4 for SM-606).
+  //
+  // The `<seekmodo-suggest>` web component intentionally does NOT
+  // navigate on row click; it just emits a `seekmodo-suggest:row-click`
+  // CustomEvent (`composed: true`, bubbles to document) and leaves
+  // the connector to decide where to send the shopper. Without this
+  // listener the dropdown felt completely inert: clicks visually
+  // highlighted the row, the input briefly stole focus back, then
+  // nothing happened.
+  //
+  // Behaviour, mirroring the implicit Zen Cart legacy typeahead:
+  //   - products / categories with `row.url`     -> location.href = row.url
+  //   - keyword-style blocks (recent, trending, keywords, did_you_mean)
+  //                                              -> view-all-href with {q}
+  //                                                 substituted by the
+  //                                                 row's keyword text
+  //   - products / categories WITHOUT row.url    -> view-all-href with {q}
+  //                                                 substituted by row.name
+  //                                                 (defensive — the
+  //                                                 indexer now stamps url,
+  //                                                 but older docs may
+  //                                                 lack it).
+  document.addEventListener('seekmodo-suggest:row-click', function (ev) {
+    var detail = (ev && ev.detail) || {};
+    var block = detail.block;
+    var row = detail.row || {};
+    var q = String(detail.q || '');
+    if ((block === 'products' || block === 'categories')
+        && row && typeof row.url === 'string' && row.url) {
+      window.location.href = row.url;
+      return;
+    }
+    var keyword = '';
+    if (block === 'did_you_mean') {
+      keyword = String(detail.value || (row && row.value) || q);
+    } else if (block === 'recent' || block === 'trending' || block === 'keywords') {
+      keyword = String((row && row.keyword) || detail.value || q);
+    } else if (block === 'products' || block === 'categories') {
+      keyword = String((row && (row.name || row.title)) || detail.value || q);
+    } else {
+      keyword = String(detail.value || q);
+    }
+    if (!keyword) return;
+    var viewAll = (CFG && CFG.view_all_href) || '/search?q={q}';
+    window.location.href = viewAll.replace('{q}', encodeURIComponent(keyword));
+  });
 })();</script>
 JS;
 
