@@ -1,5 +1,34 @@
 # Seekmodo Zen Cart connector — v1.0.22 changelog
 
+## In-place refresh #6 — CSP drop-in template (2026-06-14)
+
+Adds `zc_plugins/Seekmodo/v1.0.22/INSTALL/csp_seekmodo.php` — a
+ready-to-deploy CSP rule the operator copies into the storefront's
+`includes/extra_csp_policies/` on Zen Cart sites that emit a strict
+Content-Security-Policy header (the Numinix CSP loader at
+`includes/csp_policy_config.php` + glob of
+`includes/extra_csp_policies/*.php`).
+
+**Why this is needed.** With fix-pack #5 in place the
+`<seekmodo-suggest>` widget can mint its browser token against the
+same-origin shim, but the very next step — POSTing
+`/v1/suggest` against `https://mcp.seekmodo.com` — is blocked at
+the browser by the storefront's CSP unless `mcp.seekmodo.com`
+appears on `connect-src`. The SDK surfaces the block as
+`[seekmodo-suggest] fetch failed Seekmodo network failure: Failed
+to fetch` and the dropdown stays empty.
+
+Symptom reproduced on `numinix.com` and `numinix.ca` after
+fix-pack #5 landed. `redlinestands.com/catalog/` does not emit a
+CSP header and is unaffected; vanilla Zen Cart installs ship
+without CSP and likewise need nothing.
+
+The drop-in adds `mcp.seekmodo.com` to `script-src` and
+`connect-src`, plus the `*.seekmodo.com` wildcard on `connect-src`
+so any future regional gateway shards are pre-authorised. No DB
+schema or observer change — this is a single PHP file the
+operator copies on deploy.
+
 ## Summary
 
 v1.0.22 is an **SM-606 universal-suggest plumbing fixup on top of

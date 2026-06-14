@@ -4,6 +4,34 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.22 — 2026-06-14 (in-place refresh #6 — CSP drop-in template)
+
+- **Storefronts with a strict Content-Security-Policy need to allow
+  `mcp.seekmodo.com`** or the `<seekmodo-suggest>` widget mints a
+  browser token fine (via the same-origin shim) but every follow-up
+  POST to `/v1/suggest` is blocked by the browser before it leaves
+  the page — the SDK surfaces the block as
+  `[seekmodo-suggest] fetch failed Seekmodo network failure: Failed
+  to fetch` and the dropdown's `current` envelope stays null, which
+  the shopper experiences as "no suggestions at all".
+
+  Reproduced live on `www.numinix.com` and `www.numinix.ca` (both
+  carry a hand-built Numinix CSP via `includes/csp_policy_config.php`
+  + `includes/extra_csp_policies/`). Stores without a CSP header
+  (e.g. `redlinestands.com/catalog/`) are unaffected and need no
+  change.
+
+  Fix shipped: drop a single file at
+  `includes/extra_csp_policies/csp_seekmodo.php` that appends
+  `mcp.seekmodo.com` to `script-src` and `connect-src`, plus the
+  `*.seekmodo.com` wildcard on `connect-src` to cover any future
+  regional shards. Reference template lives next to the connector
+  at `zc_plugins/Seekmodo/v1.0.22/INSTALL/csp_seekmodo.php`;
+  operators on Numinix-style CSP storefronts should copy it into
+  the storefront's `includes/extra_csp_policies/` (Numinix.com and
+  Numinix.ca were patched by hand on 2026-06-14). No DB schema or
+  observer change.
+
 ## v1.0.22 — 2026-06-14 (in-place refresh #5 — browser-token POST refresh)
 
 - **Suggest dropdown now refreshes its JWT cleanly under the new
