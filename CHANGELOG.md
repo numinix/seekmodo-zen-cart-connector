@@ -4,6 +4,31 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.22 — 2026-06-14 (in-place refresh #4 — row-click navigation)
+
+- **Suggest dropdown clicks now navigate.** The
+  `<seekmodo-suggest>` web component is intentionally inert on click:
+  it emits a `seekmodo-suggest:row-click` CustomEvent
+  (`composed: true`, bubbles to `document`) and leaves the connector
+  to decide where to send the shopper. The v1.0.22 universal-suggest
+  rollout wired the autoboot script that *attaches* the element but
+  forgot the listener that *navigates* on the event, so every click
+  on a product row felt completely dead — visually the row
+  highlighted, the input briefly stole focus back, then nothing
+  happened. (Reported on `redlinestands.com/catalog/`,
+  `poco-marine.com`, `numinix.com`, and `numinix.ca`.)
+  - `NuminixSeekmodoSuggestObserver::autobootScript()` now appends a
+    `document.addEventListener('seekmodo-suggest:row-click', …)`
+    handler inside the same IIFE so it has the `CFG` view-all
+    template in scope.
+  - Behaviour: products / categories with `row.url` navigate to
+    that URL. Keyword-style blocks (`recent`, `trending`,
+    `keywords`, `did_you_mean`) and products / categories that
+    happen to lack `row.url` substitute the row's keyword (or name)
+    into `CFG.view_all_href` and navigate to the SERP.
+  - Pure additive change to the inline autoboot template — no other
+    files touched, no plugin schema or DB change.
+
 ## v1.0.22 — 2026-06-14 (in-place refresh — index `image_url`)
 
 - **Catalog pusher now indexes product thumbnails.**
