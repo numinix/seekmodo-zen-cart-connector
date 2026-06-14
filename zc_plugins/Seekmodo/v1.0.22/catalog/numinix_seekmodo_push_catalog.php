@@ -401,6 +401,14 @@ function _push_image_url(string $rawImage): string
     if (defined('DIR_WS_IMAGES') && stripos($rel, DIR_WS_IMAGES) !== 0) {
         $rel = ltrim((string) DIR_WS_IMAGES, '/') . ltrim($rel, '/');
     }
+    // Zen Cart stores filenames verbatim and many catalogs have
+    // product images with spaces or other reserved URL characters
+    // (e.g. "Generic Numinix.png"). The bundle uses image_url as an
+    // `<img src=...>` attribute -- a bare value with spaces happens
+    // to work in modern browsers but breaks the gateway's URL
+    // validator and downstream link checkers. Encode each path
+    // segment while preserving the slashes.
+    $rel = _push_encode_image_path($rel);
     if (defined('HTTPS_SERVER') && defined('DIR_WS_HTTPS_CATALOG')
         && defined('ENABLE_SSL_CATALOG') && (string) ENABLE_SSL_CATALOG === 'true'
     ) {
@@ -414,6 +422,33 @@ function _push_image_url(string $rawImage): string
             . ltrim($rel, '/');
     }
     return '';
+}
+
+/**
+ * Rawurlencode each path segment of a relative image path while
+ * preserving the segment separators. Pass-through for segments that
+ * are already safely encoded (e.g. cached thumbnails with `%20` baked
+ * in) so we don't double-encode.
+ */
+function _push_encode_image_path(string $path): string
+{
+    if ($path === '') {
+        return '';
+    }
+    $segments = explode('/', $path);
+    foreach ($segments as $i => $seg) {
+        if ($seg === '') {
+            continue;
+        }
+        // If a segment already contains a percent followed by two
+        // hex digits, treat it as pre-encoded and leave it alone --
+        // re-encoding would turn "%20" into "%2520".
+        if (preg_match('/%[0-9a-fA-F]{2}/', $seg) === 1) {
+            continue;
+        }
+        $segments[$i] = rawurlencode($seg);
+    }
+    return implode('/', $segments);
 }
 
 /**
