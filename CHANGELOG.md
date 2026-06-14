@@ -4,6 +4,37 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.22 — 2026-06-14 (in-place refresh — index `image_url`)
+
+- **Catalog pusher now indexes product thumbnails.**
+  `numinix_seekmodo_push_catalog.php` previously emitted documents with
+  `id / name / model / sku / description / brand / category_id /
+  p_type / category_breadcrumbs / price / in_stock / url` — no image
+  reference. The `<seekmodo-suggest>` bundle's product-row template
+  reads `o.image_url ?? o.image` and renders an empty
+  `<div class="thumb">` placeholder when neither is present, which is
+  exactly the symptom shoppers saw on `redlinestands.com/catalog/`
+  after the v1.0.22 universal-suggest rollout: rich layout, but every
+  product row had a blank square where the thumbnail belongs.
+  - The SELECT now pulls `p.products_image`, and a new
+    `_push_image_url($raw)` helper composes the absolute URL using
+    the standard Zen Cart catalog base
+    (`HTTPS_SERVER + DIR_WS_HTTPS_CATALOG` when SSL is on,
+    `HTTP_SERVER + DIR_WS_CATALOG` otherwise) plus `DIR_WS_IMAGES`.
+  - Already-absolute `https://…` values in `products_image` (a few
+    legacy storefronts pre-bake CDN URLs there) pass through
+    unchanged.
+  - Empty / missing image rows omit the `image_url` field so the
+    Typesense doc stays compact; the bundle's `??` fallback still
+    yields the empty-thumbnail placeholder.
+- After deploying this file, operators must re-run
+  `numinix_seekmodo_push_catalog.php` once per paired tenant to
+  populate `image_url` on existing Typesense documents — the connector
+  upserts whole docs per batch, so the next normal cron pass picks
+  up the new field automatically. The fix lands as an in-place
+  refresh of `v1.0.22` (no plugin schema or behaviour change beyond
+  the cron payload shape).
+
 ## v1.0.21 — 2026-06-13 (in-place refresh #2, signing-key rotation)
 
 - **Release-signing key rotation to `seekmodo-2026-06-r2`.** The
