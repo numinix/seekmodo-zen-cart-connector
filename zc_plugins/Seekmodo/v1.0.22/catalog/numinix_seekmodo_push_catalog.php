@@ -77,6 +77,11 @@
  *                                                   separate SKU column; model is the
  *                                                   conventional stand-in)
  *   url                   string  optional       — zen_href_link product_info URL
+ *   image_url             string  optional       — absolute URL of products.products_image
+ *                                                   (`HTTP_SERVER + DIR_WS_CATALOG + DIR_WS_IMAGES`
+ *                                                   prefix). Drives the typeahead's
+ *                                                   product-row thumbnail; the bundle
+ *                                                   reads `o.image_url ?? o.image`.
  *
  * The auto-computed Phase B rerank features (is_primary, is_accessory,
  * is_accessory_heuristic, title_token_count, head_noun,
@@ -244,7 +249,7 @@ if ($total === 0) {
 
 $baseSql = "SELECT p.products_id, p.products_model, p.products_type, p.products_price,"
     . " p.products_quantity, p.products_status, p.master_categories_id,"
-    . " p.manufacturers_id,"
+    . " p.manufacturers_id, p.products_image,"
     . " pd.products_name, pd.products_description,"
     . " m.manufacturers_name"
     . " FROM " . TABLE_PRODUCTS . " p"
@@ -357,6 +362,58 @@ function _push_breadcrumbs(int $productsId, int $languageId): array
         }
     }
     return array_values(array_unique($crumbs));
+}
+
+/**
+ * Build the absolute image URL for the storefront-visible product
+ * thumbnail. Zen Cart stores the relative path in
+ * `products.products_image` (e.g. `category/widget-thumb.jpg`); the
+ * gateway/typeahead needs a fully-qualified URL so the suggest
+ * widget's `<img src=...>` works cross-origin.
+ *
+ * Order of preference:
+ *
+ *   1. HTTPS_SERVER + DIR_WS_HTTPS_CATALOG (when SSL is enabled
+ *      catalog-side; matches what Zen Cart serves to logged-in
+ *      shoppers).
+ *   2. HTTP_SERVER + DIR_WS_CATALOG (the catalog's canonical
+ *      non-SSL base — every Zen Cart install defines this).
+ *
+ * Returns an empty string when the product has no image OR when
+ * neither base URL constant is defined (the suggest bundle then
+ * renders the empty `<div class="thumb">` placeholder).
+ *
+ * NB: we intentionally do NOT use `zen_get_products_image()` here
+ * because that helper returns an HTML `<img>` snippet sized for
+ * Zen Cart's product grid; the gateway document wants a raw URL.
+ */
+function _push_image_url(string $rawImage): string
+{
+    $rel = trim($rawImage);
+    if ($rel === '') {
+        return '';
+    }
+    // Defend against absolute-URL paths leaking in (some storefronts
+    // pre-bake CDN URLs into products_image).
+    if (preg_match('#^https?://#i', $rel) === 1) {
+        return $rel;
+    }
+    if (defined('DIR_WS_IMAGES') && stripos($rel, DIR_WS_IMAGES) !== 0) {
+        $rel = ltrim((string) DIR_WS_IMAGES, '/') . ltrim($rel, '/');
+    }
+    if (defined('HTTPS_SERVER') && defined('DIR_WS_HTTPS_CATALOG')
+        && defined('ENABLE_SSL_CATALOG') && (string) ENABLE_SSL_CATALOG === 'true'
+    ) {
+        return rtrim((string) HTTPS_SERVER, '/')
+            . (string) DIR_WS_HTTPS_CATALOG
+            . ltrim($rel, '/');
+    }
+    if (defined('HTTP_SERVER') && defined('DIR_WS_CATALOG')) {
+        return rtrim((string) HTTP_SERVER, '/')
+            . (string) DIR_WS_CATALOG
+            . ltrim($rel, '/');
+    }
+    return '';
 }
 
 /**
@@ -486,6 +543,10 @@ foreach ($products as $row) {
     }
     $doc['in_stock'] = ((int)($row['products_quantity'] ?? 0) > 0);
     $doc['url'] = _push_product_url($pid);
+    $imageUrl = _push_image_url((string) ($row['products_image'] ?? ''));
+    if ($imageUrl !== '') {
+        $doc['image_url'] = $imageUrl;
+    }
 
     $batch[] = $doc;
     if (count($batch) >= $batchSize) {
