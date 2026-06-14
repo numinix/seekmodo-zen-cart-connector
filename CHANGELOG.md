@@ -4,6 +4,41 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.0.22 — 2026-06-14 (in-place refresh #5 — browser-token POST refresh)
+
+- **Suggest dropdown now refreshes its JWT cleanly under the new
+  web-component SDK.** The `<seekmodo-suggest>` bundle's
+  `SeekmodoClient` POSTs the `seekmodo:refresh` URL on every keystroke
+  whose cached token is within 10s of expiry. Our refresh shim
+  (`numinix_seekmodo_suggest.php?action=browser-token`) used to accept
+  GET fine, but the SDK's POST hit Zen Cart's
+  `init_includes/init_sanitize.php` CSRF gate -- pulled in by
+  `application_top.php` -- and 302-redirected to `/time-out` before
+  the route handler could run. The SDK followed the redirect, found
+  /time-out doesn't return JSON, and surfaced the failure as
+  `seekmodo:refresh route returned HTTP 404`. The user-visible
+  symptom on `numinix.com`, `numinix.ca`, and any other ZC tenant on
+  v1.0.22 was that *no suggestions appeared at all* -- the dropdown's
+  shadow root stayed empty because `current` never advanced from
+  null.
+- Fix is a 7-line early guard in the shim: when the request is a
+  POST whose `?action=` is `browser-token`, downgrade
+  `$_SERVER['REQUEST_METHOD']` to `GET` and clear `$_POST` *before*
+  requiring `application_top.php`. The shim never reads the body
+  anyway (the action is a `$_GET` lookup) so the downgrade is
+  semantically transparent for this route. ZC's CSRF gate then sees
+  a GET and skips its token check, the route handler runs, and the
+  SDK gets the `{ token, expires_at, session_id }` envelope it
+  needed.
+- This is the **fifth in-place refresh of v1.0.22**. We deliberately
+  keep bumping fix-packs rather than rolling the version because
+  zen-cart admins install plugin updates by hand and a fix-pack ships
+  as "copy the same v1.0.22 zip on top, no DB migration", whereas a
+  version bump triggers their "install plugin" workflow which is
+  heavier. Tenant repos (Redline Stands, Numinix.com, Numinix.ca)
+  pick this up by syncing the file in their
+  `catalog/zc_plugins/Seekmodo/v1.0.22/catalog/` tree.
+
 ## v1.0.22 — 2026-06-14 (in-place refresh #4 — row-click navigation)
 
 - **Suggest dropdown clicks now navigate.** The

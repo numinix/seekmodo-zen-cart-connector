@@ -55,6 +55,36 @@
 
 declare(strict_types=1);
 
+// v1.0.22 fix-pack #5 (regression fix for SM-606 browser-token POSTs):
+// the `<seekmodo-suggest>` web component's SDK calls our refresh URL
+// with `method: 'POST'` on every keystroke that needs a fresh JWT
+// (Bun-built bundle, `packages/web-components/src/shared/client.ts`
+// L110). Zen Cart's `init_includes/init_sanitize.php` -- pulled in by
+// `application_top.php` -- rejects any POST that doesn't carry a valid
+// `securityToken` form field and 302-redirects the shopper to
+// `/time-out` BEFORE our route handler can mint a token. The SDK
+// follows the redirect, finds /time-out doesn't return JSON, and
+// surfaces the failure as `seekmodo:refresh route returned HTTP 404`
+// -- the precise console.warn line we captured in the Numinix.com
+// repro under CDP Runtime.evaluate. The user-visible symptom is
+// "search suggestions do not work at all" because the widget's
+// `current` envelope stays null and the dropdown's shadow root only
+// renders its <style> block.
+//
+// The shim itself ignores $_POST entirely -- the action is read from
+// $_GET['action'], the request body is unread. So we can safely
+// downgrade the request to GET before ZC's CSRF gate sees it. We
+// scope the patch as narrowly as possible: only the browser-token
+// action, only when the method is POST, so existing GET clients and
+// any future POST routes are untouched.
+if (
+    (($_GET['action'] ?? '') === 'browser-token')
+    && (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST')
+) {
+    $_SERVER['REQUEST_METHOD'] = 'GET';
+    $_POST = [];
+}
+
 // v1.0.22: resolve `includes/application_top.php` via __DIR__ so the
 // shim works whether it's served from the live catalog root (legacy
 // tenant deploys that copied the file there) OR from the plugin's
