@@ -1,5 +1,51 @@
 # Seekmodo Zen Cart connector — v1.1.1 changelog
 
+## Fix-pack #4 -- indexer batch enrichment for category breadcrumbs (2026-06-15)
+
+Pairs with fix-pack #3 and the gateway's per-doc breadcrumb walk.
+The gateway now correctly surfaces `categories` rows in
+`<seekmodo-suggest>` -- *when* the tenant's Typesense documents
+actually carry the parallel `category_id` (`int32[]`) and
+`category_breadcrumbs` (`string[]`) arrays the walk reads.
+
+A live probe of Redline (and AKS) revealed that legacy Zen Cart
+storefronts driving the connector through their pre-Seekmodo
+`transfer_products.php` cron + `includes/functions/typesense_indexer_lib.php`
+emit docs with at most a single-array `category_id` and **no**
+`category_breadcrumbs`. The connector's swap-point
+(`numinix_seekmodo_run_bulk_upsert`) used to pass those docs
+through unchanged, so the gateway-side fix had nothing to walk
+and `meta.counts.categories` stayed at 0 for the
+shopper-visible typeahead -- even after a full nightly reindex.
+
+This fix-pack adds `numinix_seekmodo_indexer_enrich_batch()`
+(public helper in `includes/functions/numinix_seekmodo_indexer_lib.php`)
+and calls it from `numinix_seekmodo_run_bulk_upsert()` before the
+chunked `/v1/index` POST. The helper:
+
+- Skips any doc that already carries both arrays (idempotent --
+  no-op for the standalone v1.0.10+ `numinix_seekmodo_push_catalog.php`
+  pathway, WP/WooCommerce, and BigCommerce indexers).
+- Bulk-fetches `(products_id, categories_id)` rows from
+  `products_to_categories` in **one** IN-list query per batch.
+- Loads the full `categories` + `categories_description` tree
+  once per request (statically cached across batches of the same
+  cron) for the active session's `languages_id`.
+- Walks each linked category up to the root and emits
+  `"Lifts > Parts & Accessories > Motorcycle Lift Wheel Vise"`-
+  style strings in `category_breadcrumbs`, matching the format
+  the standalone push script already produces.
+- Fail-open: any DB surprise, missing Zen Cart context, or
+  empty category tree leaves the batch untouched rather than
+  blocking the indexer cron.
+
+Net effect: the very next nightly cron pass on Redline / AKS /
+any Zen Cart tenant on the legacy indexer cron path now emits
+docs the gateway's SuggestTool can walk for the categories
+panel -- no storefront-side code change required of the
+operator. Tenants on the standalone `numinix_seekmodo_push_catalog.php`
+cron see no behaviour change (the helper short-circuits).
+
 ## Fix-pack #3 -- category rows trigger resolver redirect (2026-06-15)
 
 Pairs with the seekmodo gateway's per-doc breadcrumb walk (shipped
