@@ -25,6 +25,21 @@
  *     return null so the cron writes via the native /import path
  *     (the source of truth stays Typesense during shadow).
  *   - off:     not reached — numinix_seekmodo_enabled() short-circuits.
+ *
+ * RED-SUGGEST fix-pack #4 -- batch enrichment.
+ *   Before forwarding the batch we run
+ *   `numinix_seekmodo_indexer_enrich_batch()` which fills in
+ *   `category_id` (int32[]) and `category_breadcrumbs` (string[])
+ *   when the upstream indexer omitted them. The gateway's
+ *   SuggestTool categories block reads these two parallel arrays
+ *   per doc -- legacy Zen Cart indexers (Redline's
+ *   `typesense_indexer_lib.php`, the AKS catalogue indexer) emit
+ *   only the legacy `category_id` shape, which left those
+ *   tenants with `categories: []` in the typeahead even on a
+ *   complete reindex. The enrichment is idempotent (docs that
+ *   already carry both arrays pass through untouched) and
+ *   fail-open (any DB-level surprise leaves the batch unchanged
+ *   rather than blocking the cron).
  */
 
 if (!function_exists('numinix_seekmodo_run_bulk_upsert')) {
@@ -66,6 +81,19 @@ if (!function_exists('numinix_seekmodo_run_bulk_upsert')) {
         // owned by the connector so we don't have to ping the gateway
         // every batch.
         _numinix_seekmodo_indexer_request_first_run_if_needed();
+
+        // RED-SUGGEST fix-pack #4 -- enrich the batch with
+        // category_id + category_breadcrumbs when the upstream
+        // indexer omitted them. The SuggestTool categories block
+        // depends on these two parallel arrays being present in
+        // every product doc; legacy storefront indexers (Redline's
+        // transfer_products.php / typesense_indexer_lib.php) only
+        // emit `category_id` (or even nothing at all), so without
+        // this enrichment the gateway's per-doc breadcrumb walk
+        // returns `categories: []` even on a fully reindexed
+        // collection. Idempotent: docs that already carry both
+        // arrays are passed through untouched.
+        $batch = numinix_seekmodo_indexer_enrich_batch($batch);
 
         $startMs = (int)(microtime(true) * 1000);
         $result = numinix_seekmodo_index_chunked($batch);
@@ -258,5 +286,320 @@ if (!function_exists('_numinix_seekmodo_indexer_push_snapshot')) {
         if (function_exists('apcu_store')) {
             apcu_store($key, time(), 600);
         }
+    }
+}
+
+if (!function_exists('numinix_seekmodo_indexer_enrich_batch')) {
+    /**
+     * RED-SUGGEST fix-pack #4 -- enrich an outbound indexer batch
+     * with `category_id` (int32[]) and `category_breadcrumbs`
+     * (string[]) parallel arrays when the upstream indexer didn't
+     * already populate them.
+     *
+     * Why this matters: the gateway's `SuggestTool` categories
+     * block does a per-doc walk over these two parallel arrays. A
+     * tenant whose docs are missing both fields (Redline, AKS, any
+     * Zen Cart store driving the connector through a legacy
+     * `transfer_products.php` cron whose
+     * `typesense_indexer_lib.php` predates breadcrumb support)
+     * silently surfaces an empty categories panel in the
+     * typeahead -- even when the same shopper query unambiguously
+     * maps to a storefront category. The standalone v1.0.10+
+     * `numinix_seekmodo_push_catalog.php` already emits both
+     * arrays at index time, but the *swap-point* path (where the
+     * upstream indexer builds the docs and we just relay them to
+     * the gateway) didn't, leaving these tenants stuck.
+     *
+     * Posture:
+     *   - Idempotent. Docs that already carry both arrays are
+     *     short-circuited without a DB read.
+     *   - Best-effort. Any DB failure / Zen Cart context-missing
+     *     / language mis-detection silently passes the batch
+     *     through unchanged -- never makes the upstream indexer's
+     *     batch worse.
+     *   - Bulk-friendly. One `products_to_categories` query per
+     *     batch (vs N per-doc), one full category-tree query
+     *     statically cached per request.
+     *   - Language-aware. Uses the active session's
+     *     `languages_id`; falls back to 1 (Zen Cart default) when
+     *     the CLI session hasn't bootstrapped one.
+     *
+     * @internal Exposed `public` so the standalone push script
+     *           and unit tests can reuse the helper without
+     *           duplicating the tree-walk logic.
+     * @param array<int,array<string,mixed>> $batch
+     * @return array<int,array<string,mixed>>
+     */
+    function numinix_seekmodo_indexer_enrich_batch(array $batch): array
+    {
+        if ($batch === []) {
+            return $batch;
+        }
+        // Quick exit when every doc already has both arrays --
+        // common case for the standalone push script and the WP /
+        // BC connectors, which produce well-formed docs upstream.
+        $needsEnrich = false;
+        $productIds = [];
+        foreach ($batch as $doc) {
+            if (!is_array($doc)) {
+                continue;
+            }
+            $hasIds = isset($doc['category_id']) && is_array($doc['category_id']) && $doc['category_id'] !== [];
+            $hasCrumbs = isset($doc['category_breadcrumbs']) && is_array($doc['category_breadcrumbs']) && $doc['category_breadcrumbs'] !== [];
+            if ($hasIds && $hasCrumbs) {
+                continue;
+            }
+            $needsEnrich = true;
+            $pid = isset($doc['id']) ? (int) $doc['id'] : (isset($doc['products_id']) ? (int) $doc['products_id'] : 0);
+            if ($pid > 0) {
+                $productIds[$pid] = true;
+            }
+        }
+        if (!$needsEnrich) {
+            return $batch;
+        }
+        // We need the Zen Cart DB + table constants. Bail (return
+        // untouched batch) when running outside a Zen Cart context.
+        if (!isset($GLOBALS['db']) || !is_object($GLOBALS['db']) || !defined('TABLE_PRODUCTS_TO_CATEGORIES')) {
+            return $batch;
+        }
+        $languageId = _numinix_seekmodo_indexer_resolve_language_id();
+        $categoryMap = _numinix_seekmodo_indexer_collect_category_map(array_keys($productIds));
+        if ($categoryMap === []) {
+            return $batch;
+        }
+        [$nameMap, $parentMap] = _numinix_seekmodo_indexer_category_tree($languageId);
+        if ($nameMap === []) {
+            // Can't build breadcrumbs without category names. Best
+            // we can do is still attach the (possibly already
+            // present) category_id list so the gateway has at
+            // least the id surface to filter on.
+            foreach ($batch as $i => $doc) {
+                if (!is_array($doc)) {
+                    continue;
+                }
+                $pid = isset($doc['id']) ? (int) $doc['id'] : (isset($doc['products_id']) ? (int) $doc['products_id'] : 0);
+                if ($pid <= 0) {
+                    continue;
+                }
+                $ids = $categoryMap[$pid] ?? [];
+                if ($ids !== [] && (!isset($doc['category_id']) || !is_array($doc['category_id']) || $doc['category_id'] === [])) {
+                    $batch[$i]['category_id'] = $ids;
+                }
+            }
+            return $batch;
+        }
+        foreach ($batch as $i => $doc) {
+            if (!is_array($doc)) {
+                continue;
+            }
+            $pid = isset($doc['id']) ? (int) $doc['id'] : (isset($doc['products_id']) ? (int) $doc['products_id'] : 0);
+            if ($pid <= 0) {
+                continue;
+            }
+            $ids = $categoryMap[$pid] ?? [];
+            if ($ids === []) {
+                continue;
+            }
+            $hasIds = isset($doc['category_id']) && is_array($doc['category_id']) && $doc['category_id'] !== [];
+            $hasCrumbs = isset($doc['category_breadcrumbs']) && is_array($doc['category_breadcrumbs']) && $doc['category_breadcrumbs'] !== [];
+            if (!$hasIds) {
+                $batch[$i]['category_id'] = $ids;
+            }
+            if (!$hasCrumbs) {
+                $crumbs = [];
+                foreach ($ids as $cid) {
+                    $crumb = _numinix_seekmodo_indexer_build_breadcrumb((int) $cid, $nameMap, $parentMap);
+                    if ($crumb !== '') {
+                        $crumbs[] = $crumb;
+                    }
+                }
+                if ($crumbs !== []) {
+                    $batch[$i]['category_breadcrumbs'] = array_values(array_unique($crumbs));
+                }
+            }
+        }
+        return $batch;
+    }
+}
+
+if (!function_exists('_numinix_seekmodo_indexer_resolve_language_id')) {
+    /**
+     * Resolve the language id to use for the breadcrumb name
+     * lookup. Prefer the active Zen Cart session
+     * (`languages_id`); fall back to the storefront's default
+     * language constant; final fallback is 1 (every stock Zen
+     * Cart install ships with `languages_id=1` for English).
+     */
+    function _numinix_seekmodo_indexer_resolve_language_id(): int
+    {
+        if (isset($_SESSION['languages_id']) && (int) $_SESSION['languages_id'] > 0) {
+            return (int) $_SESSION['languages_id'];
+        }
+        if (defined('DEFAULT_LANGUAGE')) {
+            $code = (string) constant('DEFAULT_LANGUAGE');
+            if ($code !== '' && isset($GLOBALS['db']) && is_object($GLOBALS['db']) && defined('TABLE_LANGUAGES')) {
+                try {
+                    $row = $GLOBALS['db']->Execute(
+                        'SELECT languages_id FROM ' . TABLE_LANGUAGES
+                        . " WHERE code = '" . zen_db_input($code) . "' LIMIT 1"
+                    );
+                    if ($row && !$row->EOF) {
+                        $id = (int) $row->fields['languages_id'];
+                        if ($id > 0) {
+                            return $id;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // fall through
+                }
+            }
+        }
+        return 1;
+    }
+}
+
+if (!function_exists('_numinix_seekmodo_indexer_collect_category_map')) {
+    /**
+     * Bulk lookup of (products_id => [categories_id, ...]) for the
+     * supplied product id list. Single indexed query against
+     * `products_to_categories`, capped at the batch size of the
+     * caller so the IN-list stays sane.
+     *
+     * @param list<int> $productIds
+     * @return array<int, list<int>>
+     */
+    function _numinix_seekmodo_indexer_collect_category_map(array $productIds): array
+    {
+        if ($productIds === [] || !isset($GLOBALS['db']) || !is_object($GLOBALS['db']) || !defined('TABLE_PRODUCTS_TO_CATEGORIES')) {
+            return [];
+        }
+        $clean = [];
+        foreach ($productIds as $pid) {
+            $pid = (int) $pid;
+            if ($pid > 0) {
+                $clean[] = $pid;
+            }
+        }
+        if ($clean === []) {
+            return [];
+        }
+        $inList = implode(',', $clean);
+        $map = [];
+        try {
+            $rows = $GLOBALS['db']->Execute(
+                'SELECT products_id, categories_id FROM ' . TABLE_PRODUCTS_TO_CATEGORIES
+                . ' WHERE products_id IN (' . $inList . ')'
+            );
+            if ($rows) {
+                foreach ($rows as $r) {
+                    $pid = (int) ($r['products_id'] ?? 0);
+                    $cid = (int) ($r['categories_id'] ?? 0);
+                    if ($pid <= 0 || $cid <= 0) {
+                        continue;
+                    }
+                    if (!isset($map[$pid])) {
+                        $map[$pid] = [];
+                    }
+                    $map[$pid][] = $cid;
+                }
+            }
+        } catch (\Throwable $e) {
+            return [];
+        }
+        // Dedupe + reindex per-product.
+        foreach ($map as $pid => $ids) {
+            $map[$pid] = array_values(array_unique($ids));
+        }
+        return $map;
+    }
+}
+
+if (!function_exists('_numinix_seekmodo_indexer_category_tree')) {
+    /**
+     * Statically-cached snapshot of the full category tree at a
+     * given language: `[categories_id => name, categories_id => parent_id]`.
+     * Reads the whole `categories` + `categories_description` join in
+     * a single query the first time it's hit per request. On Redline
+     * (~300 categories) this is a single millisecond-scale query;
+     * subsequent batches in the same cron run reuse the cache.
+     *
+     * @return array{0: array<int, string>, 1: array<int, int>}
+     */
+    function _numinix_seekmodo_indexer_category_tree(int $languageId): array
+    {
+        static $cacheByLang = [];
+        if (isset($cacheByLang[$languageId])) {
+            return $cacheByLang[$languageId];
+        }
+        $nameMap = [];
+        $parentMap = [];
+        if (
+            !isset($GLOBALS['db']) || !is_object($GLOBALS['db'])
+            || !defined('TABLE_CATEGORIES') || !defined('TABLE_CATEGORIES_DESCRIPTION')
+        ) {
+            return $cacheByLang[$languageId] = [$nameMap, $parentMap];
+        }
+        try {
+            $rows = $GLOBALS['db']->Execute(
+                'SELECT cd.categories_id, cd.categories_name, c.parent_id'
+                . ' FROM ' . TABLE_CATEGORIES . ' c'
+                . ' INNER JOIN ' . TABLE_CATEGORIES_DESCRIPTION . ' cd'
+                . '   ON cd.categories_id = c.categories_id AND cd.language_id = ' . (int) $languageId
+            );
+            if ($rows) {
+                foreach ($rows as $r) {
+                    $cid = (int) ($r['categories_id'] ?? 0);
+                    if ($cid <= 0) {
+                        continue;
+                    }
+                    $nameMap[$cid] = (string) ($r['categories_name'] ?? '');
+                    $parentMap[$cid] = (int) ($r['parent_id'] ?? 0);
+                }
+            }
+        } catch (\Throwable $e) {
+            // leave maps empty -- caller falls back to id-only enrich
+        }
+        return $cacheByLang[$languageId] = [$nameMap, $parentMap];
+    }
+}
+
+if (!function_exists('_numinix_seekmodo_indexer_build_breadcrumb')) {
+    /**
+     * Walk a category id up to the root, returning the
+     * " > "-joined breadcrumb path ("Lifts > Parts & Accessories
+     * > Motorcycle Lift Wheel Vise"). Mirrors the format the
+     * standalone push script (`numinix_seekmodo_push_catalog.php`)
+     * emits so the gateway's per-doc walk treats both sources
+     * uniformly. Guards against parent-id cycles (16-step cap)
+     * and missing entries (returns '' rather than a half-walk).
+     *
+     * @param array<int, string> $nameMap
+     * @param array<int, int>    $parentMap
+     */
+    function _numinix_seekmodo_indexer_build_breadcrumb(int $cid, array $nameMap, array $parentMap): string
+    {
+        if ($cid <= 0 || !isset($nameMap[$cid])) {
+            return '';
+        }
+        $path = [];
+        $cursor = $cid;
+        $guard = 0;
+        while ($cursor > 0 && $guard < 16) {
+            if (!isset($nameMap[$cursor])) {
+                break;
+            }
+            $name = trim($nameMap[$cursor]);
+            if ($name === '') {
+                break;
+            }
+            array_unshift($path, $name);
+            $cursor = $parentMap[$cursor] ?? 0;
+            $guard++;
+        }
+        if ($path === []) {
+            return '';
+        }
+        return implode(' > ', $path);
     }
 }
