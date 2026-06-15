@@ -218,13 +218,22 @@ final class NuminixSeekmodoSuggestObserver extends base
      *
      * Observer file lives at
      *   zc_plugins/Seekmodo/v<version>/catalog/includes/classes/observers/NuminixSeekmodoSuggestObserver.php
-     * so five `dirname()` calls land on the version directory.
-     * Falls back to the bundled constant when the layout is unexpected
-     * (defensive — should never trigger in a real install).
+     * `__DIR__` is the `observers/` directory, so FOUR `dirname()` calls
+     * land on `zc_plugins/Seekmodo/v<version>` (the version directory we
+     * want). v1.0.22's original code used `dirname(__DIR__, 5)` which
+     * walks one level too high and lands on `zc_plugins/Seekmodo`, so
+     * `basename()` returned "Seekmodo", the guard rejected it, and the
+     * method silently fell back to the hard-coded "v1.0.22" string.
+     * The bug went undetected here because the fallback string matched
+     * the plugin version; v1.1.0 / v1.1.1 inherited the same off-by-one
+     * + the same "v1.0.22" fallback and ended up shipping the wrong
+     * bundle URL on every page.
+     * Falls back to a sane on-disk constant when the layout is
+     * unexpected (defensive — should never trigger in a real install).
      */
     private function pluginVersion(): string
     {
-        $versionDir = dirname(__DIR__, 5);
+        $versionDir = dirname(__DIR__, 4);
         $version = basename($versionDir);
         if ($version !== '' && $version !== '/' && $version[0] === 'v') {
             return $version;
