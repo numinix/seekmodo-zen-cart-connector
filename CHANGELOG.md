@@ -4,6 +4,32 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.1.0 — 2026-06-14 (PHP SDK + connector migration, phase 3)
+
+- **Internal refactor — shared SDK extraction.** The shared transport
+  / breaker / mode-FSM / pairing / events code lifted out into a new
+  Composer package, `numinix/seekmodo-connector` (PSR-4 root
+  `Numinix\SeekmodoSdk\`), and is now vendored into the plugin tree
+  at build time by `tools/build_release.py`. Same shared code now
+  powers the WordPress and AKS connectors too, so a single bug fix
+  lands everywhere on the next release.
+- **Runtime is unchanged for the storefront.** All v1.0.22 procedural
+  swap-points (`numinix_seekmodo_run_search`,
+  `numinix_seekmodo_run_typeahead`, `numinix_seekmodo_run_bulk_upsert`,
+  `numinix_seekmodo_mirror_*`) work exactly as before; the connector's
+  own `Numinix\Seekmodo\Client` / `RemoteConfig` / `Pairing` /
+  `AutoPromoter` classes are intentionally still present so the Zen
+  Cart-flavoured config readers + option-store writes don't have to
+  move in this release. See [MIGRATION.md](MIGRATION.md) for the
+  full back-out path.
+- **New plugin autoloader prefix.** `init_numinix_seekmodo.php` now
+  registers a second PSR-4 prefix (`Numinix\SeekmodoSdk\` →
+  `catalog/includes/library/Numinix/SeekmodoSdk/`) so the vendored
+  SDK is reachable without touching composer at runtime.
+- **No runtime composer dependency.** The plugin zip still installs
+  cleanly on a vanilla cPanel Zen Cart host — composer is only used
+  by `tools/build_release.py` on the operator's workstation.
+
 ## v1.0.22 — 2026-06-14 (in-place refresh #6 — CSP drop-in template)
 
 - **Storefronts with a strict Content-Security-Policy need to allow
