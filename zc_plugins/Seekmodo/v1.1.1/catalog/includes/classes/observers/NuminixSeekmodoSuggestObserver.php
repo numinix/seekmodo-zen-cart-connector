@@ -499,13 +499,26 @@ final class NuminixSeekmodoSuggestObserver extends base
   //                                              +  seekmodo_skip_category_redirect=1
   //                                                 (v1.1.1 fix-pack #2 --
   //                                                  see below)
-  //   - products / categories WITHOUT row.url    -> view-all-href with {q}
+  //   - categories WITHOUT row.url               -> view-all-href with {q}
+  //                                                 substituted by the leaf
+  //                                                 category name. NO skip
+  //                                                 marker -- we WANT the
+  //                                                 connector's resolver to
+  //                                                 302 the shopper to the
+  //                                                 matching category
+  //                                                 landing page (the
+  //                                                 leaf-name should match
+  //                                                 the category at score
+  //                                                 1.00).
+  //   - products WITHOUT row.url                 -> view-all-href with {q}
   //                                                 substituted by row.name
-  //                                                 (defensive — the
-  //                                                 indexer now stamps url,
-  //                                                 but older docs may
-  //                                                 lack it).
-  //                                              +  seekmodo_skip_category_redirect=1
+  //                                                 +  seekmodo_skip_category_redirect=1
+  //                                                 (defensive -- shopper
+  //                                                 picked a specific
+  //                                                 product, mis-routing to
+  //                                                 a category subtree
+  //                                                 would drop their
+  //                                                 intent.)
   //
   // v1.1.1 fix-pack #2 -- skip the connector's `category_redirect`
   // 302 when the shopper explicitly picked a keyword-style row.
@@ -526,6 +539,16 @@ final class NuminixSeekmodoSuggestObserver extends base
   // products. We tag the navigation with
   // `seekmodo_skip_category_redirect=1` so onAdvancedSearchStart()
   // bails before resolving the category and the SERP renders.
+  //
+  // RED-SUGGEST follow-up (this revision) -- treat the `categories`
+  // block as the OPPOSITE intent: the shopper EXPLICITLY picked a
+  // category row, so let the resolver 302 redirect to that landing
+  // page. The gateway's per-doc breadcrumb walk emits the leaf-only
+  // `name` (e.g. "Motorcycle Lift Wheel Vise") precisely so the
+  // resolver's exact-normalised-match path matches at score 1.00.
+  // We DO NOT stamp the skip marker on category clicks; the parent
+  // category block's behaviour (Klevu / Algolia parity) is what the
+  // shopper wants.
   function appendParam(url, key, value) {
     var hashIdx = url.indexOf('#');
     var base = hashIdx >= 0 ? url.slice(0, hashIdx) : url;
@@ -544,11 +567,21 @@ final class NuminixSeekmodoSuggestObserver extends base
       return;
     }
     var keyword = '';
+    // Default to "skip the resolver" -- safe for every keyword-style
+    // row (recent / trending / keywords / did_you_mean) and for any
+    // defensive product fallback. Only the explicit category branch
+    // below opts back in.
+    var skipCategoryRedirect = true;
     if (block === 'did_you_mean') {
       keyword = String(detail.value || (row && row.value) || q);
     } else if (block === 'recent' || block === 'trending' || block === 'keywords') {
       keyword = String((row && row.keyword) || detail.value || q);
-    } else if (block === 'products' || block === 'categories') {
+    } else if (block === 'categories') {
+      keyword = String((row && (row.name || row.title)) || detail.value || q);
+      // Let `NuminixSeekmodoObserver::onAdvancedSearchStart` 302 to
+      // the category landing page when the leaf matches.
+      skipCategoryRedirect = false;
+    } else if (block === 'products') {
       keyword = String((row && (row.name || row.title)) || detail.value || q);
     } else {
       keyword = String(detail.value || q);
@@ -556,7 +589,9 @@ final class NuminixSeekmodoSuggestObserver extends base
     if (!keyword) return;
     var viewAll = (CFG && CFG.view_all_href) || '/search?q={q}';
     var nav = viewAll.replace('{q}', encodeURIComponent(keyword));
-    nav = appendParam(nav, 'seekmodo_skip_category_redirect', '1');
+    if (skipCategoryRedirect) {
+      nav = appendParam(nav, 'seekmodo_skip_category_redirect', '1');
+    }
     window.location.href = nav;
   });
 })();</script>
