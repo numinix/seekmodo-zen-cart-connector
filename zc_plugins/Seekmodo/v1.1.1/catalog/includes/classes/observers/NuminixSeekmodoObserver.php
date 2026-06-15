@@ -252,6 +252,20 @@ class NuminixSeekmodoObserver extends \base
         if ($keyword === '') {
             return;
         }
+        // v1.1.1 fix-pack #2 -- the `<seekmodo-suggest>` dropdown stamps
+        // `seekmodo_skip_category_redirect=1` on the view-all URL it
+        // navigates to when the shopper clicked a keyword-style row
+        // (keywords / trending / recent / did_you_mean). The dropdown's
+        // own Categories block is the route for "I want the category
+        // landing page"; a click on a keyword row is "search the whole
+        // catalog for this phrase" intent and should not be overridden
+        // by the Klevu/Algolia-parity category redirect below. We honor
+        // the marker BEFORE the structured-filter check so the SERP
+        // renders even on the bare ?keyword=... shape the suggest
+        // bundle emits.
+        if (($_GET['seekmodo_skip_category_redirect'] ?? '') === '1') {
+            return;
+        }
         // Don't redirect when the shopper has narrowed by structured
         // filter (category, manufacturer, price range, date range) --
         // they've expressed a more specific intent than a bare query

@@ -496,12 +496,43 @@ final class NuminixSeekmodoSuggestObserver extends base
   //                                              -> view-all-href with {q}
   //                                                 substituted by the
   //                                                 row's keyword text
+  //                                              +  seekmodo_skip_category_redirect=1
+  //                                                 (v1.1.1 fix-pack #2 --
+  //                                                  see below)
   //   - products / categories WITHOUT row.url    -> view-all-href with {q}
   //                                                 substituted by row.name
   //                                                 (defensive — the
   //                                                 indexer now stamps url,
   //                                                 but older docs may
   //                                                 lack it).
+  //                                              +  seekmodo_skip_category_redirect=1
+  //
+  // v1.1.1 fix-pack #2 -- skip the connector's `category_redirect`
+  // 302 when the shopper explicitly picked a keyword-style row.
+  //
+  // The connector's `NuminixSeekmodoObserver::onAdvancedSearchStart`
+  // hook (v1.0.19, Klevu/Algolia parity) 302-redirects an
+  // advanced_search_result URL to a single matching category landing
+  // page when the bare query string maps to that category with high
+  // similarity. That's the right call for URL-bar / bookmark /
+  // form-submit entries -- the shopper hasn't expressed any other
+  // intent yet -- but it overrides the explicit choice a shopper made
+  // when they clicked a "keywords" / "trending" / "recent" /
+  // "did_you_mean" row in a multi-section dropdown that ALSO showed
+  // a separate (or empty) Categories section. The keyword section's
+  // search-count badge ("Wheel vise · 37") tells the shopper "this
+  // will search the whole catalog for this phrase"; bouncing them to
+  // a single category subtree silently drops the other matching
+  // products. We tag the navigation with
+  // `seekmodo_skip_category_redirect=1` so onAdvancedSearchStart()
+  // bails before resolving the category and the SERP renders.
+  function appendParam(url, key, value) {
+    var hashIdx = url.indexOf('#');
+    var base = hashIdx >= 0 ? url.slice(0, hashIdx) : url;
+    var hash = hashIdx >= 0 ? url.slice(hashIdx) : '';
+    var sep  = base.indexOf('?') >= 0 ? '&' : '?';
+    return base + sep + encodeURIComponent(key) + '=' + encodeURIComponent(value) + hash;
+  }
   document.addEventListener('seekmodo-suggest:row-click', function (ev) {
     var detail = (ev && ev.detail) || {};
     var block = detail.block;
@@ -524,7 +555,9 @@ final class NuminixSeekmodoSuggestObserver extends base
     }
     if (!keyword) return;
     var viewAll = (CFG && CFG.view_all_href) || '/search?q={q}';
-    window.location.href = viewAll.replace('{q}', encodeURIComponent(keyword));
+    var nav = viewAll.replace('{q}', encodeURIComponent(keyword));
+    nav = appendParam(nav, 'seekmodo_skip_category_redirect', '1');
+    window.location.href = nav;
   });
 })();</script>
 JS;
