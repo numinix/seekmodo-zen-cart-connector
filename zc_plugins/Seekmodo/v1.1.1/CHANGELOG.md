@@ -1,5 +1,32 @@
 # Seekmodo Zen Cart connector — v1.1.1 changelog
 
+## Fix-pack #3 -- category rows trigger resolver redirect (2026-06-15)
+
+Pairs with the seekmodo gateway's per-doc breadcrumb walk (shipped
+in the same day's `fix/suggest-categories-walk-*` PRs) that finally
+gets the `<seekmodo-suggest>` Categories block populated on Zen Cart
+tenants. The block had been empty in practice because the gateway's
+prior facet-only path required `facet=true` on the breadcrumb field,
+which the indexer didn't flag.
+
+This fix-pack updates the inline `seekmodo-suggest:row-click`
+handler in `NuminixSeekmodoSuggestObserver::renderRowClickHandler()`
+so a click on a `categories` row WITHOUT an explicit `row.url`
+navigates to the view-all URL with the leaf category name as the
+keyword AND WITHOUT the `seekmodo_skip_category_redirect=1` marker
+that fix-pack #2 added. With no skip marker,
+`NuminixSeekmodoObserver::onAdvancedSearchStart` runs its resolver;
+since the gateway now ships the LEAF as `row.name` (e.g.
+`"Motorcycle Lift Wheel Vise"`, not the full breadcrumb path), the
+resolver scores an exact-normalised match at 1.00 and 302's the
+shopper straight to the matching category landing page -- Klevu /
+Algolia parity for the explicit-category-click case.
+
+Other block kinds keep the fix-pack #2 behaviour: `recent`,
+`trending`, `keywords`, `did_you_mean`, and the defensive
+products-without-url fallback all still stamp the skip marker so
+the resolver doesn't override the shopper's explicit choice.
+
 ## Suggest dropdown widens to 480 px default (2026-06-15)
 
 Refreshes the vendored

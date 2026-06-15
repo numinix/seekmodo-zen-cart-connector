@@ -6,6 +6,26 @@ per-version detail lives next to the source under
 
 ## v1.1.1 — 2026-06-15 (suggest dropdown widens to 480 px default)
 
+### v1.1.1 fix-pack #3 — 2026-06-15 (category rows -> resolver redirect)
+
+- **Categories block now leads shoppers to category landing pages.**
+  The gateway's per-doc breadcrumb walk landed earlier today, so the
+  `<seekmodo-suggest>` dropdown now actually shows a Categories
+  section on Zen Cart tenants (it had been silently empty before
+  because the facet-only path needed `facet=true` on the breadcrumb
+  field). When a shopper clicks a category row WITHOUT an explicit
+  `row.url`, the inline click handler now passes the leaf name as
+  the search keyword WITHOUT the `seekmodo_skip_category_redirect`
+  marker -- so the connector's `onAdvancedSearchStart` resolver
+  matches the leaf at score 1.00 and 302's to the matching category
+  landing page (Klevu / Algolia parity). Keyword-style rows
+  (`recent`, `trending`, `keywords`, `did_you_mean`) keep the
+  v1.1.1 fix-pack #2 behaviour: skip the resolver and render the
+  full SERP. Product rows without a url keep the defensive
+  skip-marker so they don't get mis-routed to a category subtree.
+
+
+
 - **`<seekmodo-suggest>` bundle refresh.** Vendors
   `@seekmodo/web-components@0.2.1` into
   `zc_plugins/Seekmodo/v1.1.1/catalog/includes/templates/template_default/jscript/seekmodo_suggest.bundle.js`.
