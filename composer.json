@@ -14,11 +14,9 @@
     },
     "repositories": [
         {
-            "type": "path",
-            "url": "../seekmodo-php-sdk",
-            "options": {
-                "symlink": false
-            }
+            "type": "vcs",
+            "url": "https://github.com/numinix/seekmodo-php-sdk.git",
+            "no-api": true
         }
     ],
     "config": {
