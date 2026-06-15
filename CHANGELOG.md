@@ -4,6 +4,31 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.1.1 — 2026-06-15 (suggest dropdown widens to 480 px default)
+
+- **`<seekmodo-suggest>` bundle refresh.** Vendors
+  `@seekmodo/web-components@0.2.1` into
+  `zc_plugins/Seekmodo/v1.1.1/catalog/includes/templates/template_default/jscript/seekmodo_suggest.bundle.js`.
+  The bundle's default `anchor-min-width` raises from 320 → 480 px so
+  catalog-grade product names (`Handy Standard SBC990 Snowmobile
+  Lift`, `Redline TR1500 Trailer`) stop truncating at ~15 chars in
+  the typeahead dropdown on storefronts where the bound search input
+  is the typical ~280 px width.
+- **Mobile-safe viewport clamp.** A new runtime clamp caps the
+  rendered dropdown width at
+  `viewport.right - input.left - 8 px gutter`, so a 360 px mobile
+  viewport with a 280 px input at `left=16` renders the dropdown at
+  336 px instead of overflowing to 480 px and painting a horizontal
+  scrollbar.
+- **No PHP / behaviour change.** The vendored SDK pin
+  (`numinix/seekmodo-connector ^0.2`) stays at the v1.1.0 version
+  and every other catalog-side file is byte-identical to v1.1.0.
+- **Plugin Manager swap is non-destructive.** The v1.1.0 row in
+  Admin → Plugin Manager remains installed; the operator picks
+  v1.1.1 from the dropdown and clicks `Update`. Persistent settings
+  (mode, indexer schedule, tenant ID, paired-gateway URL) carry over
+  unchanged.
+
 ## v1.1.0 — 2026-06-14 (PHP SDK + connector migration, phase 3)
 
 - **Internal refactor — shared SDK extraction.** The shared transport
