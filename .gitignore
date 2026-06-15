@@ -3,6 +3,20 @@ dist/
 *.zip
 *.zip.sha256
 
+# Composer (build-time only: tools/build_release.py vendors the SDK
+# into the per-version plugin tree, then commits *only* the vendored
+# files — never composer's own vendor/ tree).
+vendor/
+composer.lock
+
+# Vendored SDK files inside the per-version plugin tree are produced
+# by `tools/build_release.py vendor_sdk()` and live alongside the
+# .gitkeep that pins the directory. They get bundled into the release
+# zip but should not be checked in (they'd lock us to one SDK version
+# and bloat git history with every SDK release).
+zc_plugins/Seekmodo/v*/catalog/includes/library/Numinix/SeekmodoSdk/*
+!zc_plugins/Seekmodo/v*/catalog/includes/library/Numinix/SeekmodoSdk/.gitkeep
+
 # OS
 .DS_Store
 Thumbs.db
@@ -18,3 +32,5 @@ Thumbs.db
 
 # Scratch / one-off deploy + verify scripts
 .tmp/
+*.pyc
+__pycache__/

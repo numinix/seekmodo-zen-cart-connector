@@ -1,0 +1,30 @@
+{
+    "name": "numinix/seekmodo-zen-cart-connector",
+    "description": "Seekmodo connector for Zen Cart 1.5.7c+. Composer is used ONLY at build time (tools/build_release.py) to pull the shared numinix/seekmodo-connector SDK and vendor it into the plugin tree. The plugin itself does NOT require composer at runtime - we vendor the SDK source files into zc_plugins/Seekmodo/<ver>/catalog/includes/library/Numinix/SeekmodoSdk/ and rely on the plugin's manual PSR-4 autoloader (init_numinix_seekmodo.php).",
+    "type": "project",
+    "license": "GPL-2.0-or-later",
+    "homepage": "https://seekmodo.com",
+    "support": {
+        "issues": "https://github.com/numinix/seekmodo-zen-cart-connector/issues",
+        "source": "https://github.com/numinix/seekmodo-zen-cart-connector"
+    },
+    "require": {
+        "php": "^8.0",
+        "numinix/seekmodo-connector": "^0.2"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../seekmodo-php-sdk",
+            "options": {
+                "symlink": false
+            }
+        }
+    ],
+    "config": {
+        "sort-packages": true,
+        "preferred-install": "dist"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

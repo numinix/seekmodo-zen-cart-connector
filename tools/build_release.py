@@ -212,6 +212,90 @@ def write_manifest_version(manifest: Path, triple: tuple[int, int, int]) -> None
     print(f"  manifest.php updated -> pluginVersion={new_str}")
 
 
+# ---------------------------------------------------------------------------
+# SDK vendoring — Phase 3 of the PHP SDK + connector migration.
+#
+# The shared numinix/seekmodo-connector SDK lives in its own repository
+# (sibling at ../seekmodo-php-sdk / package numinix/seekmodo-connector).
+# The connector itself stays composer-free at runtime (Zen Cart hosts
+# rarely have composer; we don't want to require it).
+#
+# At BUILD time we run `composer install --no-dev` at the connector
+# repo root, then copy the SDK's `vendor/numinix/seekmodo-connector/src/`
+# tree into the per-version plugin directory at
+# `catalog/includes/library/Numinix/SeekmodoSdk/`. The plugin's manual
+# PSR-4 autoloader (init_numinix_seekmodo.php) picks the classes up at
+# runtime with zero ceremony.
+#
+# We deliberately vendor under the namespace's PSR-4 root path
+# (Numinix\SeekmodoSdk\ -> library/Numinix/SeekmodoSdk/) — the same
+# convention the autoloader expects for the legacy Numinix\Seekmodo\
+# tree. The SDK has its own namespace root (Numinix\SeekmodoSdk\) so
+# it never collides with the connector's own Numinix\Seekmodo\* classes.
+# ---------------------------------------------------------------------------
+
+SDK_PACKAGE = "numinix/seekmodo-connector"
+SDK_VENDOR_REL = Path("vendor") / "numinix" / "seekmodo-connector" / "src"
+SDK_DEST_REL = Path("catalog") / "includes" / "library" / "Numinix" / "SeekmodoSdk"
+
+
+def vendor_sdk(version_dir: Path) -> int:
+    """Vendor `numinix/seekmodo-connector` into the per-version plugin tree.
+
+    Returns the number of PHP files copied. Skips silently (with a clear
+    notice) when `composer` is not on PATH — local devs without composer
+    can still build the legacy class-only zip, the SDK directory just
+    stays empty and the SDK-dependent code paths short-circuit.
+    """
+    print(f"-- vendoring {SDK_PACKAGE} into {SDK_DEST_REL.as_posix()}")
+    composer = shutil.which("composer") or shutil.which("composer.phar")
+    composer_json = REPO_ROOT / "composer.json"
+    if not composer_json.is_file():
+        print("  WARN: no composer.json at repo root; skipping SDK vendoring.")
+        return 0
+    if composer is None:
+        print("  WARN: composer not on PATH; skipping SDK vendoring.")
+        print("        Install from https://getcomposer.org/ to ship the SDK in the zip.")
+        return 0
+
+    _run([composer, "install", "--no-dev", "--no-interaction", "--prefer-dist"], cwd=REPO_ROOT)
+
+    sdk_src = REPO_ROOT / SDK_VENDOR_REL
+    if not sdk_src.is_dir():
+        raise SystemExit(
+            f"ERROR: expected {sdk_src} after composer install — package missing from composer.json?"
+        )
+
+    dest = version_dir / SDK_DEST_REL
+    # Clean the dest so a downgraded SDK doesn't leave stale files behind.
+    if dest.is_dir():
+        for child in dest.iterdir():
+            if child.name == ".gitkeep":
+                continue
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+    else:
+        dest.mkdir(parents=True, exist_ok=True)
+
+    copied = 0
+    for path in sorted(sdk_src.rglob("*")):
+        if path.is_dir():
+            continue
+        if path.suffix != ".php":
+            continue
+        rel = path.relative_to(sdk_src)
+        out = dest / rel
+        out.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, out)
+        copied += 1
+
+    rel_dest = dest.relative_to(REPO_ROOT)
+    print(f"  vendored {copied} SDK file(s) into {rel_dest.as_posix()}")
+    return copied
+
+
 def build_zip(version_dir: Path, version: str) -> Path:
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     out = DIST_DIR / f"seekmodo-zen-cart-{version}.zip"
@@ -712,6 +796,9 @@ def main() -> int:
     vendored_pub = vendor_public_key(version_dir, public_raw, sig_kid)
     print(f"  vendored public key -> {vendored_pub.relative_to(REPO_ROOT)}")
     print(f"  kid={sig_kid}, source={sig_source}")
+
+    print()
+    vendor_sdk(version_dir)
 
     print()
     print(f"-- zipping {version_dir.relative_to(REPO_ROOT)} -> {version_str}.zip")
