@@ -1,5 +1,49 @@
 # Seekmodo Zen Cart connector — v1.1.1 changelog
 
+## Fix-pack #5 -- restore "Did you mean: ..." on the gateway-routed SERP (2026-06-16)
+
+The search-result template renders a "Did you mean: *X*?" prompt above
+the listing when `class.search.php`'s `numinix_elastic_search_results()`
+return value carries a non-empty `corrected_query`. Under the
+gateway-enforce code path that return value now comes from
+`_numinix_seekmodo_normalize_response()` instead of the native
+direct-Typesense codepath -- but the normalizer only inspected the
+**flat** `$resp['corrected_query']` field, which the gateway envelope
+does not populate today. The result: the SERP went silent on every
+typo'd query under enforce mode, regressing the "moter cycle" ->
+"motorcycle" / "moter cylce" -> "motor cycle" behaviour Redline
+shoppers used to see on the native code path.
+
+This fix-pack restores the prompt with a three-tier extraction
+that mirrors the native logic:
+
+1. Flat `$resp['corrected_query']` (envelope-shape future-proof).
+2. `$resp['results']['request_params']['corrected_search_query']`
+   -- Typesense >=v27 stamps this whenever its typo tokenizer rewrote
+   a single token (e.g. `moter` -> `motor`). The gateway proxies the
+   raw Typesense response under `results`, so the field arrives
+   un-altered from the daemon.
+3. Local Levenshtein fallback against the returned doc names. Mirrors
+   the concat-token + per-token sweep in
+   `class.search.php::buildLocalDidYouMeanSuggestion()`:
+   - `moter cycle` -> `motorcycle` (concat tier, distance 1)
+   - `moter cylce` -> `motor cycle` (per-token tier, distance <=2)
+   - identity short-circuit so a verbatim echo of the shopper's
+     query is treated as "no correction".
+
+`numinix_seekmodo_run_search()` now also forwards the first page's
+`results.request_params` into the merged envelope so tier (2) survives
+the multi-page hit merge. Tier (3) operates on `results.hits[*].document.name`
+which the gateway already carries.
+
+Tie-breaks across all three tiers are deterministic: lower edit
+distance wins, then higher title-token frequency, then alphabetic.
+The same query yields the same suggestion across requests so the
+prompt is stable to cache.
+
+No schema, config, or admin-side change required. Behaviour matches
+the native path for tenants that toggle the connector to `off`.
+
 ## Fix-pack #4 -- indexer batch enrichment for category breadcrumbs (2026-06-15)
 
 Pairs with fix-pack #3 and the gateway's per-doc breadcrumb walk.

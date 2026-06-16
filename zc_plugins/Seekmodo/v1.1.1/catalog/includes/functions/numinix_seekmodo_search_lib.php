@@ -802,6 +802,18 @@ if (!function_exists('numinix_seekmodo_run_search')) {
         if (isset($firstResp['meta'])) {
             $merged['meta'] = $firstResp['meta'];
         }
+        // Fix-pack #5 -- preserve Typesense `request_params` from the
+        // first page so the normalizer can surface
+        // `corrected_search_query` (Typesense >=v27) as the "Did you
+        // mean: ..." prompt on the SERP. Without this carry-over the
+        // multi-page merge dropped the field on the floor and the
+        // template never saw a corrected_query, so the SERP went silent
+        // on typos that the gateway had actually flagged.
+        if (isset($firstResp['results']['request_params'])
+            && is_array($firstResp['results']['request_params'])
+        ) {
+            $merged['results']['request_params'] = $firstResp['results']['request_params'];
+        }
 
         // Stash the gateway's search_event_id (and the filter
         // signature, for cross-checking) on the request so the page
@@ -1575,7 +1587,41 @@ if (!function_exists('_numinix_seekmodo_normalize_response')) {
         } else {
             $total = count($products);
         }
-        $corrected = isset($resp['corrected_query']) ? (string)$resp['corrected_query'] : null;
+        // Fix-pack #5 -- "Did you mean: ..." restoration.
+        //
+        // Three-tier extraction so the SERP recovers the prompt even when
+        // the gateway envelope evolves:
+        //
+        //   (1) Flat `corrected_query` at the envelope root -- the path
+        //       a future gateway shape change might use.
+        //   (2) Typesense's `request_params.corrected_search_query`
+        //       passed through under `results` -- Typesense >=v27 sets
+        //       this whenever its typo tokenizer rewrote the query
+        //       (single-token edits like "moter" -> "motor").
+        //   (3) Local Levenshtein fallback against the returned doc
+        //       names -- mirrors the same per-token + concat-token
+        //       sweep `class.search.php::buildLocalDidYouMeanSuggestion`
+        //       runs on the native (non-gateway) code path, so split-
+        //       token typos like "moter cycle" -> "motorcycle" and
+        //       per-token recoveries the gateway didn't flag still
+        //       surface under enforce mode.
+        $corrected = isset($resp['corrected_query']) ? trim((string)$resp['corrected_query']) : '';
+        if ($corrected === '' && isset($resp['results']['request_params']['corrected_search_query'])) {
+            $corrected = trim((string)$resp['results']['request_params']['corrected_search_query']);
+        }
+        $keywordParam = isset($params['keyword']) ? trim((string)$params['keyword']) : '';
+        if ($corrected !== '' && $keywordParam !== '' && strcasecmp($corrected, $keywordParam) === 0) {
+            $corrected = '';
+        }
+        if ($corrected === '' && $keywordParam !== '' && isset($resp['results']['hits']) && is_array($resp['results']['hits'])) {
+            $localGuess = _numinix_seekmodo_build_local_did_you_mean(
+                $keywordParam,
+                $resp['results']['hits']
+            );
+            if ($localGuess !== null && $localGuess !== '' && strcasecmp($localGuess, $keywordParam) !== 0) {
+                $corrected = $localGuess;
+            }
+        }
         if ($corrected === '') {
             $corrected = null;
         }
@@ -1589,6 +1635,140 @@ if (!function_exists('_numinix_seekmodo_normalize_response')) {
             'variant' => $variant,
             'semantic_shadow' => $semanticShadow,
         ];
+    }
+}
+
+if (!function_exists('_numinix_seekmodo_build_local_did_you_mean')) {
+    /**
+     * Levenshtein "Did you mean: ..." fallback for the gateway-routed
+     * SERP. Used by `_numinix_seekmodo_normalize_response()` when neither
+     * the flat envelope nor Typesense's `request_params.corrected_search_query`
+     * supplies a correction.
+     *
+     * Mirrors the per-token + concat-token sweep that
+     * `class.search.php::buildLocalDidYouMeanSuggestion()` runs on the
+     * native (non-gateway) path:
+     *
+     *   1. Tokenize the shopper's query on non-alphanumeric runs.
+     *   2. Tally lowercase title tokens of >=4 chars across the first
+     *      ~60 returned docs.
+     *   3. CONCAT TIER -- when the query has 2+ tokens, glue them
+     *      together and look for a single title token within
+     *      Levenshtein distance 1. Catches "moter cycle" -> "motorcycle",
+     *      "air ram" -> "airram", etc. -- the user fat-fingered a
+     *      single word as two.
+     *   4. PER-TOKEN TIER -- for each query token >=4 chars that is
+     *      not already an exact title token, pick the closest title
+     *      token within distance <=2, weighted by frequency. Catches
+     *      "moter cylce" -> "motor cycle".
+     *
+     * Tie-breaks are deterministic (lower distance, then higher freq,
+     * then alphabetic) so the same query yields the same suggestion
+     * across requests.
+     *
+     * @param string $keyword  Raw shopper query.
+     * @param array  $hits     `$resp['results']['hits']` -- gateway hit envelopes
+     *                         shaped `{document: {name: ...}, ...}`.
+     * @return string|null     Corrected phrase or null when nothing close was found.
+     */
+    function _numinix_seekmodo_build_local_did_you_mean(string $keyword, array $hits): ?string
+    {
+        $keyword = strtolower(trim($keyword));
+        if ($keyword === '') {
+            return null;
+        }
+        $queryTokens = preg_split('/[^a-z0-9]+/', $keyword, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        if ($queryTokens === []) {
+            return null;
+        }
+
+        $titleTokenFrequency = [];
+        $sampled = 0;
+        foreach ($hits as $hit) {
+            if (!is_array($hit)) {
+                continue;
+            }
+            if ($sampled++ >= 60) {
+                break;
+            }
+            $doc = $hit['document'] ?? null;
+            if (!is_array($doc)) {
+                continue;
+            }
+            $name = strtolower((string)($doc['name'] ?? ''));
+            $tokens = preg_split('/[^a-z0-9]+/', $name, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            foreach ($tokens as $t) {
+                if (strlen($t) < 4) {
+                    continue;
+                }
+                $titleTokenFrequency[$t] = ($titleTokenFrequency[$t] ?? 0) + 1;
+            }
+        }
+        if ($titleTokenFrequency === []) {
+            return null;
+        }
+
+        // Concat-token tier — "moter cycle" -> "motorcycle".
+        if (count($queryTokens) >= 2) {
+            $joined = implode('', $queryTokens);
+            if (strlen($joined) >= 4) {
+                $bestJoined = null;
+                $bestJoinedScore = PHP_INT_MAX;
+                foreach ($titleTokenFrequency as $tt => $freq) {
+                    if (abs(strlen($tt) - strlen($joined)) > 4) {
+                        continue;
+                    }
+                    $d = levenshtein($joined, $tt);
+                    if ($d > 1) {
+                        continue;
+                    }
+                    $score = ($d * 1_000_000) - $freq;
+                    if ($score < $bestJoinedScore
+                        || ($score === $bestJoinedScore && $bestJoined !== null && strcmp($tt, $bestJoined) < 0)) {
+                        $bestJoinedScore = $score;
+                        $bestJoined = $tt;
+                    }
+                }
+                if ($bestJoined !== null && $bestJoined !== $joined) {
+                    return $bestJoined;
+                }
+            }
+        }
+
+        // Per-token tier — "moter cylce" -> "motor cycle".
+        $changed = false;
+        $corrected = [];
+        foreach ($queryTokens as $qt) {
+            if (strlen($qt) < 4 || isset($titleTokenFrequency[$qt])) {
+                $corrected[] = $qt;
+                continue;
+            }
+            $best = null;
+            $bestScore = PHP_INT_MAX;
+            foreach ($titleTokenFrequency as $tt => $freq) {
+                if (abs(strlen($tt) - strlen($qt)) > 2) {
+                    continue;
+                }
+                $d = levenshtein($qt, $tt);
+                if ($d > 2) {
+                    continue;
+                }
+                $score = ($d * 1_000_000) - $freq;
+                if ($score < $bestScore
+                    || ($score === $bestScore && $best !== null && strcmp($tt, $best) < 0)) {
+                    $bestScore = $score;
+                    $best = $tt;
+                }
+            }
+            if ($best !== null && $best !== $qt) {
+                $changed = true;
+                $corrected[] = $best;
+            } else {
+                $corrected[] = $qt;
+            }
+        }
+
+        return $changed ? implode(' ', $corrected) : null;
     }
 }
 
