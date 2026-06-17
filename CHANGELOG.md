@@ -4,6 +4,11 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.1.2 — 2026-06-17 (Connect Update + git auto-sync)
+
+- **Connect page Update button** when a newer signed release is published (same apply path as Seekmodo Updates).
+- **`GitSyncTrigger`** runs `cron/sync-to-git.sh` immediately after a successful in-plugin apply on git-enabled hosts; admin UI surfaces sync status. Branch propagation cherry-picks are documented in `zencart_git`.
+
 ## v1.1.1 — 2026-06-15 (suggest dropdown widens to 480 px default)
 
 ### v1.1.1 fix-pack #3 — 2026-06-15 (category rows -> resolver redirect)
