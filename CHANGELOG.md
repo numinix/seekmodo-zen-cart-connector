@@ -4,6 +4,10 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.1.3 — 2026-06-17 (in-plugin Update test release)
+
+- Test release to verify the Connect page **Update** button and signed apply path on git-enabled tenants (numinix.com). No functional connector changes beyond version bump.
+
 ## v1.1.2 — 2026-06-17 (Connect Update + git auto-sync)
 
 - **Connect page Update button** when a newer signed release is published (same apply path as Seekmodo Updates).
