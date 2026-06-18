@@ -410,13 +410,10 @@ if (!function_exists('numinix_seekmodo_mirror_conversion')) {
         if ($keyword === '' && is_array($current) && isset($current['keyword'])) {
             $keyword = (string)$current['keyword'];
         }
-        if ($keyword === '') {
-            // No keyword anchor = no trainer signal we can use.
-            // The platform's add_to_cart analytics still survive
-            // via the host's own carts table; the LTR labelling
-            // path simply skips this one.
-            return;
-        }
+        // Cart-page and checkout hooks usually lack an in-request
+        // keyword. The gateway attributes search_event_id via the
+        // shopper session (7-day last-touch) and backfills keyword
+        // from the linked search row — so we still mirror the event.
         if (!isset($opts['search_event_id']) && is_array($current) && isset($current['search_event_id'])) {
             $opts['search_event_id'] = (int)$current['search_event_id'];
         }
