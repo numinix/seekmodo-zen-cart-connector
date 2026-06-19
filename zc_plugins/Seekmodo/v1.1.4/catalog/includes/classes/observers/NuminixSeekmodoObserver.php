@@ -169,7 +169,7 @@ class NuminixSeekmodoObserver extends \base
                     $this->onPurchaseLine($param1, $param2);
                     break;
                 case 'NOTIFY_FOOTER_END':
-                    $this->onSerpClickBeacon();
+                    $this->emitSerpClickBeacon();
                     // Sprint 4 PR 6 — page-end recommendation placement
                     // injection. We branch on the active main_page so
                     // PDP gets pdp-related/also_bought/also_viewed,
@@ -380,6 +380,12 @@ class NuminixSeekmodoObserver extends \base
      */
     private function onSerpRendered($keywords): void
     {
+        // Competitor-rendered SERPs (Klevu) never populate the session
+        // position-map in shadow mode, but shoppers still click through.
+        // Inject the JS beacon here (header phase) so it is present even
+        // when NOTIFY_FOOTER_END output is swallowed by a custom template.
+        $this->emitSerpClickBeacon();
+
         if (!function_exists('numinix_seekmodo_mirror_serp_impression')) {
             return;
         }
@@ -780,8 +786,12 @@ class NuminixSeekmodoObserver extends \base
      * competitor-rendered SERPs (Klevu) still feed LTR when the
      * shopper clicks before navigating to product_info.
      */
-    private function onSerpClickBeacon(): void
+    private function emitSerpClickBeacon(): void
     {
+        static $emitted = false;
+        if ($emitted) {
+            return;
+        }
         if ($this->currentMainPage() !== 'advanced_search_result') {
             return;
         }
@@ -804,6 +814,7 @@ class NuminixSeekmodoObserver extends \base
             : 0;
         $kwJson = json_encode($keyword, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $urlJson = json_encode($clickUrl, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $emitted = true;
         echo '<script>(function(){'
             . 'var kw=' . $kwJson . ',url=' . $urlJson . ',seid=' . $searchEventId . ';'
             . 'document.addEventListener("click",function(ev){'
