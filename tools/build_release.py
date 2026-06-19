@@ -118,6 +118,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_ROOT = REPO_ROOT / "zc_plugins" / "Seekmodo"
 MANIFEST_RE = re.compile(r"'pluginVersion'\s*=>\s*'v(\d+)\.(\d+)\.(\d+)'")
 DIST_DIR = REPO_ROOT / "dist"
+CONNECTOR_DOCS_YAML = REPO_ROOT / "connector-docs" / "zen-cart.yaml"
+LICENSE_TXT = REPO_ROOT / "license.txt"
+RENDER_DOCS_SCRIPT = (
+    Path(os.environ.get("SEEKMODO_MONOREPO_ROOT", REPO_ROOT.parent / "seekmodo"))
+    / "tools"
+    / "render_connector_docs.mjs"
+)
 
 # Where the ed25519 release-signing private key lives in production.
 # In dev/local we accept a RELEASE_SIGNING_KEY_PATH env override;
@@ -326,6 +333,66 @@ def build_zip(version_dir: Path, version: str) -> Path:
     if skipped:
         print(f"  skipped {len(skipped)} dotfile(s)")
     return out
+
+
+def render_connector_docs(version: str) -> Path:
+    """Render branded README.html + assets/ via the seekmodo monorepo tool."""
+    if not CONNECTOR_DOCS_YAML.exists():
+        raise FileNotFoundError(
+            f"connector docs content missing: {CONNECTOR_DOCS_YAML}"
+        )
+    if not RENDER_DOCS_SCRIPT.exists():
+        raise FileNotFoundError(
+            f"render_connector_docs.mjs missing: {RENDER_DOCS_SCRIPT}\n"
+            "Set SEEKMODO_MONOREPO_ROOT to the numinix/seekmodo checkout."
+        )
+    out_dir = Path(tempfile.mkdtemp(prefix="seekmodo-connector-docs-"))
+    cmd = [
+        "node",
+        str(RENDER_DOCS_SCRIPT),
+        "--content",
+        str(CONNECTOR_DOCS_YAML),
+        "--version",
+        version,
+        "--output",
+        str(out_dir),
+    ]
+    print(f"  render docs: {' '.join(cmd)}")
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(result.stdout, end="")
+        print(result.stderr, end="", file=sys.stderr)
+        raise RuntimeError(f"connector docs render failed (exit {result.returncode})")
+    if result.stdout.strip():
+        print(f"  {result.stdout.strip()}")
+    readme = out_dir / "README.html"
+    if not readme.exists():
+        raise RuntimeError(f"docs render did not produce README.html in {out_dir}")
+    return out_dir
+
+
+def inject_docs_into_zip(zip_path: Path, doc_root: Path) -> int:
+    """Append README.html, license.txt, and assets/ to an existing release zip."""
+    written = 0
+    with zipfile.ZipFile(zip_path, "a", zipfile.ZIP_DEFLATED) as zf:
+        readme = doc_root / "README.html"
+        zf.write(readme, "README.html")
+        written += 1
+        if LICENSE_TXT.exists():
+            zf.write(LICENSE_TXT, "license.txt")
+            written += 1
+        else:
+            print(f"  WARN: license.txt missing at {LICENSE_TXT}", file=sys.stderr)
+        assets_dir = doc_root / "assets"
+        if assets_dir.is_dir():
+            for path in sorted(assets_dir.rglob("*")):
+                if path.is_dir():
+                    continue
+                arcname = ("assets/" + path.relative_to(assets_dir).as_posix())
+                zf.write(path, arcname)
+                written += 1
+    print(f"  injected {written} doc file(s) at zip root")
+    return written
 
 
 def write_sha256_sidecar(zip_path: Path) -> tuple[Path, str]:
@@ -634,6 +701,21 @@ def update_manifest_json(
     print(f"  manifest.json updated for zen_cart v{bare_version}")
 
 
+def publish_artifacts_locally(
+    manifest_path: Path,
+    zip_path: Path,
+    sidecar_path: Path,
+    sig_sidecar_path: Path,
+) -> None:
+    """Copy release zip + sidecars next to manifest.json (monorepo public/plugins/)."""
+    plugins_dir = manifest_path.parent
+    plugins_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(zip_path, plugins_dir / zip_path.name)
+    shutil.copy2(sidecar_path, plugins_dir / sidecar_path.name)
+    shutil.copy2(sig_sidecar_path, plugins_dir / sig_sidecar_path.name)
+    print(f"  published {zip_path.name} + sidecars -> {plugins_dir}")
+
+
 def auto_pr(
     zip_path: Path,
     sidecar_path: Path,
@@ -755,6 +837,12 @@ def main() -> int:
     ap.add_argument("--token", default=None,
                     help="Override SEEKMODO_PUBLISH_TOKEN. Mainly for local "
                          "smoke testing — leave empty in CI.")
+    ap.add_argument("--skip-docs", action="store_true",
+                    help="Emergency only: skip rendering README.html into the zip.")
+    ap.add_argument("--skip-key-vendor", action="store_true",
+                    help="Do not overwrite admin/release-signing.pub in the plugin tree. "
+                         "Use for docs-only repacks at an unchanged version when the "
+                         "committed production pubkey must be preserved.")
     args = ap.parse_args()
 
     print("== Build connector release ==")
@@ -783,18 +871,26 @@ def main() -> int:
     print()
     print(f"-- resolving release-signing keypair")
     signer, public_raw, sig_source, sig_kid = _load_or_generate_signing_key()
-    # Vendor the matching public key into the per-version plugin
-    # tree BEFORE building the zip, so the zip we ship carries the
-    # same trust root the in-plugin verifier will use to validate
-    # the *next* release. Earlier builds vendored AFTER zipping,
-    # which left the shipped zip with whatever pubkey was committed
-    # in the source tree (typically a stale dev-ephemeral leftover)
-    # — silent bit-rot we paper-fixed for v1.0.18 + the
-    # seekmodo-2026-06 rotation. The source tree is also updated so
-    # the same content is committed in the PR that ships this
-    # version.
-    vendored_pub = vendor_public_key(version_dir, public_raw, sig_kid)
-    print(f"  vendored public key -> {vendored_pub.relative_to(REPO_ROOT)}")
+    if args.skip_key_vendor:
+        vendored_pub = version_dir / "admin" / "release-signing.pub"
+        if not vendored_pub.is_file():
+            raise SystemExit(
+                f"ERROR: --skip-key-vendor but {vendored_pub} is missing."
+            )
+        print(f"  skipped key vendor (--skip-key-vendor); using committed {vendored_pub.relative_to(REPO_ROOT)}")
+    else:
+        # Vendor the matching public key into the per-version plugin
+        # tree BEFORE building the zip, so the zip we ship carries the
+        # same trust root the in-plugin verifier will use to validate
+        # the *next* release. Earlier builds vendored AFTER zipping,
+        # which left the shipped zip with whatever pubkey was committed
+        # in the source tree (typically a stale dev-ephemeral leftover)
+        # — silent bit-rot we paper-fixed for v1.0.18 + the
+        # seekmodo-2026-06 rotation. The source tree is also updated so
+        # the same content is committed in the PR that ships this
+        # version.
+        vendored_pub = vendor_public_key(version_dir, public_raw, sig_kid)
+        print(f"  vendored public key -> {vendored_pub.relative_to(REPO_ROOT)}")
     print(f"  kid={sig_kid}, source={sig_source}")
 
     print()
@@ -803,6 +899,15 @@ def main() -> int:
     print()
     print(f"-- zipping {version_dir.relative_to(REPO_ROOT)} -> {version_str}.zip")
     zip_path = build_zip(version_dir, version_str)
+
+    if not args.skip_docs:
+        print()
+        print("-- connector documentation")
+        doc_root = render_connector_docs(version_str)
+        try:
+            inject_docs_into_zip(zip_path, doc_root)
+        finally:
+            shutil.rmtree(doc_root, ignore_errors=True)
 
     print()
     print(f"-- sha256 sidecar")
@@ -824,6 +929,12 @@ def main() -> int:
             sig_b64=sig_b64,
             sig_kid=sig_kid,
             sig_source=sig_source,
+        )
+        publish_artifacts_locally(
+            Path(args.manifest_path),
+            zip_path,
+            sidecar_path,
+            sig_sidecar_path,
         )
 
     if args.auto_pr:
