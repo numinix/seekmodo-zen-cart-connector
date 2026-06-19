@@ -1,0 +1,281 @@
+platform:
+  id: zen-cart
+  name: Zen Cart
+  title: Seekmodo for Zen Cart
+  subtitle: AI-powered search, typeahead, and catalog indexing for Zen Cart 1.5.8+
+  page_description: Installation and usage guide for the Seekmodo Zen Cart connector.
+
+support_links:
+  - label: Product site
+    url: https://seekmodo.com
+    display: seekmodo.com
+  - label: Admin / settings
+    url: https://admin.seekmodo.com
+    display: admin.seekmodo.com
+  - label: Documentation hub
+    url: https://seekmodo.com/docs
+    display: seekmodo.com/docs
+  - label: Connector downloads
+    url: https://seekmodo.com/plugins
+    display: seekmodo.com/plugins
+  - label: Contact
+    url: https://seekmodo.com/contact
+    display: seekmodo.com/contact
+  - label: Email support
+    url: mailto:support@seekmodo.com
+    display: support@seekmodo.com
+  - label: Status page
+    url: https://status.seekmodo.com
+    display: status.seekmodo.com
+
+sections:
+  overview:
+    title: Overview
+    nav_label: Overview
+    blocks:
+      - type: paragraph
+        text: "The Seekmodo connector routes your Zen Cart storefront's product search, indexer cron, click beacon, and type-ahead autocomplete through the Seekmodo platform at <code>mcp.seekmodo.com</code>, while keeping native Zen Cart search permanently armed as a graceful fallback."
+      - type: heading
+        level: 3
+        text: What the plugin swaps
+      - type: list
+        items:
+          - "<strong>Storefront search</strong> — routes product search through the Seekmodo gateway with native <code>LIKE</code> fallback."
+          - "<strong>Indexer cron</strong> — bulk catalog upserts to Seekmodo, auto-chunked at 500 documents per request."
+          - "<strong>Click beacon</strong> — mirrors search and product-click events for analytics and LTR attribution."
+          - "<strong>Type-ahead</strong> — prefix-tuned autocomplete with commerce-aware scoring."
+      - type: heading
+        level: 3
+        text: Requirements
+      - type: table
+        headers: ["Requirement", "Version"]
+        rows:
+          - [Zen Cart, "1.5.8+ (v158 or v200)"]
+          - [PHP, "7.4+ (8.1+ recommended)"]
+          - [Seekmodo subscription, "<a href=\"https://seekmodo.com/pricing\">seekmodo.com/pricing</a>"]
+      - type: heading
+        level: 3
+        text: Operating modes
+      - type: table
+        headers: ["Mode", "Storefront behaviour"]
+        rows:
+          - ["<code>off</code>", "Bypass Seekmodo entirely. Native search only."]
+          - ["<code>shadow</code> / Learning", "Gateway called for observation; native result still served to shoppers."]
+          - ["<code>active</code> (recommended)", "Auto-promotes shadow → enforce based on gateway health; auto-demotes on failures."]
+          - ["<code>enforce</code>", "Gateway primary; native fallback only when the circuit breaker is open."]
+      - type: callout
+        variant: info
+        title: Zero-touch install
+        text: "v1.0.9+ ships observers so stock Zen Cart installs work without core file edits. Settings live on <a href=\"https://admin.seekmodo.com\">admin.seekmodo.com</a> once paired."
+
+  installation:
+    title: Installation
+    nav_label: Installation
+    blocks:
+      - type: paragraph
+        text: "This guide assumes you have a Seekmodo subscription, Zen Cart 1.5.8+, and admin access to your store."
+      - type: heading
+        level: 3
+        text: Recommended PHP extensions
+      - type: paragraph
+        text: "The connector self-checks your PHP environment on <strong>Tools → Connect to Seekmodo</strong> (Diagnostics panel). None are install-time gates, but each matters for steady-state behaviour."
+      - type: table
+        headers: ["Extension", "Required?", "Why it matters"]
+        rows:
+          - ["<code>sodium</code>", "<strong>Required</strong>", "Pairing uses ed25519 to verify the Seekmodo callback."]
+          - ["<code>apcu</code>", "Strongly recommended", "Caches the gateway snapshot for 5 minutes. Without it, admin pages lag."]
+          - ["<code>opcache</code>", "Strongly recommended", "Standard PHP performance for ~2k lines of connector code."]
+          - ["<code>curl</code>", "Required", "Outbound calls to mcp.seekmodo.com."]
+          - ["<code>openssl</code>", "Required", "TLS for outbound calls."]
+          - ["<code>mysqli</code>", "Required", "Zen Cart's standard database driver."]
+          - ["<code>intl</code>", "Optional", "Internationalized hostname canonicalization."]
+      - type: code
+        language: bash
+        code: |
+          php -v                                # need >= 7.4
+          php -m | grep -E 'sodium|apcu|opcache|curl|openssl|mysqli|intl'
+      - type: heading
+        level: 3
+        text: Download and verify
+      - type: paragraph
+        text: "Always download the <strong>signed</strong> zip from seekmodo.com. Replace the version in the commands below with your target release."
+      - type: code
+        language: bash
+        code: |
+          curl -fLO https://seekmodo.com/plugins/seekmodo-zen-cart-{{VERSION}}.zip
+          curl -fLO https://seekmodo.com/plugins/seekmodo-zen-cart-{{VERSION}}.zip.sha256
+          sha256sum -c seekmodo-zen-cart-{{VERSION}}.zip.sha256
+          # expected: seekmodo-zen-cart-{{VERSION}}.zip: OK
+      - type: callout
+        variant: warning
+        title: Download from seekmodo.com only
+        text: "Do not use third-party mirrors. The latest version pointer is at <a href=\"https://seekmodo.com/plugins/manifest.json\">seekmodo.com/plugins/manifest.json</a>."
+      - type: heading
+        level: 3
+        text: Install through Plugin Manager
+      - type: steps
+        steps:
+          - title: Open Zen Cart admin
+            body: "Log in to your admin panel (<code>/admin</code> or your renamed path)."
+          - title: Upload the plugin
+            body: "Go to <strong>Tools → Plugin Manager → Upload New Plugin</strong> and select the downloaded zip."
+          - title: Install Seekmodo
+            body: "Find the row labelled <strong>Seekmodo</strong> and click <strong>Install</strong>. The Scripted Installer creates the configuration group and seeds 13 <code>NUMINIX_SEEKMODO_*</code> rows with safe defaults (<code>MODE=off</code>)."
+          - title: Confirm installation
+            body: "The Plugin Manager row should read <strong>Seekmodo {{VERSION}} — Installed</strong>."
+      - type: heading
+        level: 3
+        text: Pair with your Seekmodo tenant
+      - type: steps
+        steps:
+          - title: Open Connect to Seekmodo
+            body: "In Zen Cart admin, go to <strong>Tools → Connect to Seekmodo</strong>."
+          - title: Start pairing
+            body: "Click <strong>Connect</strong>. You are redirected to <code>seekmodo.com/connect</code> with a one-time token."
+          - title: Approve the tenant
+            body: "Sign in to seekmodo.com, pick the tenant to bind, and approve."
+          - title: Verify pairing
+            body: "On success, the plugin populates your tenant ID and HMAC secret. The page shows a green <strong>Paired</strong> banner."
+      - type: callout
+        variant: info
+        title: Clock skew
+        text: "Pairing fails if your server clock is more than 5 minutes off from the gateway. Ensure NTP/chrony is active."
+      - type: heading
+        level: 3
+        text: Activate Seekmodo
+      - type: paragraph
+        text: "Open <a href=\"https://admin.seekmodo.com\">admin.seekmodo.com</a>, find your tenant, and switch <strong>Mode</strong> from <strong>Disabled</strong> to <strong>Learning</strong> or <strong>Active</strong>. The connector polls the gateway every 5 minutes; within that window your storefront starts using Seekmodo."
+      - type: heading
+        level: 3
+        text: Verify installation
+      - type: list
+        ordered: true
+        items:
+          - "<strong>Plugin Manager</strong> — row reads Seekmodo {{VERSION}} — Installed."
+          - "<strong>Storefront search</strong> — search for a known product; tail <code>&lt;docroot&gt;/logs/numinix_seekmodo.log</code> and look for <code>backend=gateway</code>."
+          - "<strong>Admin analytics</strong> — sign in to admin.seekmodo.com → Analytics → Top queries and confirm your test search appears."
+
+  configuration:
+    title: Configuration
+    nav_label: Configuration
+    blocks:
+      - type: paragraph
+        text: "Most settings are managed remotely from <a href=\"https://admin.seekmodo.com\">admin.seekmodo.com</a> and pulled into your store via <code>tenant.snapshot</code> every 5 minutes. You rarely need to change local constants by hand."
+      - type: heading
+        level: 3
+        text: Connection (local)
+      - type: table
+        headers: ["Constant", "Description"]
+        rows:
+          - ["<code>NUMINIX_SEEKMODO_URL</code>", "Gateway base URL (default: https://mcp.seekmodo.com)"]
+          - ["<code>NUMINIX_SEEKMODO_TENANT_ID</code>", "Auto-populated by the Connect flow"]
+          - ["<code>NUMINIX_SEEKMODO_SHARED_SECRET</code>", "HMAC key — auto-populated by pairing; treat as secret"]
+      - type: heading
+        level: 3
+        text: Mode and performance (gateway-authoritative)
+      - type: table
+        headers: ["Constant", "Default", "Description"]
+        rows:
+          - ["<code>NUMINIX_SEEKMODO_MODE</code>", "off", "off | shadow | active | enforce — flip from admin.seekmodo.com"]
+          - ["<code>NUMINIX_SEEKMODO_AUTO_PROMOTE</code>", "true", "Auto-promote active mode after 50 healthy gateway responses"]
+          - ["<code>NUMINIX_SEEKMODO_TIMEOUT_MS</code>", "250", "Per-request hot-path budget in milliseconds"]
+          - ["<code>NUMINIX_SEEKMODO_INDEX_BATCH</code>", "500", "Documents per indexer chunk"]
+          - ["<code>NUMINIX_SEEKMODO_DEBUG</code>", "false", "Verbose logging to numinix_seekmodo.log"]
+      - type: link
+        text: Full configuration reference on seekmodo.com
+        url: https://seekmodo.com/docs/connectors#zen-cart
+
+  usage:
+    title: Usage
+    nav_label: Usage
+    blocks:
+      - type: paragraph
+        text: "After pairing and activating, the connector runs with minimal day-to-day maintenance. Policy updates from admin.seekmodo.com propagate automatically."
+      - type: heading
+        level: 3
+        text: Search and modes
+      - type: paragraph
+        text: "Start with <strong>Active</strong> mode on admin.seekmodo.com. The connector observes gateway health in shadow mode and auto-promotes to enforce after ~50 successful searches. On sustained failures it auto-demotes back to shadow."
+      - type: heading
+        level: 3
+        text: Catalog indexing
+      - type: paragraph
+        text: "The indexer runs from your existing Zen Cart cron via <code>numinix_seekmodo_run_bulk_upsert()</code>. Schedule is controlled by <code>NUMINIX_SEEKMODO_INDEXER_SCHEDULE</code> on admin.seekmodo.com (hourly, every_4h, daily, or manual)."
+      - type: heading
+        level: 3
+        text: Type-ahead and click attribution
+      - type: list
+        items:
+          - "Type-ahead autocomplete is enabled via storefront observers — no template edits required on v1.0.9+."
+          - "Click and impression events flow to Seekmodo for analytics and learning-to-rank."
+          - "Shadow-mode attribution captures competitor SERP clicks (v1.1.4+)."
+      - type: link
+        text: Integration guide and swap-point details
+        url: https://seekmodo.com/docs/connectors#zen-cart
+
+  upgrade:
+    title: Upgrade
+    nav_label: Upgrade
+    blocks:
+      - type: paragraph
+        text: "The supported routine update path is the in-plugin Updates page (v1.0.7+)."
+      - type: steps
+        steps:
+          - title: Open Seekmodo Updates
+            body: "Go to <strong>Tools → Seekmodo Updates</strong> in Zen Cart admin."
+          - title: Review available release
+            body: "The page pulls <code>seekmodo.com/plugins/manifest.json</code>, compares versions, and shows release notes."
+          - title: Apply update
+            body: "Click <strong>Apply update</strong>. The connector downloads the signed zip, verifies SHA-256 and ed25519 signature, backs up the current version, and installs the new tree."
+          - title: Roll back if needed
+            body: "The Updates page lists recent backups with a <strong>Roll back</strong> button (last 3 kept)."
+      - type: callout
+        variant: info
+        title: Manual upgrade path
+        text: "If the Updates page cannot reach seekmodo.com, download the new zip from seekmodo.com/plugins, verify SHA-256, and re-upload via Plugin Manager."
+      - type: link
+        text: Connectors documentation — upgrade section
+        url: https://seekmodo.com/docs/connectors#zen-cart
+
+  troubleshooting:
+    title: Troubleshooting
+    nav_label: Troubleshooting
+    blocks:
+      - type: paragraph
+        text: "Common issues and quick fixes. For deeper help, see the full troubleshooting guide or contact support@seekmodo.com."
+      - type: heading
+        level: 3
+        text: Search behaves the same after install
+      - type: paragraph
+        text: "Normal — the plugin defaults to <code>MODE=off</code>. Pair the store and flip mode to Active on admin.seekmodo.com."
+      - type: heading
+        level: 3
+        text: Connect to Seekmodo fails
+      - type: list
+        items:
+          - "<strong>Clock skew</strong> — run <code>date -u</code> and compare to mcp.seekmodo.com; fix NTP."
+          - "<strong>Missing sodium</strong> — install the PHP sodium extension; pairing cannot proceed without it."
+          - "<strong>Outbound blocked</strong> — test <code>curl -fsS https://mcp.seekmodo.com/v1/health</code> from the host."
+          - "<strong>Browser cookies</strong> — try pairing in a clean browser profile if VPN/proxy strips cookies."
+      - type: heading
+        level: 3
+        text: Log shows backend=native
+      - type: paragraph
+        text: "The gateway was bypassed — check mode is not off, verify APCu is loaded, and confirm outbound connectivity. Enable <code>NUMINIX_SEEKMODO_DEBUG=true</code> on admin.seekmodo.com for verbose logs."
+      - type: heading
+        level: 3
+        text: Domain lock / multi-environment
+      - type: paragraph
+        text: "Each tenant locks to one canonical storefront host. Dev/staging clones need their own tenant or a preview subdomain configured on admin.seekmodo.com."
+      - type: link
+        text: Full troubleshooting guide
+        url: https://seekmodo.com/docs/zen-cart/troubleshooting
+
+  support:
+    title: Support
+    nav_label: Support
+    blocks:
+      - type: paragraph
+        text: "Need help? Our team and documentation are available on seekmodo.com."
+      - type: paragraph
+        text: "<!-- SUPPORT_GRID -->"
