@@ -4,6 +4,14 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.1.6 — 2026-06-20 (Enhanced Native layer)
+
+- **Enhanced Native** — connector-owned multi-field SQL search, popularity
+  ranking, and local typeahead when the gateway is off or unavailable.
+- **Gate split** — `numinix_seekmodo_gateway_enabled()` vs
+  `numinix_seekmodo_enhanced_native_enabled()` so unpaired installs still
+  get improved search.
+
 ## v1.1.3 — 2026-06-17 (in-plugin Update test release)
 
 - Test release to verify the Connect page **Update** button and signed apply path on git-enabled tenants (numinix.com). No functional connector changes beyond version bump.
