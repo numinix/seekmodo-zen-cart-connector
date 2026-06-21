@@ -4,6 +4,19 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.1.7 — 2026-06-20 (CORS-block UX + purchasable indexing)
+
+- **CORS-block UX:** When gateway script loads or suggest fetches are
+  blocked by the browser, storefronts show an inline notice where the
+  dropdown would appear. Ships `seekmodo_cors_notice.js` before the
+  suggest bundle, adds script `onerror` handling, and listens for
+  `seekmodo-suggest:cors-blocked`.
+- Refreshes the vendored `@seekmodo/web-components` suggest bundle to
+  v0.2.2.
+- **Purchasable indexing:** `numinix_seekmodo_push_catalog.php` indexes
+  `purchasable` alongside `in_stock` (backorder-eligible OOS stays
+  purchasable; discontinued / call-for-price SKUs do not).
+
 ## v1.1.6 — 2026-06-20 (Enhanced Native layer)
 
 - **Enhanced Native** — connector-owned multi-field SQL search, popularity
