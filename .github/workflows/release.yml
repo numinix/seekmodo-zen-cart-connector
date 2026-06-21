@@ -71,11 +71,20 @@ jobs:
           fi
           gh --version
 
+      - name: Check out seekmodo-php-sdk (deploy key)
+        uses: actions/checkout@v4
+        with:
+          repository: numinix/seekmodo-php-sdk
+          ref: main
+          path: php-sdk
+          ssh-key: ${{ secrets.PHP_SDK_DEPLOY_KEY }}
+
       - name: Build, sign, and publish to seekmodo.com
         working-directory: connector
         env:
           SEEKMODO_PUBLISH_TOKEN: ${{ secrets.SEEKMODO_PUBLISH_TOKEN }}
           SEEKMODO_MONOREPO_ROOT: ${{ github.workspace }}/seekmodo
+          SEEKMODO_PHP_SDK_ROOT: ${{ github.workspace }}/php-sdk
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
           GH_TOKEN: ${{ secrets.SEEKMODO_PUBLISH_TOKEN }}
         run: |

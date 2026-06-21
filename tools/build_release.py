@@ -276,6 +276,13 @@ def vendor_sdk(version_dir: Path) -> int:
         print(f"  SDK already present in plugin tree ({count} PHP file(s)); skipping composer.")
         return count
 
+    sdk_root = os.environ.get("SEEKMODO_PHP_SDK_ROOT", "").strip()
+    if sdk_root:
+        sdk_src = Path(sdk_root) / "src"
+        if sdk_src.is_dir():
+            print(f"  using SEEKMODO_PHP_SDK_ROOT={sdk_root}")
+            return _copy_sdk_tree(version_dir, sdk_src)
+
     composer = shutil.which("composer") or shutil.which("composer.phar")
     composer_json = REPO_ROOT / "composer.json"
     if not composer_json.is_file():
@@ -293,7 +300,11 @@ def vendor_sdk(version_dir: Path) -> int:
         raise SystemExit(
             f"ERROR: expected {sdk_src} after composer install — package missing from composer.json?"
         )
+    return _copy_sdk_tree(version_dir, sdk_src)
 
+
+def _copy_sdk_tree(version_dir: Path, sdk_src: Path) -> int:
+    """Copy PHP files from an SDK src tree into the per-version plugin tree."""
     dest = version_dir / SDK_DEST_REL
     # Clean the dest so a downgraded SDK doesn't leave stale files behind.
     if dest.is_dir():
