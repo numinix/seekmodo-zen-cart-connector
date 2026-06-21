@@ -96,6 +96,7 @@ jobs:
           fi
           chmod 600 /tmp/sk/release-signing.key
           export RELEASE_SIGNING_KEY_PATH=/tmp/sk/release-signing.key
+          export COMPOSER_AUTH='{"github-oauth": {"github.com": "'"${SEEKMODO_PUBLISH_TOKEN}"'"}}'
           python tools/build_release.py --auto-pr
           ls -la dist/
 
