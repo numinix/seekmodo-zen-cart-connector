@@ -67,6 +67,12 @@ if (!function_exists('numinix_seekmodo_run_bulk_upsert')) {
         ) {
             return null;
         }
+        if (
+            function_exists('numinix_seekmodo_can_index')
+            && !numinix_seekmodo_can_index()
+        ) {
+            return null;
+        }
         $mode = numinix_seekmodo_mode();
         if ($mode === 'off') {
             return null;

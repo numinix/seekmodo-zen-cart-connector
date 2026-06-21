@@ -73,7 +73,7 @@ if (!function_exists('numinix_seekmodo_current_host')) {
         if ($raw === '') {
             return '';
         }
-        if (str_contains($raw, ':')) {
+        if (strpos($raw, ':') !== false) {
             $raw = (string) strstr($raw, ':', true);
         }
         return rtrim($raw, '.');
@@ -148,6 +148,69 @@ if (!function_exists('numinix_seekmodo_is_locked_out')) {
                     );
                 }
             }
+        }
+        return true;
+    }
+}
+
+if (!function_exists('numinix_seekmodo_looks_like_nonprod')) {
+    /**
+     * Heuristic for non-prod host labels (mirrors WP DomainLock / Magento resolver).
+     */
+    function numinix_seekmodo_looks_like_nonprod(string $host): bool
+    {
+        $host = strtolower(trim($host));
+        if ($host === '') {
+            return false;
+        }
+        if (strncmp($host, 'www.', 4) === 0) {
+            $host = substr($host, 4);
+        }
+        $left = explode('.', $host)[0] ?? '';
+        $blockers = [
+            'dev', 'staging', 'stage', 'test', 'testing', 'qa', 'preview',
+            'beta', 'preprod', 'pre-prod', 'sandbox', 'new-dev', 'newdev', 'demo',
+        ];
+        return in_array($left, $blockers, true) || strncmp($left, 'dev', 3) === 0;
+    }
+}
+
+if (!function_exists('numinix_seekmodo_can_index')) {
+    /**
+     * Write-side gate (v1.1.7 / WP v0.5.3 pattern).
+     *
+     * Blocks indexing from non-prod hosts when the locked domain is prod,
+     * and blocks self-referential non-prod locks unless the operator
+     * explicitly opts in via NUMINIX_SEEKMODO_ALLOW_NONPROD_INDEXING=true.
+     */
+    function numinix_seekmodo_can_index(): bool
+    {
+        if (
+            function_exists('numinix_seekmodo_is_locked_out')
+            && numinix_seekmodo_is_locked_out()
+        ) {
+            return false;
+        }
+        $current = numinix_seekmodo_current_host();
+        if ($current === '') {
+            return false;
+        }
+        $locked = defined('NUMINIX_SEEKMODO_LOCKED_DOMAIN')
+            ? trim((string) NUMINIX_SEEKMODO_LOCKED_DOMAIN)
+            : '';
+        if (
+            defined('NUMINIX_SEEKMODO_ALLOW_NONPROD_INDEXING')
+            && strtolower((string) NUMINIX_SEEKMODO_ALLOW_NONPROD_INDEXING) === 'true'
+        ) {
+            return $locked === '' || strcasecmp($current, $locked) === 0;
+        }
+        if ($locked !== '' && numinix_seekmodo_looks_like_nonprod($locked) === false
+            && numinix_seekmodo_looks_like_nonprod($current)
+        ) {
+            return false;
+        }
+        if ($locked === '' && numinix_seekmodo_looks_like_nonprod($current)) {
+            return false;
         }
         return true;
     }
