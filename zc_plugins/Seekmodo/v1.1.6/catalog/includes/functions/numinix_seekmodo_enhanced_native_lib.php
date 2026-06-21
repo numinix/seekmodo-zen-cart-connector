@@ -17,6 +17,45 @@ if (!function_exists('numinix_seekmodo_gateway_enabled')) {
     }
 }
 
+if (!function_exists('numinix_seekmodo_enhanced_native_order_sql')) {
+    /**
+     * Popularity ORDER BY for Enhanced Native retrieval.
+     *
+     * Forks disagree on where `products_viewed` lives (core ZC: products
+     * table on some builds; Numinix: products_description). Probe once per
+     * request lifecycle and cache in a static.
+     */
+    function numinix_seekmodo_enhanced_native_order_sql(): string
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $parts = ['p.products_ordered DESC'];
+        global $db;
+        if (isset($db) && is_object($db) && method_exists($db, 'Execute')) {
+            $descViewed = $db->Execute(
+                'SHOW COLUMNS FROM ' . TABLE_PRODUCTS_DESCRIPTION . ' LIKE \'products_viewed\''
+            );
+            if ($descViewed && !$descViewed->EOF) {
+                $parts[] = 'pd.products_viewed DESC';
+            } else {
+                $productsViewed = $db->Execute(
+                    'SHOW COLUMNS FROM ' . TABLE_PRODUCTS . ' LIKE \'products_viewed\''
+                );
+                if ($productsViewed && !$productsViewed->EOF) {
+                    $parts[] = 'p.products_viewed DESC';
+                }
+            }
+        }
+        $parts[] = 'p.products_date_added DESC';
+        $cached = implode(', ', $parts);
+
+        return $cached;
+    }
+}
+
 if (!function_exists('numinix_seekmodo_run_enhanced_native_search')) {
     /**
      * @return array{product_ids: array<int>, total: int, source: string}|null
@@ -44,7 +83,7 @@ if (!function_exists('numinix_seekmodo_run_enhanced_native_search')) {
             . ' LEFT JOIN ' . TABLE_MANUFACTURERS . ' m ON p.manufacturers_id = m.manufacturers_id '
             . 'WHERE p.products_status = 1 '
             . 'AND (pd.products_name LIKE \'' . $like . '\' OR p.products_model LIKE \'' . $like . '\' OR m.manufacturers_name LIKE \'' . $like . '\') '
-            . 'ORDER BY p.products_ordered DESC, p.products_viewed DESC '
+            . 'ORDER BY ' . numinix_seekmodo_enhanced_native_order_sql() . ' '
             . 'LIMIT ' . (int)$perPage . ' OFFSET ' . (int)$offset;
 
         $ids = [];
