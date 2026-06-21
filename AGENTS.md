@@ -37,6 +37,18 @@ python tools/build_release.py \
 Use `--skip-docs` only in emergencies. Never ship without production
 signing (`signed_with` must not be `dev-ephemeral`).
 
+If the local build used `dev-ephemeral`, re-sign on seek-api01 before
+pushing to merchants. See
+[`seekmodo/docs/runbooks/connector-release-signing.md`](../seekmodo/docs/runbooks/connector-release-signing.md).
+
+### 2b. Production re-sign (when local build lacks operator key)
+
+1. Commit zip + manifest to `numinix/seekmodo` `main`.
+2. On seek-api01: `python3 /opt/seekmodo/tools/sign_plugin_release.py --platform zen_cart --version X.Y.Z`
+3. On workstation: `bash tools/push_signed_plugins_from_workstation.sh` in the seekmodo monorepo.
+
+Do **not** run full `build_release.py` on seek-api01 (private PHP SDK).
+
 ### 3. Marketing-site changelog (seekmodo monorepo)
 
 **Required.** The download page changelog is **not** generated from
