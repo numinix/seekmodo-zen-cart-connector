@@ -162,6 +162,14 @@ SEEKMODO_REPO = "numinix/seekmodo"
 SEEKMODO_DEFAULT_BRANCH = "main"
 SEEKMODO_MANIFEST_REL = "services/marketing-site/public/plugins/manifest.json"
 SEEKMODO_PLUGINS_DIR_REL = "services/marketing-site/public/plugins"
+SEEKMODO_VERSION_HISTORY_PAGE_REL = (
+    "services/marketing-site/app/(marketing)/plugins/zen-cart/page.tsx"
+)
+SYNC_VERSION_HISTORY_SCRIPT = (
+    Path(os.environ.get("SEEKMODO_MONOREPO_ROOT", REPO_ROOT.parent / "seekmodo"))
+    / "tools"
+    / "sync_connector_version_history.py"
+)
 
 
 def _run(cmd: list[str], cwd: Path | None = None, check: bool = True, env: dict | None = None) -> subprocess.CompletedProcess:
@@ -716,6 +724,32 @@ def publish_artifacts_locally(
     print(f"  published {zip_path.name} + sidecars -> {plugins_dir}")
 
 
+def sync_version_history(repo_dir: Path, version: str) -> bool:
+    """Update zen-cart/page.tsx VERSION_HISTORY from CHANGELOG.md."""
+    if not SYNC_VERSION_HISTORY_SCRIPT.is_file():
+        print(f"  WARN: {SYNC_VERSION_HISTORY_SCRIPT} missing; skipping VERSION_HISTORY sync")
+        return False
+    page = repo_dir / SEEKMODO_VERSION_HISTORY_PAGE_REL
+    changelog = REPO_ROOT / "CHANGELOG.md"
+    cmd = [
+        sys.executable,
+        str(SYNC_VERSION_HISTORY_SCRIPT),
+        "--platform",
+        "zen_cart",
+        "--version",
+        version.lstrip("v"),
+        "--changelog",
+        str(changelog),
+        "--seekmodo-root",
+        str(repo_dir),
+        "--page",
+        str(page),
+    ]
+    print("  $ " + " ".join(cmd))
+    subprocess.run(cmd, check=True)
+    return True
+
+
 def auto_pr(
     zip_path: Path,
     sidecar_path: Path,
@@ -782,6 +816,9 @@ def auto_pr(
             sig_source=sig_source,
         )
 
+        sync_version_history(repo_dir, version)
+        add_paths.append(SEEKMODO_VERSION_HISTORY_PAGE_REL)
+
         _run(["git", "-C", str(repo_dir), "add", *add_paths])
         commit_msg = (
             f"connector: publish v{bare_version}\n\n"
@@ -790,7 +827,8 @@ def auto_pr(
             f"- Drops the signed zip at "
             f"services/marketing-site/public/plugins/{zip_path.name} "
             f"({zip_path.stat().st_size:,} bytes, sha256 {sha256[:12]}...).\n"
-            f"- Updates manifest.json's zen_cart.latest pointer.\n\n"
+            f"- Updates manifest.json's zen_cart.latest pointer.\n"
+            f"- Syncs VERSION_HISTORY on the Zen Cart download page from CHANGELOG.md.\n\n"
             f"The seek-api01 deploy webhook will pick up this push and "
             f"redeploy the marketing site so the new download is "
             f"available at {DOWNLOAD_BASE}/{zip_path.name}."
