@@ -175,14 +175,21 @@ SYNC_VERSION_HISTORY_SCRIPT = (
 def _run(cmd: list[str], cwd: Path | None = None, check: bool = True, env: dict | None = None) -> subprocess.CompletedProcess:
     """Thin subprocess.run wrapper that prints the command first."""
     print("  $ " + " ".join(cmd))
-    return subprocess.run(
+    result = subprocess.run(
         cmd,
         cwd=str(cwd) if cwd else None,
-        check=check,
+        check=False,
         env={**os.environ, **(env or {})},
         capture_output=True,
         text=True,
     )
+    if result.stdout:
+        print(result.stdout.rstrip())
+    if result.stderr:
+        print(result.stderr.rstrip(), file=sys.stderr)
+    if check and result.returncode != 0:
+        raise subprocess.CalledProcessError(result.returncode, cmd, result.stdout, result.stderr)
+    return result
 
 
 def discover_current_version() -> tuple[Path, tuple[int, int, int]]:
