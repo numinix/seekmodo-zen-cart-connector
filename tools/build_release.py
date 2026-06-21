@@ -534,7 +534,7 @@ def _load_or_generate_signing_key() -> tuple[Any, Any, str, str]:
             def sign(self, data: bytes) -> bytes:
                 return priv.sign(data)
 
-        return _CryptographySigner(), pub, f"file:{key_path}", _RELEASE_SIGNING_KID
+        return _CryptographySigner(), pub, _RELEASE_SIGNING_KID, _RELEASE_SIGNING_KID
 
     if _CRYPTO_BACKEND == "pynacl" and key_path is not None:
         raw = key_path.read_bytes()
@@ -555,7 +555,7 @@ def _load_or_generate_signing_key() -> tuple[Any, Any, str, str]:
             def sign(self, data: bytes) -> bytes:
                 return signing.sign(data).signature  # type: ignore[no-any-return]
 
-        return _NaclSigner(), pub, f"file:{key_path}", _RELEASE_SIGNING_KID
+        return _NaclSigner(), pub, _RELEASE_SIGNING_KID, _RELEASE_SIGNING_KID
 
     # Dev-ephemeral fallback.  Surface this loudly — production CI
     # MUST NOT land here, and the manifest entry will carry a

@@ -2,34 +2,12 @@ name: release (manual fallback)
 
 # DEPRECATED — tag-push trigger removed 2026-05-31.
 #
-# Why: per the seekmodo monorepo's .cursor/rules/deploy.mdc +
-# AGENTS.md §1, GitHub Actions is not used for routine deploys. Each
-# tag push of v*.*.* fired this workflow's full build + auto-PR
-# pipeline (~3 GHA minutes including Python setup + zip build + the
-# cross-repo PR open). The same end-result — a signed, manifested,
-# downloadable connector zip live at
-# https://seekmodo.com/plugins/seekmodo-zen-cart-v<X.Y.Z>.zip — is
-# now produced operator-locally:
+# Routine releases are operator-local: `python tools/build_release.py --auto-pr`
+# (see numinix/seekmodo AGENTS.md §1). This workflow_dispatch fallback runs on
+# the numinix-mini self-hosted runner when the operator cannot build locally.
 #
-#   git tag v<X.Y.Z>
-#   git push origin v<X.Y.Z>
-#   python tools/build_release.py --auto-pr
-#
-# The auto-PR opens against numinix/seekmodo and lands on
-# `services/marketing-site/public/plugins/`, which the seekmodo
-# webhook already redeploys on push. So the *deployment* of the
-# release is webhook-driven; only the artefact build is operator-
-# local. **No GHA minutes are consumed for the routine release.**
-#
-# This workflow is retained as a `workflow_dispatch`-only emergency
-# fallback for the case where an operator can't run
-# tools/build_release.py from their workstation (e.g. ed25519 signing
-# key unavailable locally) and needs GHA to build + sign + open the
-# PR. The `SEEKMODO_PUBLISH_TOKEN` secret stays configured so this
-# fallback works when invoked manually. It does NOT run on tag push.
-#
-# DO NOT re-enable the `on: push` tag trigger — see the seekmodo
-# monorepo's .cursor/rules/deploy.mdc.
+# Requires repo secrets: SEEKMODO_PUBLISH_TOKEN, RELEASE_SIGNING_KEY (hex seed).
+# Org secret RELEASE_SIGNING_KEY is shared across numinix/* connector repos.
 
 on:
   workflow_dispatch:
@@ -40,23 +18,13 @@ on:
         default: "manual operator dispatch — operator-local signing unavailable"
 
 permissions:
-  # GITHUB_TOKEN needs contents:write so the final
-  # "Attach release artefacts" step can `gh release create` /
-  # `gh release upload` against this connector repo. The cross-repo
-  # PR + auto-merge into numinix/seekmodo is done via
-  # SEEKMODO_PUBLISH_TOKEN (a PAT or fine-grained token with `repo`
-  # scope on numinix/seekmodo) and is not affected by this block.
   contents: write
 
 jobs:
   publish:
     name: build + publish (manual fallback)
-    # Migrated to the self-hosted numinix-backup runner (mini PC) on 2026-06-03.
-    # workflow_dispatch-only fallback; routine releases ship operator-locally
-    # via tools/build_release.py --auto-pr. Reverting to ubuntu-latest if the
-    # mini PC is offline is a one-line change.
     runs-on: [self-hosted, linux, x64, numinix-mini]
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Check out the connector repo
         uses: actions/checkout@v4
@@ -78,7 +46,7 @@ jobs:
         run: |
           VERSION="$(git describe --tags --abbrev=0 || true)"
           if [ -z "$VERSION" ]; then
-            echo "ERROR: no tag found; cannot resolve a version. Tag a release first (git tag vX.Y.Z && git push --tags) before invoking this manual fallback." >&2
+            echo "ERROR: no tag found; tag vX.Y.Z and push --tags before invoking this fallback." >&2
             exit 2
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -87,37 +55,55 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      - name: Build zip + SHA-256 + signature
-        working-directory: connector
-        env:
-          SEEKMODO_MONOREPO_ROOT: ${{ github.workspace }}/seekmodo
+      - name: Install build dependencies
         run: |
-          python tools/build_release.py --skip-key-vendor
-          ls -la dist/
+          python -m pip install --upgrade pip
+          pip install cryptography pyyaml
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "Installing gh CLI (required for --auto-pr)..."
+            sudo apt-get update -qq
+            sudo apt-get install -y gh
+          fi
+          if ! command -v composer >/dev/null 2>&1; then
+            echo "WARN: composer not on PATH; SDK vendoring may fail"
+          fi
+          gh --version
 
-      - name: Open + auto-merge publish PR into numinix/seekmodo
+      - name: Build, sign, and publish to seekmodo.com
         working-directory: connector
         env:
           SEEKMODO_PUBLISH_TOKEN: ${{ secrets.SEEKMODO_PUBLISH_TOKEN }}
           SEEKMODO_MONOREPO_ROOT: ${{ github.workspace }}/seekmodo
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          GH_TOKEN: ${{ secrets.SEEKMODO_PUBLISH_TOKEN }}
         run: |
+          set -euo pipefail
           if [ -z "$SEEKMODO_PUBLISH_TOKEN" ]; then
             echo "::error::SEEKMODO_PUBLISH_TOKEN secret is not set on this repo."
-            echo "Add a PAT with 'repo' scope on numinix/seekmodo as the secret named SEEKMODO_PUBLISH_TOKEN."
             exit 1
           fi
+          if [ -z "$RELEASE_SIGNING_KEY" ]; then
+            echo "::error::RELEASE_SIGNING_KEY secret is not set (org or repo level hex ed25519 seed)."
+            exit 1
+          fi
+          mkdir -p /tmp/sk
+          if echo "$RELEASE_SIGNING_KEY" | grep -qE '^[0-9a-fA-F]{64}$'; then
+            echo "$RELEASE_SIGNING_KEY" | xxd -r -p > /tmp/sk/release-signing.key
+          else
+            printf '%s' "$RELEASE_SIGNING_KEY" > /tmp/sk/release-signing.key
+          fi
+          chmod 600 /tmp/sk/release-signing.key
+          export RELEASE_SIGNING_KEY_PATH=/tmp/sk/release-signing.key
           python tools/build_release.py --auto-pr
+          ls -la dist/
 
       - name: Attach release artefacts to the GitHub release
         working-directory: connector
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Idempotent — if the release was created via `gh release
-          # create` at tag time it already exists; this just adds the
-          # artefacts. If it doesn't exist, create it from the tag.
           if ! gh release view "${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
             gh release create "${{ steps.version.outputs.version }}" \
               --title "${{ steps.version.outputs.version }}" \
