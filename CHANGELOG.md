@@ -11,6 +11,9 @@ per-version detail lives next to the source under
 - **Gate split** — `numinix_seekmodo_gateway_enabled()` vs
   `numinix_seekmodo_enhanced_native_enabled()` so unpaired installs still
   get improved search.
+- **Hotfix (2026-06-21)** — Enhanced Native `ORDER BY` probes for
+  `products_viewed` on `products_description` (Numinix) or `products` (core
+  ZC) instead of assuming `p.products_viewed` exists.
 
 ## v1.1.3 — 2026-06-17 (in-plugin Update test release)
 
