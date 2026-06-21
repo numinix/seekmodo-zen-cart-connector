@@ -270,6 +270,12 @@ def vendor_sdk(version_dir: Path) -> int:
     stays empty and the SDK-dependent code paths short-circuit.
     """
     print(f"-- vendoring {SDK_PACKAGE} into {SDK_DEST_REL.as_posix()}")
+    dest = version_dir / SDK_DEST_REL
+    if dest.is_dir() and any(dest.glob("*.php")):
+        count = sum(1 for _ in dest.rglob("*.php"))
+        print(f"  SDK already present in plugin tree ({count} PHP file(s)); skipping composer.")
+        return count
+
     composer = shutil.which("composer") or shutil.which("composer.phar")
     composer_json = REPO_ROOT / "composer.json"
     if not composer_json.is_file():
