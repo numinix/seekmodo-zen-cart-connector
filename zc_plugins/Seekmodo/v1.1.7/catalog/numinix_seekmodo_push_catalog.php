@@ -182,6 +182,9 @@ if ($batchSize <= 0 || $batchSize > 1000) {
 
 function _push_log(string $level, string $msg): void
 {
+    if (!defined('STDERR')) {
+        define('STDERR', fopen('php://stderr', 'wb'));
+    }
     $ts = date('c');
     $line = sprintf('[%s] %s push_catalog: %s', $ts, strtoupper($level), $msg);
     fwrite(STDERR, $line . "\n");
