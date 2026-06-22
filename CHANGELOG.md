@@ -4,6 +4,14 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.2.1 — 2026-06-22 (typeahead product-row click attribution)
+
+- **Suggest click beacon:** `<seekmodo-suggest>` product-row clicks now
+  fire a `sendBeacon` to `numinix_seekmodo_click.php` with
+  `surface=typeahead` before navigation — parity with WordPress
+  connector v0.8.2. Fixes silent LTR click gaps when shoppers pick a
+  product directly from the dropdown instead of the full SERP.
+
 ## v1.1.7 — 2026-06-20 (CORS-block UX + purchasable indexing)
 
 - **CORS-block UX:** When gateway script loads or suggest fetches are
