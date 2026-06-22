@@ -431,7 +431,7 @@ final class NuminixSeekmodoSuggestObserver extends base
             'extras'        => [
                 'min-length'  => '2',
                 'debounce-ms' => '150',
-                'limit'       => '5',
+                'limit'       => '15',
                 'cache-size'  => '32',
                 // SM-606 follow-up: the bundle's `suppress-legacy`
                 // attribute tears down sibling typeahead widgets bound
@@ -658,7 +658,7 @@ JS;
             return in_array($v, ['1', 'true', 'yes', 'on'], true);
         }
 
-        return true;
+        return false;
     }
 
     private function blocks(): string
