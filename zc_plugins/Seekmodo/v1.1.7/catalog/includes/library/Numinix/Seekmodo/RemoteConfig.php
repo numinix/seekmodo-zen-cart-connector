@@ -382,6 +382,11 @@ final class RemoteConfig
             'NUMINIX_SEEKMODO_LOCKED_DOMAIN' => array_key_exists('locked_domain', $row)
                 ? (string) ($row['locked_domain'] ?? '')
                 : null,
+            'NUMINIX_SEEKMODO_SUGGEST_LAYOUT' => isset($row['suggest_layout'])
+                && is_string($row['suggest_layout'])
+                ? strtolower(trim((string) $row['suggest_layout'])) : null,
+            'NUMINIX_SEEKMODO_SUGGEST_SHOW_BRANDING' => array_key_exists('suggest_show_branding', $row)
+                ? (!empty($row['suggest_show_branding']) ? 'true' : 'false') : null,
         ];
         foreach ($writes as $key => $value) {
             if ($value === null) {

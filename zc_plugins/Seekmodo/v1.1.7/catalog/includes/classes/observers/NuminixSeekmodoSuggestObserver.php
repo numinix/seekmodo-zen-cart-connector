@@ -426,6 +426,8 @@ final class NuminixSeekmodoSuggestObserver extends base
             ],
             'blocks'        => $blocks,
             'view_all_href' => $viewAll,
+            'layout'        => $this->suggestLayout(),
+            'show_branding' => $this->suggestShowBranding(),
             'extras'        => [
                 'min-length'  => '2',
                 'debounce-ms' => '150',
@@ -467,6 +469,8 @@ final class NuminixSeekmodoSuggestObserver extends base
     el.setAttribute('input', id);
     if (CFG.blocks) el.setAttribute('blocks', CFG.blocks);
     if (CFG.view_all_href) el.setAttribute('view-all-href', CFG.view_all_href);
+    el.setAttribute('layout', CFG.layout || 'split-rail');
+    el.setAttribute('show-branding', CFG.show_branding ? 'true' : 'false');
     if (CFG.extras && typeof CFG.extras === 'object') {
       for (var k in CFG.extras) {
         if (Object.prototype.hasOwnProperty.call(CFG.extras, k)) {
@@ -631,6 +635,30 @@ final class NuminixSeekmodoSuggestObserver extends base
 JS;
 
         return "\n" . str_replace('%CFG%', $json, $tpl) . "\n";
+    }
+
+    private function suggestLayout(): string
+    {
+        $allowed = ['cinema-grid', 'split-rail', 'command-bar', 'magazine', 'classic'];
+        if (defined('NUMINIX_SEEKMODO_SUGGEST_LAYOUT')) {
+            $v = strtolower(trim((string) constant('NUMINIX_SEEKMODO_SUGGEST_LAYOUT')));
+            if ($v !== '' && in_array($v, $allowed, true)) {
+                return $v;
+            }
+        }
+
+        return 'split-rail';
+    }
+
+    private function suggestShowBranding(): bool
+    {
+        if (defined('NUMINIX_SEEKMODO_SUGGEST_SHOW_BRANDING')) {
+            $v = strtolower(trim((string) constant('NUMINIX_SEEKMODO_SUGGEST_SHOW_BRANDING')));
+
+            return in_array($v, ['1', 'true', 'yes', 'on'], true);
+        }
+
+        return true;
     }
 
     private function blocks(): string
