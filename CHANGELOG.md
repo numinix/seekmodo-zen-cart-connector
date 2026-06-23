@@ -4,6 +4,13 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.2.2 — 2026-06-23 (SERP click beacon for SEO product URLs)
+
+- **SERP click beacon:** Recognises Numinix-style SEO slugs
+  (`/product-name-921`) in addition to `?products_id=` links. Stamps
+  rank from the session position-map and tags `surface=results` when
+  the clicked SKU is in the Seekmodo swap set.
+
 ## v1.2.1 — 2026-06-22 (typeahead product-row click attribution)
 
 - **Suggest click beacon:** `<seekmodo-suggest>` product-row clicks now
