@@ -218,8 +218,18 @@ final class NuminixSeekmodoSuggestObserver extends base
             ? 'seekmodo_typeahead.legacy.js'
             : 'seekmodo_suggest.bundle.js';
 
-        return $base . 'zc_plugins/Seekmodo/' . $version
+        $url = $base . 'zc_plugins/Seekmodo/' . $version
             . '/catalog/includes/templates/template_default/jscript/' . $file;
+        // Bust Cloudflare / browser year-long cache on plugin JS updates.
+        if (!$useLegacy) {
+            $disk = dirname(__DIR__, 4)
+                . '/catalog/includes/templates/template_default/jscript/' . $file;
+            if (is_readable($disk)) {
+                $url .= '?v=' . (string) filemtime($disk);
+            }
+        }
+
+        return $url;
     }
 
     /**
