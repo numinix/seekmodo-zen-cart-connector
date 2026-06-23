@@ -4,6 +4,12 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.2.5 — 2026-06-23 (mobile split-rail slider fix)
+
+- **Suggest bundle:** Mobile split-rail draggable divider works again — the
+  `7.5rem` rail cap is scoped to the static stack only; resize mode uses flex
+  growth so both keyword and product panels expand/contract when dragging.
+
 ## v1.2.4 — 2026-06-23 (catalog orphan prune + suggest bundle refresh)
 
 - **Catalog orphan prune:** After a successful full push,
