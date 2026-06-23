@@ -4,6 +4,25 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.2.4 — 2026-06-23 (catalog orphan prune + suggest bundle refresh)
+
+- **Catalog orphan prune:** After a successful full push,
+  `numinix_seekmodo_push_catalog.php` calls gateway `catalog.prune` with
+  the run-start cutoff so hard-deleted SKUs drop out of suggest/typeahead
+  without manual Typesense ops. Adds pending-delete queue helpers for
+  near-real-time tombstone flushes between full runs.
+- **Suggest bundle (@seekmodo/web-components v0.3.0):** Split-rail mobile
+  layout with draggable divider (default ~28% keyword rail, scroll for
+  overflow). Native `title`/`alt` for product names; rAF-throttled
+  dropdown anchor; `bundleSrc()` filemtime cache-bust for Cloudflare.
+
+## v1.2.3 — 2026-06-16 (typeahead search_event_id + SEO SERP clicks)
+
+- **Typeahead LTR linkage:** `/v1/suggest` `meta.search_event_id` threads
+  through product-row click beacons (`surface=typeahead`).
+- **SERP click attribution:** Product-info clicks resolve `products_id`
+  from SEO slug URLs and referer `search_query`/`q`.
+
 ## v1.2.2 — 2026-06-23 (SERP click beacon for SEO product URLs)
 
 - **SERP click beacon:** Recognises Numinix-style SEO slugs
