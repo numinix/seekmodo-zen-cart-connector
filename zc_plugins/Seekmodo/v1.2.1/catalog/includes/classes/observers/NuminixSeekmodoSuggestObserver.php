@@ -676,6 +676,15 @@ final class NuminixSeekmodoSuggestObserver extends base
     }
     window.location.href = nav;
   });
+  document.addEventListener('seekmodo-suggest:view-all', function (ev) {
+    var detail = (ev && ev.detail) || {};
+    var q = String(detail.q || '').trim();
+    if (!q) return;
+    var viewAll = (CFG && CFG.view_all_href) || '/search?q={q}';
+    var nav = viewAll.replace('{q}', encodeURIComponent(q));
+    nav = appendParam(nav, 'seekmodo_skip_category_redirect', '1');
+    window.location.href = nav;
+  });
   document.addEventListener('seekmodo-suggest:cors-blocked', function (ev) {
     var detail = (ev && ev.detail) || {};
     var inputEl = detail.input;
