@@ -4,6 +4,12 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.2.7 — 2026-06-24 (purchase telemetry on forked checkout)
+
+- **Purchase observer fix** — checkout purchase mirroring now handles Redline /
+  Numinix fork notifier arity (single `$order` notify) and cart-style product
+  `id` keys, restoring purchase + revenue analytics on enforce storefronts.
+
 ## v1.2.5 — 2026-06-23 (mobile split-rail slider fix)
 
 - **Suggest bundle:** Mobile split-rail draggable divider works again — the
