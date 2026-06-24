@@ -455,6 +455,9 @@ final class NuminixSeekmodoSuggestObserver extends base
             'click_endpoint' => $this->clickEndpoint(),
             'serp_parity_submit' => function_exists('numinix_seekmodo_mode')
                 && numinix_seekmodo_mode() === 'enforce',
+            'serp_passthrough' => function_exists('_numinix_seekmodo_typesense_tuning_params')
+                ? _numinix_seekmodo_typesense_tuning_params(true)
+                : new \stdClass(),
             'extras'         => [
                 'min-length'  => '2',
                 'debounce-ms' => '150',
@@ -499,6 +502,9 @@ final class NuminixSeekmodoSuggestObserver extends base
     el.setAttribute('input', id);
     if (CFG.blocks) el.setAttribute('blocks', CFG.blocks);
     if (CFG.view_all_href) el.setAttribute('view-all-href', CFG.view_all_href);
+    if (CFG.serp_passthrough && typeof CFG.serp_passthrough === 'object') {
+      el.setAttribute('serp-passthrough', JSON.stringify(CFG.serp_passthrough));
+    }
     el.setAttribute('layout', CFG.layout || 'split-rail');
     el.setAttribute('show-branding', CFG.show_branding ? 'true' : 'false');
     if (CFG.extras && typeof CFG.extras === 'object') {
@@ -787,10 +793,10 @@ JS;
         // Zen Cart core SERP URL — same target the storefront form
         // submits to.
         if (!defined('DIR_WS_CATALOG')) {
-            return '/?main_page=advanced_search_result&keyword={q}';
+            return '/?main_page=search_result&keyword={q}';
         }
 
         return ((string) constant('DIR_WS_CATALOG'))
-            . 'index.php?main_page=advanced_search_result&keyword={q}';
+            . 'index.php?main_page=search_result&keyword={q}';
     }
 }

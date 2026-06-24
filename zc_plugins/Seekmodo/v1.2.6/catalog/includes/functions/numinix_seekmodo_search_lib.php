@@ -676,7 +676,7 @@ if (!function_exists('numinix_seekmodo_run_search')) {
                 'pto'  => isset($params['pto']) ? (float)$params['pto'] : 0.0,
                 'lang' => isset($_SESSION['languages_id']) ? (int)$_SESSION['languages_id'] : 1,
             ];
-            $cacheKey = 'sm_search_v1:' . $tenant . ':' . sha1(json_encode($keyParts, JSON_UNESCAPED_UNICODE));
+            $cacheKey = 'sm_search_v2:' . $tenant . ':' . sha1(json_encode($keyParts, JSON_UNESCAPED_UNICODE));
             $cached = _numinix_seekmodo_search_cache_get($cacheKey, $cacheTtlS, $cacheBackend);
             if (is_array($cached) && isset($cached['result']) && is_array($cached['result'])) {
                 if (isset($cached['meta']['search_event_id'])
@@ -1261,6 +1261,57 @@ if (!function_exists('_numinix_seekmodo_apply_sort_deprecations')) {
     }
 }
 
+if (!function_exists('_numinix_seekmodo_typesense_tuning_params')) {
+    /**
+     * Storefront Typesense tuning constants (RED-1612) shared by full
+     * SERP requests and suggest SERP-preview passthrough.
+     *
+     * @return array<string, mixed>
+     */
+    function _numinix_seekmodo_typesense_tuning_params(bool $forKeywordSearch = true): array
+    {
+        $payload = [];
+        if (defined('NUMINIX_TYPESENSE_TYPO_TOKENS_THRESHOLD')) {
+            $payload['typo_tokens_threshold'] = (int)NUMINIX_TYPESENSE_TYPO_TOKENS_THRESHOLD;
+        }
+        if (defined('NUMINIX_TYPESENSE_DROP_TOKENS_THRESHOLD')) {
+            $payload['drop_tokens_threshold'] = (int)NUMINIX_TYPESENSE_DROP_TOKENS_THRESHOLD;
+        }
+        if (defined('NUMINIX_TYPESENSE_QUERY_BY') && NUMINIX_TYPESENSE_QUERY_BY !== '') {
+            $qBy = (string)NUMINIX_TYPESENSE_QUERY_BY;
+            $payload['query_by'] = $qBy;
+            $fieldCount = substr_count($qBy, ',') + 1;
+            $perField = [
+                'query_by_weights' => 'NUMINIX_TYPESENSE_QUERY_BY_WEIGHTS',
+                'prefix'           => 'NUMINIX_TYPESENSE_PREFIX',
+                'infix'            => 'NUMINIX_TYPESENSE_INFIX',
+            ];
+            foreach ($perField as $param => $constName) {
+                if (defined($constName)) {
+                    $val = constant($constName);
+                    if (is_string($val) && $val !== ''
+                        && (substr_count($val, ',') + 1) === $fieldCount) {
+                        $payload[$param] = $val;
+                    }
+                }
+            }
+        }
+        if ($forKeywordSearch && defined('NUMINIX_TYPESENSE_KEYWORD_SORT_BY')
+            && NUMINIX_TYPESENSE_KEYWORD_SORT_BY !== '') {
+            $payload['sort_by'] = (string)NUMINIX_TYPESENSE_KEYWORD_SORT_BY;
+        } elseif (!$forKeywordSearch && defined('NUMINIX_TYPESENSE_BROWSE_SORT_BY')
+            && NUMINIX_TYPESENSE_BROWSE_SORT_BY !== '') {
+            $payload['sort_by'] = (string)NUMINIX_TYPESENSE_BROWSE_SORT_BY;
+        }
+        if (!empty($payload['sort_by'])) {
+            $payload['sort_by'] = _numinix_seekmodo_apply_sort_deprecations(
+                (string)$payload['sort_by']
+            );
+        }
+        return $payload;
+    }
+}
+
 if (!function_exists('_numinix_seekmodo_build_search_payload')) {
     /**
      * Translate the storefront's search params into the gateway's
@@ -1347,98 +1398,13 @@ if (!function_exists('_numinix_seekmodo_build_search_payload')) {
             $payload['filters'] = $structuredFilters;
         }
 
-        // RED-1612-tuning: forward the storefront's Typesense
-        // tuning constants so the gateway calls Typesense with the
-        // same typo/drop thresholds and field-weighting the
-        // storefront would use if it talked to Typesense directly.
-        //
-        // Without these, the gateway falls back to commerce-vertical
-        // defaults from SearchDefaults::for() — currently
-        // drop_tokens_threshold=1, typo_tokens_threshold=1, plus a
-        // 4-field query_by ("name, model, products_description, etc.")
-        // tuned for a generic medium catalog. Small / quirky catalogs
-        // (Redline has ~3.2k SKUs with niche keywords) need a higher
-        // token-drop threshold to recall partial matches. Symptom seen
-        // on redlinestands.com production: `keyword=automotive
-        // rotisserie` returned 9 hits via gateway but 177 hits via
-        // direct Typesense (which DID send these tuning params),
-        // because the gateway never received drop=10/typo=10 from the
-        // connector.
-        //
-        // The gateway accepts these params unconditionally — see
-        // SearchTool::execute() PASS_THROUGH list. Two safety rules:
-        //
-        // 1. Scalars (drop_tokens_threshold, typo_tokens_threshold)
-        //    are always safe: gateway uses them when present, falls
-        //    back to defaults otherwise. No field-count alignment
-        //    concern.
-        //
-        // 2. Per-field arrays (query_by_weights, prefix, infix) must
-        //    have the same comma-count as query_by. If we send
-        //    misaligned arrays Typesense 400s the whole request. So
-        //    we only set the per-field bundle when (a) query_by is
-        //    defined AND (b) each storefront constant's field count
-        //    matches query_by's. Otherwise we leave the param off and
-        //    the gateway's defaults take over for that one field.
-        if (defined('NUMINIX_TYPESENSE_TYPO_TOKENS_THRESHOLD')) {
-            $payload['typo_tokens_threshold'] = (int)NUMINIX_TYPESENSE_TYPO_TOKENS_THRESHOLD;
-        }
-        if (defined('NUMINIX_TYPESENSE_DROP_TOKENS_THRESHOLD')) {
-            $payload['drop_tokens_threshold'] = (int)NUMINIX_TYPESENSE_DROP_TOKENS_THRESHOLD;
-        }
-        if (defined('NUMINIX_TYPESENSE_QUERY_BY') && NUMINIX_TYPESENSE_QUERY_BY !== '') {
-            $qBy = (string)NUMINIX_TYPESENSE_QUERY_BY;
-            $payload['query_by'] = $qBy;
-            $fieldCount = substr_count($qBy, ',') + 1;
-            $perField = [
-                'query_by_weights' => 'NUMINIX_TYPESENSE_QUERY_BY_WEIGHTS',
-                'prefix'           => 'NUMINIX_TYPESENSE_PREFIX',
-                'infix'            => 'NUMINIX_TYPESENSE_INFIX',
-            ];
-            foreach ($perField as $param => $constName) {
-                if (defined($constName)) {
-                    $val = constant($constName);
-                    if (is_string($val) && $val !== ''
-                        && (substr_count($val, ',') + 1) === $fieldCount) {
-                        $payload[$param] = $val;
-                    }
-                }
-            }
-        }
-        // Keyword-vs-browse sort: storefront has two configured sort
-        // strings (KEYWORD_SORT_BY for "shopper typed a query",
-        // BROWSE_SORT_BY for "shopper clicked a category with no
-        // query"). Forward the appropriate one when defined so the
-        // gateway's reranker has the right starting order. Skip if
-        // the caller already passed in a sort_by (storefront
-        // categories pre-build their own).
-        if (empty($payload['sort_by'])) {
-            if ($keyword !== '' && defined('NUMINIX_TYPESENSE_KEYWORD_SORT_BY')
-                && NUMINIX_TYPESENSE_KEYWORD_SORT_BY !== '') {
-                $payload['sort_by'] = (string)NUMINIX_TYPESENSE_KEYWORD_SORT_BY;
-            } elseif ($keyword === '' && defined('NUMINIX_TYPESENSE_BROWSE_SORT_BY')
-                && NUMINIX_TYPESENSE_BROWSE_SORT_BY !== '') {
-                $payload['sort_by'] = (string)NUMINIX_TYPESENSE_BROWSE_SORT_BY;
-            }
-        }
-
-        // Sort-field deprecation map (PR 7b). Storefront admins on
-        // older Seekmodo deployments configured the keyword/browse
-        // sort constants with Zen Cart database column names (e.g.
-        // `products_instock:desc`) that don't match the canonical
-        // Typesense schema field names (`in_stock`). Pre-PR-7b the
-        // gateway forwarded the misconfigured value to Typesense
-        // verbatim, which then 404'd with "Could not find a field
-        // named ... in the schema for sorting." — every shopper's
-        // category browse fell over to the legacy CMS-search path.
-        //
-        // Rewrite known-stale tokens in-place. Logged once per
-        // request so admins can see the migration is happening (and
-        // get a hint to update their constant directly).
-        if (!empty($payload['sort_by'])) {
-            $payload['sort_by'] = _numinix_seekmodo_apply_sort_deprecations(
-                (string)$payload['sort_by']
-            );
+        // RED-1612 tuning — shared with suggest SERP-preview passthrough.
+        $payload = array_merge(
+            $payload,
+            _numinix_seekmodo_typesense_tuning_params($keyword !== '')
+        );
+        if (!empty($params['sort_by'])) {
+            $payload['sort_by'] = _numinix_seekmodo_apply_sort_deprecations((string)$params['sort_by']);
         }
 
         // Shopper context — see helper docblocks above. Always set
