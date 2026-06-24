@@ -4,6 +4,12 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.2.9 — 2026-06-24 (search/click session_id parity)
+
+- **PHP session first + stashed search session** — gateway search, SERP clicks,
+  and checkout purchases now share the same `session_id` within a visit so
+  session-aware linkage and search-attributed revenue rollups work end-to-end.
+
 ## v1.2.8 — 2026-06-24 (search-click session attribution)
 
 - **Session id parity** — click, impression, add-to-cart, and purchase events
