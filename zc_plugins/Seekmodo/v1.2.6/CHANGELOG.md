@@ -2,6 +2,10 @@
 
 ## v1.2.6 — suggest / SERP / View-all parity (2026-06-22)
 
+- **Suggest SERP passthrough** — connector Typesense tuning (`query_by`, prefix/infix,
+  typo/drop thresholds, `sort_by`) is emitted in autoboot as `serp_passthrough` and
+  forwarded on debounced `/v1/suggest` calls so dropdown products + `meta.total`
+  match the connector SERP (fixes Redline `motorcyc`-style mismatches).
 - **Suggest bundle (`@seekmodo/web-components@0.3.1`)** — debounced `/v1/suggest`
   requests now include `complete: true` so the gateway can run the full SearchTool
   pipeline for stable queries (products + `meta.total` match `/v1/search`).
