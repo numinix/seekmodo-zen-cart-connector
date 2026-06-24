@@ -4,6 +4,13 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.2.8 — 2026-06-24 (search-click session attribution)
+
+- **Session id parity** — click, impression, add-to-cart, and purchase events
+  now share the same `session_id` resolution as gateway search calls, fixing
+  session-aware click linkage and search-attributed revenue rollups when the
+  click-log cookie was not yet set.
+
 ## v1.2.7 — 2026-06-24 (purchase telemetry on forked checkout)
 
 - **Purchase observer fix** — checkout purchase mirroring now handles Redline /
