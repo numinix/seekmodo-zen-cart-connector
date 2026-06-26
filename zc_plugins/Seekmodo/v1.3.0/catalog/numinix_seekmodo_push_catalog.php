@@ -58,6 +58,12 @@
  *
  *   /usr/bin/php zc_plugins/Seekmodo/v1.0.10/catalog/numinix_seekmodo_push_catalog.php --batch=200
  *
+ * Manual full push after operator quota ack (admin index.trigger or
+ * informed SSH reindex — skips automated quota preflight and stamps
+ * X-Seekmodo-Index-Intent: manual on each /v1/index batch):
+ *
+ *   /usr/bin/php .../numinix_seekmodo_push_catalog.php --ack-quota
+ *
  * Schema mapping
  * --------------
  * The gateway's commerce Typesense schema (see
@@ -166,11 +172,13 @@ $opts = getopt('', [
     'verbose',
     'site::',
     'no-prune',
+    'ack-quota',
 ]);
 
 $dryRun = isset($opts['dry-run']);
 $verbose = isset($opts['verbose']);
 $noPrune = isset($opts['no-prune']);
+$ackQuota = isset($opts['ack-quota']);
 $batchOverride = isset($opts['batch']) ? (int)$opts['batch'] : 0;
 $maxBatches = isset($opts['max-batches']) ? (int)$opts['max-batches'] : 0;
 
@@ -194,6 +202,54 @@ function _push_log(string $level, string $msg): void
     $ts = date('c');
     $line = sprintf('[%s] %s push_catalog: %s', $ts, strtoupper($level), $msg);
     fwrite(STDERR, $line . "\n");
+}
+
+/**
+ * Best-effort push of `last_full_push_skipped_reason` up to the
+ * gateway so admin.seekmodo.com can surface "scheduled full push
+ * skipped — indexing quota" on the connector status card.
+ */
+function _push_report_skipped_reason(string $reason): void
+{
+    try {
+        if (!class_exists(\Numinix\Seekmodo\AutoPromoter::class)) {
+            return;
+        }
+        (new \Numinix\Seekmodo\AutoPromoter())->pushSnapshot('full_push_skipped', [
+            'last_full_push_skipped_reason' => $reason,
+        ]);
+    } catch (\Throwable $e) {
+        // best-effort — gateway-down must never block the cron exit
+    }
+}
+
+/**
+ * Read index_quota.full_push_safe from a tenant.snapshot pull.
+ * Fail-open (true) when the gateway is unreachable or the field is
+ * absent — pre-v1.3.1 gateways omit index_quota entirely.
+ */
+function _push_full_push_safe(): bool
+{
+    if (!class_exists(\Numinix\Seekmodo\RemoteConfig::class)) {
+        return true;
+    }
+    try {
+        $rc = \Numinix\Seekmodo\RemoteConfig::fromConfiguration();
+        if ($rc === null) {
+            return true;
+        }
+        $snapshot = $rc->pull();
+        if (!is_array($snapshot)) {
+            return true;
+        }
+        $indexQuota = $snapshot['index_quota'] ?? null;
+        if (!is_array($indexQuota) || !array_key_exists('full_push_safe', $indexQuota)) {
+            return true;
+        }
+        return (bool) $indexQuota['full_push_safe'];
+    } catch (\Throwable $e) {
+        return true;
+    }
 }
 
 if (!function_exists('numinix_seekmodo_enabled')) {
@@ -228,12 +284,35 @@ $tenantId = defined('NUMINIX_SEEKMODO_TENANT_ID') ? (string) NUMINIX_SEEKMODO_TE
 $collection = 't_' . $tenantId . '_products';
 
 _push_log('info', sprintf(
-    'starting catalog push tenant=%s collection=%s batch=%d dry_run=%s',
+    'starting catalog push tenant=%s collection=%s batch=%d dry_run=%s ack_quota=%s',
     $tenantId,
     $collection,
     $batchSize,
-    $dryRun ? 'yes' : 'no'
+    $dryRun ? 'yes' : 'no',
+    $ackQuota ? 'yes' : 'no'
 ));
+
+// Phase A3 — automated quota preflight. Cron / managed full pushes
+// skip cleanly when the gateway advisor says there isn't enough
+// indexed_docs headroom for a full catalog walk. Delta ticks and
+// dry-runs are unaffected; --ack-quota (Phase B3 manual consent)
+// bypasses this gate and stamps X-Seekmodo-Index-Intent: manual.
+if (!$dryRun && !$ackQuota && !_push_full_push_safe()) {
+    _push_log('info', 'full_push_skipped_quota');
+    _push_report_skipped_reason('quota');
+    require_once 'includes/application_bottom.php';
+    exit(0);
+}
+
+if ($ackQuota) {
+    _push_log('info', 'full_push_manual_ack');
+    if (function_exists('_numinix_seekmodo_client')) {
+        $client = _numinix_seekmodo_client();
+        if ($client !== null && method_exists($client, 'setIndexIntent')) {
+            $client->setIndexIntent('manual');
+        }
+    }
+}
 
 // Stamp before the upsert loop so every doc touched this run survives
 // catalog.prune below (same contract as AKS seekmodo:vlp-project).

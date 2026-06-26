@@ -56,6 +56,11 @@ class Client
     // `recordObservedDomain` is the only reason we know to surface
     // the wrong-host case in the admin UI at all.
     public const HEADER_STOREFRONT_HOST = 'X-Seekmodo-Storefront-Host';
+    // Phase B3 — manual full-push consent. When set to `manual` on
+    // POST /v1/index, the gateway treats the batch as operator-
+    // acknowledged (index_manual_override_until window) rather than
+    // an automated cron push subject to A3 quota preflight skip.
+    public const HEADER_INDEX_INTENT = 'X-Seekmodo-Index-Intent';
 
     private const CIRCUIT_THRESHOLD = 5;
     private const CIRCUIT_COOLDOWN_S = 30;
@@ -131,6 +136,8 @@ class Client
     private CircuitBreakerStore $breaker;
     /** @var callable|null hook for tests (signature: fn(string $level, string $msg, array $ctx): void) */
     private $logger;
+    /** @var string|null outbound index intent (`manual` for ack'd full push) */
+    private ?string $indexIntent = null;
 
     /**
      * Default search timeout (ms) when fromConfiguration() can't read
@@ -330,6 +337,27 @@ class Client
     }
 
     /**
+     * Stamp the index intent sent on subsequent POST /v1/index calls.
+     * Pass `manual` after operator `--ack-quota` consent; pass null to
+     * clear. Only `manual` is honoured today — unknown values are
+     * ignored so a typo can't accidentally bypass quota gates.
+     */
+    public function setIndexIntent(?string $intent): void
+    {
+        if ($intent === null || $intent === '') {
+            $this->indexIntent = null;
+            return;
+        }
+        $normalized = strtolower(trim($intent));
+        $this->indexIntent = $normalized === 'manual' ? 'manual' : null;
+    }
+
+    public function indexIntent(): ?string
+    {
+        return $this->indexIntent;
+    }
+
+    /**
      * POST /v1/index.
      *
      * Caller is expected to pre-chunk to <= NUMINIX_SEEKMODO_INDEX_BATCH
@@ -338,11 +366,18 @@ class Client
      * the chunking automatically.
      *
      * @param array<int,array<string,mixed>> $documents
+     * @param string|null $intent Optional per-call intent override
+     *   (`manual`). When omitted, uses {@see setIndexIntent()}.
      * @return array<string,mixed>|null
      */
-    public function index(array $documents): ?array
+    public function index(array $documents, ?string $intent = null): ?array
     {
-        return $this->call('/v1/index', ['documents' => $documents], $this->indexTimeoutMs);
+        return $this->call(
+            '/v1/index',
+            ['documents' => $documents],
+            $this->indexTimeoutMs,
+            $intent
+        );
     }
 
     /**
@@ -539,7 +574,7 @@ class Client
         return $this->call('/v1/tenants/token', $body, $this->searchTimeoutMs);
     }
 
-    private function call(string $path, array $body, int $timeoutMs): ?array
+    private function call(string $path, array $body, int $timeoutMs, ?string $indexIntentOverride = null): ?array
     {
         if (!$this->isEnabled()) {
             return null;
@@ -566,6 +601,12 @@ class Client
         $hostHeader = self::storefrontHost();
         if ($hostHeader !== '') {
             $headers[] = self::HEADER_STOREFRONT_HOST . ': ' . $hostHeader;
+        }
+        if ($path === '/v1/index') {
+            $intent = $indexIntentOverride ?? $this->indexIntent;
+            if (is_string($intent) && $intent === 'manual') {
+                $headers[] = self::HEADER_INDEX_INTENT . ': manual';
+            }
         }
 
         $ch = curl_init($url);

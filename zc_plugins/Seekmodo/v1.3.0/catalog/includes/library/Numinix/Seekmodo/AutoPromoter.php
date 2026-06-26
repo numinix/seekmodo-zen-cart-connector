@@ -239,12 +239,12 @@ final class AutoPromoter
      * Failures are swallowed — gateway-down should never break the
      * storefront's hot path.
      */
-    public function pushSnapshot(string $reason = 'periodic'): bool
+    public function pushSnapshot(string $reason = 'periodic', array $extra = []): bool
     {
-        return $this->pushSnapshotToGateway($reason);
+        return $this->pushSnapshotToGateway($reason, $extra);
     }
 
-    private function pushSnapshotToGateway(string $reason): bool
+    private function pushSnapshotToGateway(string $reason, array $extra = []): bool
     {
         if (!class_exists(RemoteConfig::class)) {
             return false;
@@ -273,6 +273,11 @@ final class AutoPromoter
             }
             if (defined('NUMINIX_SEEKMODO_LAST_FULL_PUSH_DOC_COUNT')) {
                 $payload['last_full_push_doc_count'] = (int) NUMINIX_SEEKMODO_LAST_FULL_PUSH_DOC_COUNT;
+            }
+            if ($extra !== []) {
+                foreach ($extra as $key => $value) {
+                    $payload[$key] = $value;
+                }
             }
             return $rc->push($payload);
         } catch (\Throwable $e) {
