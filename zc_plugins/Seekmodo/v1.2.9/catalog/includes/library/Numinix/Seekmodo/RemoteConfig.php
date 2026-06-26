@@ -308,6 +308,7 @@ final class RemoteConfig
      *   - debug             → NUMINIX_SEEKMODO_DEBUG
      *   - bot_check_backend → NUMINIX_BOT_CHECK_BACKEND           (W6c, v1.0.6+)
      *   - locked_domain     → NUMINIX_SEEKMODO_LOCKED_DOMAIN      (Sprint 12, v1.0.8+)
+     *   - ask_ai_enabled    → NUMINIX_SEEKMODO_ASK_AI_ENABLED     (Ask AI)
      *
      * `default_mode` is consumed by `numinix_seekmodo_mode()` as the
      * fall-through when `MODE` is unset; `indexer_schedule` is read by
@@ -382,6 +383,8 @@ final class RemoteConfig
             'NUMINIX_SEEKMODO_LOCKED_DOMAIN' => array_key_exists('locked_domain', $row)
                 ? (string) ($row['locked_domain'] ?? '')
                 : null,
+            'NUMINIX_SEEKMODO_ASK_AI_ENABLED' => array_key_exists('ask_ai_enabled', $row)
+                ? ((bool) $row['ask_ai_enabled'] ? 'true' : 'false') : null,
             'NUMINIX_SEEKMODO_SUGGEST_LAYOUT' => isset($row['suggest_layout'])
                 && is_string($row['suggest_layout'])
                 ? strtolower(trim((string) $row['suggest_layout'])) : null,

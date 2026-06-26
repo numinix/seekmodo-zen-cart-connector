@@ -252,6 +252,13 @@ class ScriptedInstaller extends ScriptedInstallBase
             'configuration_group_id' => $groupId,
             'sort_order' => 114,
         ]);
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_ASK_AI_ENABLED', [
+            'configuration_title' => 'Seekmodo: Ask AI Enabled',
+            'configuration_value' => 'false',
+            'configuration_description' => 'Mirrored from <code>tenant.snapshot.ask_ai_enabled</code>. When true, mount <code>&lt;seekmodo-ask&gt;</code> from <code>@seekmodo/web-components</code> where you want single-turn Ask AI.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 115,
+        ]);
 
         // v1.0.17 — SKU / part-number exact-match boost. Port of the
         // AKS connector's Sprint 2 EzNumberBooster helper. When the
@@ -506,6 +513,7 @@ class ScriptedInstaller extends ScriptedInstallBase
             'NUMINIX_SEEKMODO_CATEGORY_REDIRECT_ENABLED',
             'NUMINIX_SEEKMODO_CATEGORY_REDIRECT_MIN_SIMILARITY',
             'NUMINIX_SEEKMODO_CATEGORY_REDIRECT_CLEAR_WINNER_GAP',
+            'NUMINIX_SEEKMODO_ASK_AI_ENABLED',
         ]);
         zen_deregister_admin_pages('numinixSeekmodoConnect');
         zen_deregister_admin_pages('numinixSeekmodoUpdates');
