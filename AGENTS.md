@@ -62,6 +62,53 @@ Alternatively: `python tools/build_release.py --auto-pr` opens an
 auto-merging PR into `numinix/seekmodo` (still requires step 3 for
 `VERSION_HISTORY` in a follow-up commit if not done in the same PR).
 
+## Publishing a release to Numinix.com
+
+Merchants can also download from **Numinix.com** (product
+`Seekmodo for Zen Cart`, `products_id=2044`). Numinix packages its own
+zip via `Numinix\PluginRelease\Releaser` — separate from the signed
+seekmodo.com artefact.
+
+### When to run
+
+After the connector tag is on GitHub (`git push origin vX.Y.Z`) and
+seekmodo.com publish (steps 1–4 above) are complete:
+
+```bash
+python tools/publish_numinix_release.py --tag vX.Y.Z
+```
+
+This calls `release_plugin` on `https://www.numinix.com/mcp/`, which
+clones `numinix/seekmodo-zen-cart-connector`, creates the git tag,
+archives into `free_download_manager/`, inserts a
+`free_download_manager` row, and updates `products_model`.
+
+### Auth
+
+Set `NUMINIX_MCP_BEARER` or rely on
+`numinix.com-local/config/server-access.local.json` →
+`mcp_plugin_release.bearer_token`.
+
+### Initial product setup (one-time)
+
+Scripts live in `numinix.com-local/scripts/`:
+
+- `setup-seekmodo-zen-cart-product.php` — product row, categories,
+  attributes, git_url
+- `fix-seekmodo-zen-cart-attributes.php` — repair helper if attribute
+  clone fails
+
+Product image: `images/seekmodo-for-zen-cart.png` (from
+seekmodo.com plugin banner assets).
+
+Categories / filter facets: Free Zen Cart Plugins (182), Zen Cart
+Search Modules (197), Zen Cart Plugins (219), plus Platform / Plugin
+Type display attributes for category listing filters.
+
+Optional **$130 one-time installation** uses Installation option 22
+(`attributes_price_onetime=130` on value “Installation”, default
+“I will install myself”).
+
 ## Where to look first
 
 | Task | Path |
