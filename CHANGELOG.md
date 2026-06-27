@@ -4,6 +4,16 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.4 — 2026-06-27 (view-all SERP route + suggest vehicle filter)
+
+- **View-all SERP route detection** — suggest `view_all_href` now picks
+  `search_result` when the storefront ships that page, otherwise falls back to
+  `advanced_search_result` with `search_in_description=1`. Fixes legacy forks
+  (KIP-style) where linking to a missing `search_result` 301'd to the homepage.
+- **Suggest vehicle filter sync** — autoboot stamps garage/YMM fitment context on
+  the suggest web component and refreshes the vendored bundle so gateway queries
+  and view-all URLs carry active vehicle filters.
+
 ## v1.3.3 — 2026-06-27 (purchase telemetry zero-arg notify fallback)
 
 - **Purchase observer fallback** — when
