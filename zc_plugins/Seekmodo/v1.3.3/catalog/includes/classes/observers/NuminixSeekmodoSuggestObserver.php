@@ -519,7 +519,146 @@ final class NuminixSeekmodoSuggestObserver extends base
     input.parentNode.insertBefore(el, input.nextSibling);
     input.dataset.seekmodoSuggest = '1';
     input.setAttribute('autocomplete', 'off');
+    syncSuggestVehicleFilter();
   }
+  var VEHICLE_KEY = 'seekmodo.vehicle';
+  function escapeTypesenseToken(value) {
+    if (/[\s&|!():`]/.test(value)) {
+      return '`' + value.replace(/`/g, '\\`') + '`';
+    }
+    return value;
+  }
+  function ymmClause(make, model) {
+    var mk = (make || '').trim();
+    var md = (model || '').trim();
+    if (!mk || !md) return null;
+    return 'name:' + escapeTypesenseToken(mk) + ' && name:' + escapeTypesenseToken(md);
+  }
+  function readGarageVehicleId() {
+    var input = document.querySelector('input[name="garage_vehicle_id"]');
+    if (!input) return 0;
+    var id = parseInt(String(input.value || '0'), 10);
+    return Number.isFinite(id) && id > 0 ? id : 0;
+  }
+  function readYmmFromSelects() {
+    var makeEl = document.querySelector('#makeSelect, select[name="make"], [data-seekmodo-make]');
+    var modelEl = document.querySelector('#modelSelect, select[name="model"], [data-seekmodo-model]');
+    var yearEl = document.querySelector('#yearSelect, select[name="year"], [data-seekmodo-year]');
+    var make = makeEl && makeEl.value ? String(makeEl.value).trim() : '';
+    var model = modelEl && modelEl.value ? String(modelEl.value).trim() : '';
+    var year = yearEl && yearEl.value ? String(yearEl.value).trim() : '';
+    if (!make || !model || make === 'Select' || model === 'Select') return null;
+    return { make: make, model: model, year: year };
+  }
+  function readStoredVehicle() {
+    try {
+      var raw = localStorage.getItem(VEHICLE_KEY);
+      if (!raw) return null;
+      var v = JSON.parse(raw);
+      return v && typeof v === 'object' ? v : null;
+    } catch (_e) { return null; }
+  }
+  function resolveVehicleContext() {
+    var stored = readStoredVehicle();
+    if (stored) return stored;
+    var gid = readGarageVehicleId();
+    if (gid > 0 && window.seekmodoGarage && typeof window.seekmodoGarage.list === 'function') {
+      var items = window.seekmodoGarage.list();
+      for (var i = 0; i < items.length; i++) {
+        if (Number(items[i].vehicle_id) === gid) {
+          return {
+            vehicle_id: gid,
+            make: items[i].make || '',
+            model: items[i].model || '',
+            year: items[i].year || '',
+            label: items[i].label || '',
+            fitment_product_count: items[i].product_count
+          };
+        }
+      }
+      return { vehicle_id: gid };
+    }
+    if (gid > 0) return { vehicle_id: gid };
+    var ymm = readYmmFromSelects();
+    if (ymm) {
+      return {
+        vehicle_id: 0,
+        make: ymm.make,
+        model: ymm.model,
+        year: ymm.year,
+        fitment_product_count: 0
+      };
+    }
+    return null;
+  }
+  function buildVehicleFilterPassthrough(v) {
+    if (!v || typeof v !== 'object') return null;
+    var vid = Number(v.vehicle_id);
+    var make = (v.make || '').trim();
+    var model = (v.model || '').trim();
+    var count = v.fitment_product_count;
+    var pt = {
+      vehicle_hard_filter: true,
+      shopper_context: {}
+    };
+    if (make) pt.shopper_context.vehicle_make = make;
+    if (model) pt.shopper_context.vehicle_model = model;
+    if (v.label) pt.shopper_context.vehicle_label = String(v.label);
+    if (v.year) pt.shopper_context.vehicle_year = String(v.year);
+    if (Number.isFinite(vid) && vid > 0 && !(typeof count === 'number' && count === 0)) {
+      pt.filter_by = 'fits_vehicles:=' + vid;
+      pt.vehicle_filter_mode = 'fitment';
+      pt.vehicle_id = vid;
+      pt.shopper_context.vehicle_id = String(vid);
+      return pt;
+    }
+    if (make && model && (!Number.isFinite(vid) || vid === 0 || (typeof count === 'number' && count === 0))) {
+      var ymm = ymmClause(make, model);
+      if (ymm) {
+        pt.filter_by = ymm;
+        pt.vehicle_filter_mode = 'ymm';
+        pt.vehicle_id = 0;
+        return pt;
+      }
+    }
+    return null;
+  }
+  function syncSuggestVehicleFilter() {
+    var ctx = resolveVehicleContext();
+    var pt = buildVehicleFilterPassthrough(ctx);
+    var vid = ctx && Number(ctx.vehicle_id) > 0 ? Number(ctx.vehicle_id) : 0;
+    var viewAll = CFG.view_all_href || '/index.php?main_page=advanced_search_result&keyword={q}';
+    if (vid > 0) {
+      viewAll = viewAll + (viewAll.indexOf('?') >= 0 ? '&' : '?') + 'garage_vehicle_id=' + encodeURIComponent(String(vid));
+    } else if (ctx && ctx.make && ctx.model) {
+      viewAll = viewAll + (viewAll.indexOf('?') >= 0 ? '&' : '?')
+        + 'make=' + encodeURIComponent(ctx.make)
+        + '&model=' + encodeURIComponent(ctx.model);
+      if (ctx.year) viewAll += '&year=' + encodeURIComponent(String(ctx.year));
+    }
+    var nodes = document.querySelectorAll('seekmodo-suggest');
+    for (var i = 0; i < nodes.length; i++) {
+      if (vid > 0) {
+        nodes[i].setAttribute('vehicle-id', String(vid));
+      } else {
+        nodes[i].removeAttribute('vehicle-id');
+      }
+      if (pt) {
+        nodes[i].setAttribute('serp-passthrough', JSON.stringify(pt));
+      } else {
+        nodes[i].removeAttribute('serp-passthrough');
+      }
+      nodes[i].setAttribute('view-all-href', viewAll);
+    }
+  }
+  window.addEventListener('seekmodo:vehicle:selected', syncSuggestVehicleFilter);
+  window.addEventListener('seekmodo:vehicle:cleared', syncSuggestVehicleFilter);
+  document.addEventListener('change', function (e) {
+    if (!e || !e.target || !e.target.matches) return;
+    if (e.target.matches('#yearSelect, #makeSelect, #modelSelect, select[name="year"], select[name="make"], select[name="model"]')) {
+      syncSuggestVehicleFilter();
+    }
+  }, true);
   function scan(root) {
     try {
       var inputs = (root || document).querySelectorAll(SELECTOR);
@@ -527,9 +666,10 @@ final class NuminixSeekmodoSuggestObserver extends base
     } catch (_e) { /* malformed selector — bail silently */ }
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { scan(document); });
+    document.addEventListener('DOMContentLoaded', function () { scan(document); syncSuggestVehicleFilter(); });
   } else {
     scan(document);
+    syncSuggestVehicleFilter();
   }
   if ('MutationObserver' in window) {
     var mo = new MutationObserver(function (list) {
@@ -790,13 +930,56 @@ JS;
                 return $v;
             }
         }
-        // Zen Cart core SERP URL — same target the storefront form
-        // submits to.
+
+        // Match the storefront's native SERP route. ZC 1.5.8+ stores expose
+        // pages/search_result; legacy forks (KIP, older Numinix) only ship
+        // advanced_search_result. Linking to a missing search_result page
+        // 301s to index.html?keyword=… and renders the homepage.
+        $mainPage = $this->serpMainPage();
+        $suffix = $this->serpViewAllQuerySuffix($mainPage);
+
         if (!defined('DIR_WS_CATALOG')) {
-            return '/?main_page=search_result&keyword={q}';
+            return '/?main_page=' . $mainPage . '&keyword={q}' . $suffix;
         }
 
         return ((string) constant('DIR_WS_CATALOG'))
-            . 'index.php?main_page=search_result&keyword={q}';
+            . 'index.php?main_page=' . $mainPage . '&keyword={q}' . $suffix;
+    }
+
+    /**
+     * Which main_page renders the full search-results template on this host.
+     */
+    private function serpMainPage(): string
+    {
+        $catalog = defined('DIR_FS_CATALOG') ? (string) DIR_FS_CATALOG : '';
+        if ($catalog !== '' && is_file($catalog . 'includes/modules/pages/search_result/header_php.php')) {
+            return defined('FILENAME_SEARCH_RESULT')
+                ? (string) FILENAME_SEARCH_RESULT
+                : 'search_result';
+        }
+        if ($catalog !== '' && is_file($catalog . 'includes/modules/pages/advanced_search_result/header_php.php')) {
+            return defined('FILENAME_ADVANCED_SEARCH_RESULT')
+                ? (string) FILENAME_ADVANCED_SEARCH_RESULT
+                : 'advanced_search_result';
+        }
+
+        return defined('FILENAME_SEARCH_RESULT')
+            ? (string) FILENAME_SEARCH_RESULT
+            : 'search_result';
+    }
+
+    /**
+     * Extra query params the header search form sends with the SERP target.
+     */
+    private function serpViewAllQuerySuffix(string $mainPage): string
+    {
+        $advanced = defined('FILENAME_ADVANCED_SEARCH_RESULT')
+            ? (string) FILENAME_ADVANCED_SEARCH_RESULT
+            : 'advanced_search_result';
+        if ($mainPage === $advanced) {
+            return '&search_in_description=1';
+        }
+
+        return '';
     }
 }
