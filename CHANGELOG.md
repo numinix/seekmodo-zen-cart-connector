@@ -4,6 +4,13 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.2 — 2026-06-27 (add-to-cart telemetry on fork cart paths)
+
+- **Add-to-cart observer fix** — `NOTIFY_CART_ADD_CART_END` now reads the
+  products_id and qty the cart notifier passes (same bug class as v1.2.7
+  purchase telemetry). Numinix forks that add via `?pid=`, multi-add POST
+  arrays, or AJAX wallet paths no longer silently drop add_to_cart events.
+
 ## v1.2.9 — 2026-06-24 (search/click session_id parity)
 
 - **PHP session first + stashed search session** — gateway search, SERP clicks,
