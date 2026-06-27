@@ -4,6 +4,14 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.3 — 2026-06-27 (purchase telemetry zero-arg notify fallback)
+
+- **Purchase observer fallback** — when
+  `NOTIFY_CHECKOUT_PROCESS_AFTER_ORDER_CREATE_ADD_PRODUCTS` fires with no
+  notifier args (PayPal saved-card recurring on Numinix forks), the observer
+  reads line items from the global `$order` and session order id so purchase
+  events are not silently dropped.
+
 ## v1.3.2 — 2026-06-27 (add-to-cart telemetry on fork cart paths)
 
 - **Add-to-cart observer fix** — `NOTIFY_CART_ADD_CART_END` now reads the
