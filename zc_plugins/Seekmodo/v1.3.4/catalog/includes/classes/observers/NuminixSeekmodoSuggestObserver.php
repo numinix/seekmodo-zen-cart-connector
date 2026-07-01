@@ -623,7 +623,32 @@ final class NuminixSeekmodoSuggestObserver extends base
     }
     return null;
   }
+  var OPT_OUT_PARAM = 'seekmodo_no_vehicle_filter';
+  var OPT_OUT_STORAGE_KEY = 'seekmodo.vehicle_filter_opted_out';
+  function persistVehicleFilterOptOut() {
+    try { localStorage.setItem(OPT_OUT_STORAGE_KEY, '1'); } catch (_e) {}
+  }
+  function isVehicleFilterOptedOut() {
+    try {
+      var flag = new URLSearchParams(window.location.search).get(OPT_OUT_PARAM);
+      if (flag === '1' || flag === 'true') {
+        persistVehicleFilterOptOut();
+        return true;
+      }
+      return localStorage.getItem(OPT_OUT_STORAGE_KEY) === '1';
+    } catch (_e) { return false; }
+  }
   function syncSuggestVehicleFilter() {
+    if (isVehicleFilterOptedOut()) {
+      var viewAllOptOut = CFG.view_all_href || '/index.php?main_page=advanced_search_result&keyword={q}';
+      var nodesOptOut = document.querySelectorAll('seekmodo-suggest');
+      for (var o = 0; o < nodesOptOut.length; o++) {
+        nodesOptOut[o].removeAttribute('vehicle-id');
+        nodesOptOut[o].removeAttribute('serp-passthrough');
+        nodesOptOut[o].setAttribute('view-all-href', viewAllOptOut);
+      }
+      return;
+    }
     var ctx = resolveVehicleContext();
     var pt = buildVehicleFilterPassthrough(ctx);
     var vid = ctx && Number(ctx.vehicle_id) > 0 ? Number(ctx.vehicle_id) : 0;
