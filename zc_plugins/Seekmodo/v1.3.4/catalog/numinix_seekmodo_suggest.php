@@ -175,6 +175,44 @@ if (($_GET['action'] ?? '') === 'browser-token') {
     return;
 }
 
+// Batch product thumbnail lookup for `<seekmodo-suggest>` open-event
+// hydration. The web component fetches gateway /v1/suggest in-browser;
+// this route resolves optimized image_url from Zen Cart by products_id
+// without another gateway round-trip.
+if (($_GET['action'] ?? '') === 'images') {
+    if (!function_exists('numinix_seekmodo_suggest_product_images')) {
+        $libDir = (defined('DIR_FS_CATALOG') ? DIR_FS_CATALOG : __DIR__ . '/')
+            . 'includes/functions/';
+        if (is_file($libDir . 'numinix_seekmodo_typeahead_lib.php')) {
+            require_once $libDir . 'numinix_seekmodo_typeahead_lib.php';
+        }
+    }
+    $rawIds = isset($_GET['ids']) ? (string) $_GET['ids'] : '';
+    $ids = [];
+    foreach (preg_split('/\s*,\s*/', $rawIds, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $part) {
+        $pid = (int) $part;
+        if ($pid > 0) {
+            $ids[$pid] = true;
+        }
+    }
+    $ids = array_keys($ids);
+    if ($ids === [] || count($ids) > 20) {
+        echo json_encode(['ok' => false, 'error' => 'invalid_ids']);
+        return;
+    }
+    if (!function_exists('numinix_seekmodo_enabled') || !numinix_seekmodo_enabled()
+        || !function_exists('numinix_seekmodo_suggest_product_images')
+    ) {
+        echo json_encode(['ok' => false, 'error' => 'unavailable']);
+        return;
+    }
+    echo json_encode([
+        'ok' => true,
+        'images' => numinix_seekmodo_suggest_product_images($ids),
+    ], JSON_UNESCAPED_SLASHES);
+    return;
+}
+
 $q = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
 $max = isset($_GET['max']) ? (int)$_GET['max'] : 8;
 

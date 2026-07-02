@@ -484,6 +484,32 @@ if (!function_exists('_numinix_seekmodo_typeahead_via_search')) {
     }
 }
 
+if (!function_exists('numinix_seekmodo_suggest_product_images')) {
+    /**
+     * Resolve optimized thumbnail URLs for a batch of products_id values.
+     *
+     * @param list<int> $productIds
+     * @return array<string, string> map of products_id string => absolute image_url
+     */
+    function numinix_seekmodo_suggest_product_images(array $productIds): array
+    {
+        $out = [];
+        foreach ($productIds as $pid) {
+            $pid = (int) $pid;
+            if ($pid <= 0) {
+                continue;
+            }
+            $item = ['products_id' => $pid];
+            _numinix_seekmodo_typeahead_attach_image_url($item, $pid, null);
+            if (!empty($item['image_url']) && is_string($item['image_url'])) {
+                $out[(string) $pid] = $item['image_url'];
+            }
+        }
+
+        return $out;
+    }
+}
+
 if (!function_exists('_numinix_seekmodo_typeahead_attach_image_url')) {
     /**
      * `<seekmodo-suggest>` reads image_url (absolute URL). Legacy

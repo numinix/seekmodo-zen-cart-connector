@@ -983,8 +983,52 @@ final class NuminixSeekmodoSuggestObserver extends base
       }
     }
   }
+  function _collectSuggestProductIdsNeedingImages() {
+    var ids = [];
+    var seen = Object.create(null);
+    var hosts = document.querySelectorAll('seekmodo-suggest');
+    for (var h = 0; h < hosts.length; h++) {
+      var root = hosts[h].shadowRoot;
+      if (!root) continue;
+      var rows = root.querySelectorAll('[data-seekmodo-id]');
+      for (var r = 0; r < rows.length; r++) {
+        if (!rows[r].querySelector('.thumb-empty')) continue;
+        var id = rows[r].getAttribute('data-seekmodo-id');
+        if (!id || seen[id]) continue;
+        seen[id] = true;
+        ids.push(id);
+      }
+    }
+    return ids;
+  }
+  function _hydrateSuggestThumbsFromIds(ids) {
+    if (!ids || !ids.length) return;
+    var cacheKey = 'ids:' + ids.join(',');
+    if (_thumbHydrateCache[cacheKey]) {
+      _paintSuggestThumbs(_thumbHydrateCache[cacheKey]);
+      return;
+    }
+    if (_thumbHydrateInflight === cacheKey) return;
+    var base = (CFG && CFG.suggest_hydrate_url) || '/numinix_seekmodo_suggest.php';
+    var sep = base.indexOf('?') >= 0 ? '&' : '?';
+    _thumbHydrateInflight = cacheKey;
+    fetch(base + sep + 'action=images&ids=' + encodeURIComponent(ids.join(',')), { credentials: 'same-origin' })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        _thumbHydrateInflight = null;
+        if (!data || !data.ok || !data.images || typeof data.images !== 'object') return;
+        _thumbHydrateCache[cacheKey] = data.images;
+        _paintSuggestThumbs(data.images);
+      })
+      .catch(function () { _thumbHydrateInflight = null; });
+  }
   function _hydrateSuggestThumbs(q) {
     q = String(q || '').trim();
+    var ids = _collectSuggestProductIdsNeedingImages();
+    if (ids.length > 0) {
+      _hydrateSuggestThumbsFromIds(ids);
+      return;
+    }
     if (q.length < 2) return;
     if (_thumbHydrateCache[q]) {
       _paintSuggestThumbs(_thumbHydrateCache[q]);
@@ -1015,6 +1059,7 @@ final class NuminixSeekmodoSuggestObserver extends base
     var q = ev && ev.detail && ev.detail.q;
     if (!q) return;
     requestAnimationFrame(function () { _hydrateSuggestThumbs(q); });
+    setTimeout(function () { _hydrateSuggestThumbs(q); }, 50);
   });
 })();</script>
 JS;
