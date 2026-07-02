@@ -170,7 +170,10 @@ if (!function_exists('numinix_seekmodo_catalog_doc_image_url')) {
         if (preg_match('#^https?://#i', $rel) === 1) {
             return $rel;
         }
-        if (defined('DIR_WS_IMAGES') && stripos($rel, DIR_WS_IMAGES) !== 0) {
+        // Optimized thumbs (Numinix stores) live under /cache/optimized_images/
+        // at the catalog root — not under /images/.
+        $isOptimizedCache = preg_match('#^(?:/)?cache/optimized_images/#i', $rel) === 1;
+        if (!$isOptimizedCache && defined('DIR_WS_IMAGES') && stripos($rel, DIR_WS_IMAGES) !== 0) {
             $rel = ltrim((string) DIR_WS_IMAGES, '/') . ltrim($rel, '/');
         }
         $rel = numinix_seekmodo_catalog_doc_encode_image_path($rel);

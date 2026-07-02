@@ -4,6 +4,26 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.5 — 2026-07-02 (suggest thumbnail hydration + ZC route fix)
+
+- **Suggest product thumbnails** — `<seekmodo-suggest>` fetches gateway
+  `/v1/suggest` in-browser; when indexed docs lack `image_url`, the
+  observer hydrates empty thumb slots via
+  `numinix_seekmodo_suggest.php?seekmodo_action=images&ids=…` (batch
+  lookup from `zen_get_products_image()`).
+- **Zen Cart cart-handler collision fix** — shim routes use
+  `seekmodo_action=` instead of bare `action=` so `init_cart_handler.php`
+  does not 302 to `cookie_usage` or run cart actions before the shim
+  handler (regression on any storefront with `DISPLAY_CART`).
+- **Optimized thumb URLs** — `numinix_seekmodo_catalog_doc_image_url()`
+  no longer prefixes `cache/optimized_images/` paths with `DIR_WS_IMAGES`.
+- **Catalog-root shim sync tool** — `tools/sync_catalog_shims.php` copies
+  the five HTTP shims from the active plugin version to the catalog root
+  after deploy (required because `zc_plugins/.htaccess` blocks direct PHP
+  access under the plugin tree).
+- **SERP listing SQL helper** — `numinix_seekmodo_build_listing_sql()`
+  preserves `products_image` in enforce-mode SERP swaps (v1.3.4 carry-over).
+
 ## v1.3.4 — 2026-06-27 (view-all SERP route + suggest vehicle filter)
 
 - **View-all SERP route detection** — suggest `view_all_href` now picks
