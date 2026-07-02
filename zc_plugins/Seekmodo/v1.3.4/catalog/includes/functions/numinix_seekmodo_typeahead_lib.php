@@ -533,6 +533,21 @@ if (!function_exists('_numinix_seekmodo_typeahead_attach_image_url')) {
                 // Decorative only.
             }
         }
+        if (isset($item['image']) && is_string($item['image'])
+            && preg_match('#\ssrc=(["\'])([^"\']+)\1#i', $item['image'], $m) === 1
+        ) {
+            $parsed = trim($m[2]);
+            if ($parsed !== '') {
+                if (preg_match('#^https?://#i', $parsed) === 1) {
+                    $item['image_url'] = $parsed;
+                } elseif (function_exists('numinix_seekmodo_catalog_doc_image_url')) {
+                    $abs = numinix_seekmodo_catalog_doc_image_url($parsed);
+                    if ($abs !== '') {
+                        $item['image_url'] = $abs;
+                    }
+                }
+            }
+        }
     }
 }
 

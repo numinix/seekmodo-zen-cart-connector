@@ -363,6 +363,21 @@ final class NuminixSeekmodoSuggestObserver extends base
     }
 
     /**
+     * Catalog-root typeahead shim (keywords + products + categories).
+     * The web component normally calls the gateway directly; this URL
+     * supplies storefront-enriched product rows (image_url from Zen
+     * Cart helpers) for fallback merge and open-event hydration.
+     */
+    private function suggestShimUrl(): string
+    {
+        if (!defined('DIR_WS_CATALOG')) {
+            return '';
+        }
+
+        return (string) constant('DIR_WS_CATALOG') . 'numinix_seekmodo_suggest.php';
+    }
+
+    /**
      * Fire-and-forget click beacon for `<seekmodo-suggest>` product rows.
      * Uses the catalog-root shim so sendBeacon POSTs are not swallowed
      * by Zen Cart's products_id redirect guard in init_sanitize.php.
@@ -453,6 +468,7 @@ final class NuminixSeekmodoSuggestObserver extends base
             'layout'         => $this->suggestLayout(),
             'show_branding'  => $this->suggestShowBranding(),
             'click_endpoint' => $this->clickEndpoint(),
+            'suggest_hydrate_url' => $this->suggestShimUrl(),
             'serp_parity_submit' => function_exists('numinix_seekmodo_mode')
                 && numinix_seekmodo_mode() === 'enforce',
             'serp_passthrough' => function_exists('_numinix_seekmodo_typesense_tuning_params')
@@ -466,6 +482,12 @@ final class NuminixSeekmodoSuggestObserver extends base
                 // Split-rail mobile: draggable divider + full product titles.
                 'split-mobile-resize' => 'true',
                 'product-title-tooltip' => 'true',
+                // Storefront PHP shim enriches product rows with image_url
+                // (optimized thumbs) when the gateway index predates that
+                // field — used by mergeTypeaheadFallback when the gateway
+                // response is empty and by the open-event hydrator below
+                // when products render without thumbnails.
+                'typeahead-fallback-url' => $this->suggestShimUrl(),
                 // SM-606 follow-up: the bundle's `suppress-legacy`
                 // attribute tears down sibling typeahead widgets bound
                 // to the same input on first focus. Zen Cart catalogs
@@ -905,6 +927,95 @@ final class NuminixSeekmodoSuggestObserver extends base
       form.appendChild(hid);
     }, true);
   }
+  // v1.3.4 KIP — hydrate suggest thumbnails from the storefront PHP
+  // shim. `<seekmodo-suggest>` fetches /v1/suggest via the gateway;
+  // older KIP catalog pushes omitted image_url, so productImageSrc()
+  // renders empty thumb placeholders even though numinix_seekmodo_suggest.php
+  // can enrich rows from zen_get_products_image(). Match rows by
+  // data-seekmodo-id after the dropdown opens.
+  var _thumbHydrateCache = Object.create(null);
+  var _thumbHydrateInflight = null;
+  function _absSuggestImageUrl(u) {
+    if (!u || typeof u !== 'string') return '';
+    u = u.trim();
+    if (!u) return '';
+    if (/^https?:\/\//i.test(u)) return u;
+    if (u.charAt(0) === '/') return window.location.origin + u;
+    return window.location.origin + '/' + u.replace(/^\//, '');
+  }
+  function _parseSuggestProductImage(p) {
+    if (!p || typeof p !== 'object') return '';
+    if (typeof p.image_url === 'string' && p.image_url.trim() !== '') {
+      return _absSuggestImageUrl(p.image_url);
+    }
+    if (typeof p.image === 'string' && p.image.indexOf('<') >= 0) {
+      var m = p.image.match(/\ssrc=(["'])([^"']+)\1/i);
+      if (m && m[2]) return _absSuggestImageUrl(m[2]);
+    }
+    return '';
+  }
+  function _paintSuggestThumbs(map) {
+    if (!map) return;
+    var hosts = document.querySelectorAll('seekmodo-suggest');
+    for (var h = 0; h < hosts.length; h++) {
+      var root = hosts[h].shadowRoot;
+      if (!root) continue;
+      var rows = root.querySelectorAll('[data-seekmodo-id]');
+      for (var r = 0; r < rows.length; r++) {
+        var id = rows[r].getAttribute('data-seekmodo-id');
+        var src = id && map[id];
+        if (!src) continue;
+        var img = rows[r].querySelector('img.thumb');
+        if (img && img.getAttribute('src') && img.complete && img.naturalWidth > 0) continue;
+        var empty = rows[r].querySelector('.thumb-empty');
+        if (empty) {
+          var ni = document.createElement('img');
+          ni.className = 'thumb';
+          ni.setAttribute('part', 'thumb');
+          ni.loading = 'eager';
+          ni.decoding = 'async';
+          ni.alt = '';
+          ni.src = src;
+          empty.replaceWith(ni);
+        } else if (img) {
+          img.src = src;
+        }
+      }
+    }
+  }
+  function _hydrateSuggestThumbs(q) {
+    q = String(q || '').trim();
+    if (q.length < 2) return;
+    if (_thumbHydrateCache[q]) {
+      _paintSuggestThumbs(_thumbHydrateCache[q]);
+      return;
+    }
+    if (_thumbHydrateInflight === q) return;
+    var base = (CFG && CFG.suggest_hydrate_url) || '/numinix_seekmodo_suggest.php';
+    var sep = base.indexOf('?') >= 0 ? '&' : '?';
+    _thumbHydrateInflight = q;
+    fetch(base + sep + 'q=' + encodeURIComponent(q) + '&max=15', { credentials: 'same-origin' })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        _thumbHydrateInflight = null;
+        if (!data || !data.ok || !Array.isArray(data.products)) return;
+        var map = Object.create(null);
+        for (var i = 0; i < data.products.length; i++) {
+          var p = data.products[i];
+          var id = p && p.products_id != null ? String(p.products_id) : '';
+          var url = _parseSuggestProductImage(p);
+          if (id && url) map[id] = url;
+        }
+        _thumbHydrateCache[q] = map;
+        _paintSuggestThumbs(map);
+      })
+      .catch(function () { _thumbHydrateInflight = null; });
+  }
+  document.addEventListener('seekmodo-suggest:open', function (ev) {
+    var q = ev && ev.detail && ev.detail.q;
+    if (!q) return;
+    requestAnimationFrame(function () { _hydrateSuggestThumbs(q); });
+  });
 })();</script>
 JS;
 
