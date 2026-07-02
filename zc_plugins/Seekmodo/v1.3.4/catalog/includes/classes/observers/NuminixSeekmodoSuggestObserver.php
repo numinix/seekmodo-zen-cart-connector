@@ -359,7 +359,7 @@ final class NuminixSeekmodoSuggestObserver extends base
         }
         $base = (string) constant('DIR_WS_CATALOG');
 
-        return $base . 'numinix_seekmodo_suggest.php?action=browser-token';
+        return $base . 'numinix_seekmodo_suggest.php?seekmodo_action=browser-token';
     }
 
     /**
@@ -1012,7 +1012,7 @@ final class NuminixSeekmodoSuggestObserver extends base
     var base = (CFG && CFG.suggest_hydrate_url) || '/numinix_seekmodo_suggest.php';
     var sep = base.indexOf('?') >= 0 ? '&' : '?';
     _thumbHydrateInflight = cacheKey;
-    fetch(base + sep + 'action=images&ids=' + encodeURIComponent(ids.join(',')), { credentials: 'same-origin' })
+    fetch(base + sep + 'seekmodo_action=images&ids=' + encodeURIComponent(ids.join(',')), { credentials: 'same-origin' })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
         _thumbHydrateInflight = null;

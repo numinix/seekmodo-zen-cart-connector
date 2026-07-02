@@ -71,14 +71,18 @@ declare(strict_types=1);
 // `current` envelope stays null and the dropdown's shadow root only
 // renders its <style> block.
 //
-// The shim itself ignores $_POST entirely -- the action is read from
-// $_GET['action'], the request body is unread. So we can safely
+// The shim itself ignores $_POST entirely -- seekmodo_action is read from
+// $_GET['seekmodo_action'], the request body is unread. So we can safely
 // downgrade the request to GET before ZC's CSRF gate sees it. We
 // scope the patch as narrowly as possible: only the browser-token
 // action, only when the method is POST, so existing GET clients and
 // any future POST routes are untouched.
+//
+// IMPORTANT: never use bare `action=` — Zen Cart's init_cart_handler.php
+// treats ANY `$_GET['action']` as a cart command and 302s to
+// cookie_usage when the session cookie is missing.
 if (
-    (($_GET['action'] ?? '') === 'browser-token')
+    (($_GET['seekmodo_action'] ?? '') === 'browser-token')
     && (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST')
 ) {
     $_SERVER['REQUEST_METHOD'] = 'GET';
@@ -143,7 +147,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET' && ($_SERVER['REQUEST_METHOD'] 
 // contract as the WP connector's `/wp-json/seekmodo/v1/browser-token`:
 // returns `{token, expires_at, session_id}` on success or
 // `{error}` on any failure.
-if (($_GET['action'] ?? '') === 'browser-token') {
+if (($_GET['seekmodo_action'] ?? '') === 'browser-token') {
     if (!function_exists('numinix_seekmodo_client') || !function_exists('numinix_seekmodo_enabled')
         || !numinix_seekmodo_enabled()
     ) {
@@ -179,7 +183,7 @@ if (($_GET['action'] ?? '') === 'browser-token') {
 // hydration. The web component fetches gateway /v1/suggest in-browser;
 // this route resolves optimized image_url from Zen Cart by products_id
 // without another gateway round-trip.
-if (($_GET['action'] ?? '') === 'images') {
+if (($_GET['seekmodo_action'] ?? '') === 'images') {
     if (!function_exists('numinix_seekmodo_suggest_product_images')) {
         $libDir = (defined('DIR_FS_CATALOG') ? DIR_FS_CATALOG : __DIR__ . '/')
             . 'includes/functions/';
