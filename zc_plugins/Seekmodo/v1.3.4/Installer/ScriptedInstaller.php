@@ -355,6 +355,8 @@ class ScriptedInstaller extends ScriptedInstallBase
             'sort_order' => 201,
         ]);
 
+        $this->ensurePluginControlActive();
+
         return true;
     }
 
@@ -407,20 +409,19 @@ class ScriptedInstaller extends ScriptedInstallBase
      */
     public function doUpgrade($oldVersion = null): ?bool
     {
-        if (
-            method_exists(parent::class, 'setVersionDetails')
-            && (!isset($this->pluginKey) || !isset($this->version) || !isset($this->pluginDir))
-        ) {
-            // __DIR__ = .../zc_plugins/Seekmodo/v1.0.13/Installer
-            $pluginDir = dirname(__DIR__);
-            $version = basename($pluginDir);
-            $pluginKey = basename(dirname($pluginDir));
-            $this->setVersionDetails([
-                'pluginKey' => $pluginKey,
-                'pluginDir' => $pluginDir,
-                'version' => $version,
-                'oldVersion' => (string) ($oldVersion ?? ''),
-            ]);
+        $this->bridgeVersionDetails($oldVersion);
+
+        // Stock ZC 2.0.1 ScriptedInstaller has no doUpgrade(); calling
+        // parent or reflecting it 500s Plugin Manager on tenants like KIP.
+        if (!method_exists(parent::class, 'doUpgrade')) {
+            return (bool) $this->executeUpgrade($oldVersion);
+        }
+
+        // ZC 2.2.0+ parent::doUpgrade() hits updateZenCoreDbFields() which
+        // needs typed $pluginKey/$version; skip parent when we only need
+        // idempotent config back-fill (same pattern as TM v1.3.6).
+        if (method_exists(parent::class, 'setVersionDetails')) {
+            return (bool) $this->executeUpgrade($oldVersion);
         }
 
         $parentMethod = new \ReflectionMethod(parent::class, 'doUpgrade');
@@ -429,6 +430,21 @@ class ScriptedInstaller extends ScriptedInstallBase
             : parent::doUpgrade();
 
         return $result === null ? null : (bool) $result;
+    }
+
+    /**
+     * Stock ZC 2.0.1 lacks ScriptedInstallHelpers on the core installer
+     * base class; without these shims, Install/Upgrade fatals on
+     * $this->addConfigurationKey().
+     *
+     * @return bool|null
+     */
+    public function doInstall()
+    {
+        $this->bridgeVersionDetails(null);
+        $installed = $this->executeInstall();
+
+        return $installed === null ? null : (bool) $installed;
     }
 
     /**
@@ -611,5 +627,159 @@ class ScriptedInstaller extends ScriptedInstallBase
             . " 'zen_cfg_select_option(array(\\'true\\', \\'false\\'),', NOW())"
         );
         return $newId;
+    }
+
+    private function bridgeVersionDetails($oldVersion): void
+    {
+        if (
+            !method_exists(parent::class, 'setVersionDetails')
+            || (isset($this->pluginKey) && isset($this->version) && isset($this->pluginDir))
+        ) {
+            return;
+        }
+
+        $pluginDir = dirname(__DIR__);
+        $this->setVersionDetails([
+            'pluginKey' => basename(dirname($pluginDir)),
+            'pluginDir' => $pluginDir,
+            'version' => basename($pluginDir),
+            'oldVersion' => (string) ($oldVersion ?? ''),
+        ]);
+    }
+
+    /**
+     * Mark this plugin folder as the active installed version in
+     * plugin_control so catalog auto_loaders load the right tree.
+     */
+    private function ensurePluginControlActive(): void
+    {
+        if (!defined('TABLE_PLUGIN_CONTROL')) {
+            return;
+        }
+
+        $version = basename(dirname(__DIR__));
+        $this->dbConn->Execute(
+            'UPDATE ' . TABLE_PLUGIN_CONTROL
+            . " SET version = '" . $this->dbConn->prepare_input($version) . "', status = 1, infs = 1"
+            . " WHERE unique_key = 'Seekmodo'"
+        );
+
+        if (defined('TABLE_PLUGIN_CONTROL_VERSIONS')) {
+            $this->dbConn->Execute(
+                'INSERT INTO ' . TABLE_PLUGIN_CONTROL_VERSIONS
+                . " (unique_key, author, version, zc_versions, infs)"
+                . " VALUES ('Seekmodo', 'Numinix', '" . $this->dbConn->prepare_input($version) . "', '[\"v158\", \"v200\"]', 1)"
+                . ' ON DUPLICATE KEY UPDATE infs = 1'
+            );
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $properties
+     */
+    protected function addConfigurationKey(string $key_name, array $properties): int
+    {
+        if ($this->getConfigurationKeyDetails($key_name, true) !== false) {
+            return 0;
+        }
+
+        $fields = [
+            'configuration_title',
+            'configuration_value',
+            'configuration_description',
+            'configuration_group_id',
+            'sort_order',
+            'use_function',
+            'set_function',
+            'val_function',
+        ];
+
+        $sql_data_array = [
+            ['fieldName' => 'configuration_key', 'value' => $key_name, 'type' => 'string'],
+        ];
+        foreach ($fields as $field) {
+            if (!isset($properties[$field])) {
+                continue;
+            }
+            $type = in_array($field, ['configuration_group_id', 'sort_order'], true) ? 'integer' : 'string';
+            $sql_data_array[] = ['fieldName' => $field, 'value' => $properties[$field], 'type' => $type];
+        }
+        $sql_data_array[] = ['fieldName' => 'date_added', 'value' => 'NOW()', 'type' => 'passthru'];
+
+        $this->executeInstallerDbPerform(TABLE_CONFIGURATION, $sql_data_array);
+
+        return (int) $this->dbConn->insert_ID();
+    }
+
+    /**
+     * @param list<string> $key_names
+     */
+    protected function deleteConfigurationKeys(array $key_names): int
+    {
+        if ($key_names === []) {
+            return 0;
+        }
+
+        $keys_list = implode(
+            "','",
+            array_map(fn($val) => $this->dbConn->prepare_input($val), $key_names)
+        );
+        $this->executeInstallerSelectQuery(
+            'DELETE FROM ' . TABLE_CONFIGURATION . " WHERE configuration_key IN ('" . $keys_list . "')"
+        );
+
+        return (int) $this->dbConn->affectedRows();
+    }
+
+    /**
+     * @return array<string, mixed>|bool
+     */
+    protected function getConfigurationKeyDetails(string $key_name, bool $only_check_existence = false)
+    {
+        $sql = 'SELECT * FROM ' . TABLE_CONFIGURATION
+            . " WHERE configuration_key = '" . $this->dbConn->prepare_input($key_name) . "'";
+        $result = $this->executeInstallerSelectQuery($sql, 1);
+        if ($result === false || $result->EOF) {
+            return $only_check_existence ? false : false;
+        }
+
+        return $only_check_existence ? true : $result->fields;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $sql_data_array
+     */
+    protected function executeInstallerDbPerform(
+        string $table,
+        array $sql_data_array,
+        string $performType = 'INSERT',
+        string $whereCondition = '',
+        bool $debug = false
+    ): bool {
+        $this->dbConn->dieOnErrors = false;
+        $this->dbConn->perform($table, $sql_data_array, $performType, $whereCondition, $debug);
+        if ($this->dbConn->error_number !== 0) {
+            $this->errorContainer->addError(0, $this->dbConn->error_text, true, PLUGIN_INSTALL_SQL_FAILURE);
+            return false;
+        }
+        $this->dbConn->dieOnErrors = true;
+
+        return true;
+    }
+
+    /**
+     * @return bool|\queryFactoryResult
+     */
+    protected function executeInstallerSelectQuery(string $sql, ?int $limit = null)
+    {
+        $this->dbConn->dieOnErrors = false;
+        $result = $this->dbConn->Execute($sql, $limit);
+        if ($this->dbConn->error_number !== 0) {
+            $this->errorContainer->addError(0, $this->dbConn->error_text, true, PLUGIN_INSTALL_SQL_FAILURE);
+            return false;
+        }
+        $this->dbConn->dieOnErrors = true;
+
+        return $result;
     }
 }
