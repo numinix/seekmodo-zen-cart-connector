@@ -1937,3 +1937,42 @@ if (!function_exists('_numinix_seekmodo_shadow_log')) {
         @file_put_contents($logDir . '/numinix_seekmodo.log', $line . PHP_EOL, FILE_APPEND);
     }
 }
+
+if (!function_exists('numinix_seekmodo_build_listing_sql')) {
+    /**
+     * Build a listing SQL envelope that includes products_image and the
+     * other columns Zen Cart's product_listing module dereferences.
+     *
+     * @param int[] $productIds Gateway-ranked product IDs.
+     */
+    function numinix_seekmodo_build_listing_sql(array $productIds): ?string
+    {
+        if ($productIds === []) {
+            return null;
+        }
+        if (count($productIds) > 12500) {
+            $productIds = array_slice($productIds, 0, 12500);
+        }
+        $idCsv = implode(',', array_map('intval', $productIds));
+        $langId = isset($_SESSION['languages_id']) ? (int) $_SESSION['languages_id'] : 1;
+
+        return 'SELECT /* numinix_seekmodo_observer */'
+            . ' p.products_id, p.products_image, p.products_type, p.master_categories_id,'
+            . ' p.products_quantity, p.products_quantity_order_min,'
+            . ' p.products_quantity_order_units, pd.products_name,'
+            . ' pd.products_description, p.products_model, p.products_price,'
+            . ' p.products_tax_class_id, p.products_priced_by_attribute,'
+            . ' p.product_is_call, p.product_is_always_free_shipping,'
+            . ' p.products_qty_box_status, p.manufacturers_id, m.manufacturers_name,'
+            . ' p.products_date_added, p.products_status, p.products_sort_order,'
+            . ' IF(s.status = 1, s.specials_new_products_price, p.products_price) AS final_price'
+            . ' FROM ' . TABLE_PRODUCTS . ' p'
+            . ' LEFT JOIN ' . TABLE_MANUFACTURERS . ' m ON p.manufacturers_id = m.manufacturers_id'
+            . ' LEFT JOIN ' . TABLE_SPECIALS . ' s ON s.products_id = p.products_id'
+            . ' INNER JOIN ' . TABLE_PRODUCTS_DESCRIPTION . ' pd ON pd.products_id = p.products_id'
+            . ' WHERE p.products_status = 1'
+            . ' AND pd.language_id = ' . $langId
+            . ' AND p.products_id IN (' . $idCsv . ')'
+            . ' ORDER BY FIELD(p.products_id, ' . $idCsv . ')';
+    }
+}

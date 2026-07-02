@@ -810,6 +810,9 @@ class NuminixSeekmodoObserver extends \base
      */
     private function buildListingSql(array $productIds): ?string
     {
+        if (function_exists('numinix_seekmodo_build_listing_sql')) {
+            return numinix_seekmodo_build_listing_sql($productIds);
+        }
         if ($productIds === []) {
             return null;
         }

@@ -484,6 +484,58 @@ if (!function_exists('_numinix_seekmodo_typeahead_via_search')) {
     }
 }
 
+if (!function_exists('_numinix_seekmodo_typeahead_attach_image_url')) {
+    /**
+     * `<seekmodo-suggest>` reads image_url (absolute URL). Legacy
+     * typeahead JS still accepts pre-rendered HTML in `image`.
+     */
+    function _numinix_seekmodo_typeahead_attach_image_url(array &$item, int $pid, ?array $doc = null): void
+    {
+        $imageUrl = '';
+        if (is_array($doc)) {
+            if (!empty($doc['image_url']) && is_string($doc['image_url'])) {
+                $imageUrl = trim($doc['image_url']);
+            } elseif (!empty($doc['image']) && is_string($doc['image'])) {
+                $rawImage = trim($doc['image']);
+                if (preg_match('#^https?://#i', $rawImage) === 1) {
+                    $imageUrl = $rawImage;
+                } elseif (strpos($rawImage, '<') === false
+                    && function_exists('numinix_seekmodo_catalog_doc_image_url')
+                ) {
+                    $imageUrl = numinix_seekmodo_catalog_doc_image_url($rawImage);
+                }
+            }
+        }
+        if ($imageUrl === '' && $pid > 0 && function_exists('numinix_seekmodo_catalog_doc_image_url')) {
+            global $db;
+            if (isset($db) && is_object($db)) {
+                $look = $db->Execute(
+                    'SELECT products_image FROM ' . TABLE_PRODUCTS
+                    . ' WHERE products_id = ' . (int) $pid . ' LIMIT 1'
+                );
+                if (!$look->EOF) {
+                    $imageUrl = numinix_seekmodo_catalog_doc_image_url(
+                        (string) ($look->fields['products_image'] ?? '')
+                    );
+                }
+            }
+        }
+        if ($imageUrl !== '') {
+            $item['image_url'] = $imageUrl;
+        }
+        if (!isset($item['image']) && function_exists('zen_get_products_image')) {
+            try {
+                $html = (string) @zen_get_products_image($pid, 60, 60);
+                if ($html !== '' && $html !== 'false') {
+                    $item['image'] = $html;
+                }
+            } catch (\Throwable $e) {
+                // Decorative only.
+            }
+        }
+    }
+}
+
 if (!function_exists('_numinix_seekmodo_typeahead_items_from_suggest')) {
     /**
      * Pull lean autocomplete items out of the SuggestTool envelope.
@@ -548,6 +600,7 @@ if (!function_exists('_numinix_seekmodo_typeahead_items_from_suggest')) {
             } elseif (isset($doc['image'])) {
                 $item['image'] = (string)$doc['image'];
             }
+            _numinix_seekmodo_typeahead_attach_image_url($item, $pid, $doc);
             $items[] = $item;
         }
         return $items;
@@ -620,6 +673,7 @@ if (!function_exists('_numinix_seekmodo_typeahead_items')) {
                     // image helper is decorative; never fail the row.
                 }
             }
+            _numinix_seekmodo_typeahead_attach_image_url($item, $pid, $doc);
             $items[] = $item;
         }
         return $items;
