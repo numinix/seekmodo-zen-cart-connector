@@ -4,6 +4,13 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.8 — 2026-07-03 (suggest tab-switch thumbnail fix)
+
+- **Suggest tab-switch thumbnails** — vendored `@seekmodo/web-components` v0.3.3
+  loads product thumbnails eagerly and reloads any stalled images when the
+  browser tab becomes visible again, fixing blank gray thumb slots after
+  switching away and back while the suggest dropdown stays open.
+
 ## v1.3.7 — 2026-07-03 (suggest high-DPI thumbnail hydration)
 
 - **Suggest image quality** — hydrates all product thumbnails at 240px via
