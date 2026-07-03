@@ -1,0 +1,7 @@
+{
+  "kid": "dev-ephemeral",
+  "alg": "EdDSA",
+  "kty": "OKP",
+  "crv": "Ed25519",
+  "x": "B4jRTV4EZl4BnJ2zYtXPNP3ADfc8PHYTL2yqywzl-QU"
+}
