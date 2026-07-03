@@ -4,6 +4,13 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.6 — 2026-07-03 (suggest session-currency prices)
+
+- **Suggest price currency** — vendored web-components bundle resolves
+  `meta.region.currency` instead of defaulting to USD; connector stamps
+  `currency` on indexed docs and hydrates session-aware display prices via
+  `seekmodo_action=prices` on the suggest shim (multicurrency storefronts).
+
 ## v1.3.5 — 2026-07-02 (suggest thumbnail hydration + ZC route fix)
 
 - **Suggest product thumbnails** — `<seekmodo-suggest>` fetches gateway
