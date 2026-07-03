@@ -4,6 +4,15 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.9 — 2026-07-03 (suggest tab-switch thumbnail fix)
+
+- **Suggest tab-switch thumbnails** — vendored `@seekmodo/web-components` v0.3.7
+  with eager product thumbs, forced recovery on tab return, and
+  `seekmodo-suggest:tab-visible` event; `NuminixSeekmodoSuggestObserver`
+  force-repaints hydrated thumbs when `img.src` already matches (Chrome/Windows).
+- **Keyword merchandising redirects** — server 302 via
+  `numinix_seekmodo_redirect_lib.php` before auto category redirect.
+
 ## v1.3.8 — 2026-07-03 (suggest tab-switch thumbnail fix)
 
 - **Suggest tab-switch thumbnails** — vendored `@seekmodo/web-components` v0.3.3
