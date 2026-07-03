@@ -978,8 +978,22 @@ final class NuminixSeekmodoSuggestObserver extends base
     }
     return '';
   }
-  function _paintSuggestThumbs(map) {
+  function _reloadSuggestThumbImg(img, src) {
+    var parent = img.parentNode;
+    if (!parent) return;
+    var ni = document.createElement('img');
+    ni.className = img.className || 'thumb';
+    ni.setAttribute('part', img.getAttribute('part') || 'thumb');
+    ni.loading = 'eager';
+    ni.decoding = 'async';
+    ni.alt = img.alt || '';
+    ni.setAttribute('data-src', src);
+    ni.src = src;
+    parent.replaceChild(ni, img);
+  }
+  function _paintSuggestThumbs(map, force) {
     if (!map) return;
+    force = !!force;
     var hosts = document.querySelectorAll('seekmodo-suggest');
     for (var h = 0; h < hosts.length; h++) {
       var root = hosts[h].shadowRoot;
@@ -992,10 +1006,14 @@ final class NuminixSeekmodoSuggestObserver extends base
         var img = rows[r].querySelector('img.thumb');
         var empty = rows[r].querySelector('.thumb-empty');
         if (img) {
-          if (img.getAttribute('src') !== src) {
-            img.loading = 'eager';
-            img.decoding = 'async';
-            img.src = src;
+          if (force || img.getAttribute('src') !== src) {
+            if (force) {
+              _reloadSuggestThumbImg(img, src);
+            } else {
+              img.loading = 'eager';
+              img.decoding = 'async';
+              img.src = src;
+            }
           }
           continue;
         }
@@ -1146,6 +1164,41 @@ final class NuminixSeekmodoSuggestObserver extends base
   function _hydrateSuggestPrices() {
     _hydrateSuggestPricesFromIds(_collectSuggestProductIdsForPrices());
   }
+  function _repaintCachedSuggestThumbs(force) {
+    var merged = null;
+    for (var k in _thumbHydrateCache) {
+      if (!Object.prototype.hasOwnProperty.call(_thumbHydrateCache, k)) continue;
+      merged = merged || Object.create(null);
+      var m = _thumbHydrateCache[k];
+      for (var id in m) {
+        if (Object.prototype.hasOwnProperty.call(m, id)) merged[id] = m[id];
+      }
+    }
+    if (merged) {
+      _paintSuggestThumbs(merged, !!force);
+      return;
+    }
+    if (!force) return;
+    var hosts = document.querySelectorAll('seekmodo-suggest');
+    for (var h = 0; h < hosts.length; h++) {
+      var root = hosts[h].shadowRoot;
+      if (!root) continue;
+      var imgs = root.querySelectorAll('img.thumb');
+      for (var i = 0; i < imgs.length; i++) {
+        var src = imgs[i].getAttribute('data-src') || imgs[i].getAttribute('src');
+        if (src) _reloadSuggestThumbImg(imgs[i], src);
+      }
+    }
+  }
+  function _onSuggestTabVisible(q) {
+    requestAnimationFrame(function () {
+      _repaintCachedSuggestThumbs(true);
+      if (q) _hydrateSuggestThumbs(q);
+    });
+    setTimeout(function () {
+      _repaintCachedSuggestThumbs(true);
+    }, 50);
+  }
   document.addEventListener('seekmodo-suggest:open', function (ev) {
     var q = ev && ev.detail && ev.detail.q;
     if (!q) return;
@@ -1157,6 +1210,18 @@ final class NuminixSeekmodoSuggestObserver extends base
       _hydrateSuggestThumbs(q);
       _hydrateSuggestPrices();
     }, 50);
+  });
+  document.addEventListener('seekmodo-suggest:tab-visible', function (ev) {
+    var q = ev && ev.detail && ev.detail.q;
+    _onSuggestTabVisible(q);
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) return;
+    _onSuggestTabVisible('');
+  });
+  window.addEventListener('focus', function () {
+    if (document.hidden) return;
+    _onSuggestTabVisible('');
   });
 })();</script>
 JS;
