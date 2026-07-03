@@ -249,9 +249,6 @@ class NuminixSeekmodoObserver extends \base
      */
     private function onAdvancedSearchStart(): void
     {
-        if (!function_exists('numinix_seekmodo_resolve_category_redirect')) {
-            return;
-        }
         $keyword = isset($_GET['keyword']) ? trim((string) $_GET['keyword']) : '';
         if ($keyword === '') {
             return;
@@ -282,6 +279,30 @@ class NuminixSeekmodoObserver extends \base
             if (isset($_GET[$k]) && (string) $_GET[$k] !== '' && (string) $_GET[$k] !== '0') {
                 return;
             }
+        }
+
+        // v1.3.9 — merchandising keyword redirect beats auto category redirect.
+        if (function_exists('numinix_seekmodo_resolve_merchandising_redirect')) {
+            try {
+                $merchUrl = numinix_seekmodo_resolve_merchandising_redirect($keyword);
+            } catch (\Throwable $e) {
+                $this->debug('merch_redirect_resolver_threw', [
+                    'msg' => $e->getMessage(),
+                ]);
+                $merchUrl = null;
+            }
+            if ($merchUrl !== null && $merchUrl !== '') {
+                if (function_exists('numinix_seekmodo_issue_redirect')) {
+                    numinix_seekmodo_issue_redirect($merchUrl);
+                } elseif (!headers_sent()) {
+                    header('Location: ' . $merchUrl, true, 302);
+                    exit;
+                }
+            }
+        }
+
+        if (!function_exists('numinix_seekmodo_resolve_category_redirect')) {
+            return;
         }
 
         try {

@@ -871,9 +871,13 @@ final class NuminixSeekmodoSuggestObserver extends base
     var block = detail.block;
     var row = detail.row || {};
     var q = String(detail.q || '');
-    if ((block === 'products' || block === 'categories')
+    if ((block === 'products' || block === 'categories' || block === 'redirects')
         && row && typeof row.url === 'string' && row.url) {
       window.location.href = row.url;
+      return;
+    }
+    if (block === 'redirects' && row && typeof row.target_url === 'string' && row.target_url) {
+      window.location.href = row.target_url;
       return;
     }
     var keyword = '';

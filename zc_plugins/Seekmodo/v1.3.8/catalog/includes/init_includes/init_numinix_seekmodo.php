@@ -116,6 +116,8 @@ foreach ([
     // NUMINIX_SEEKMODO_CATEGORY_REDIRECT_ENABLED so the eager-load
     // adds no measurable cost when the feature is off.
     'numinix_seekmodo_category_redirect_lib.php',
+    // v1.3.9 — keyword merchandising redirect resolver (Klevu parity).
+    'numinix_seekmodo_redirect_lib.php',
     'numinix_seekmodo_catalog_doc_lib.php',
     'numinix_seekmodo_indexer_lib.php',
     'numinix_seekmodo_events_lib.php',
