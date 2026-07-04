@@ -88,6 +88,9 @@ class NuminixSeekmodoObserver extends \base
     /** Keyword stashed when category redirect 302s away from the SERP. */
     private const SESSION_CATEGORY_REDIRECT_KW = '_numinix_seekmodo_category_redirect_kw';
 
+    /** Short-lived cookie mirror — survives 302 before session write flush. */
+    private const COOKIE_CATEGORY_REDIRECT_KW = '_sm_rd_kw';
+
     /**
      * Hard cap on how many products_ids we ever stash in the session
      * position map — protects $_SESSION growth on a 250-result SERP.
@@ -298,9 +301,7 @@ class NuminixSeekmodoObserver extends \base
                 $merchUrl = null;
             }
             if ($merchUrl !== null && $merchUrl !== '') {
-                if (session_status() === PHP_SESSION_ACTIVE) {
-                    $_SESSION[self::SESSION_CATEGORY_REDIRECT_KW] = $keyword;
-                }
+                $this->stashCategoryRedirectKeyword($keyword);
                 if (function_exists('numinix_seekmodo_issue_redirect')) {
                     numinix_seekmodo_issue_redirect($merchUrl);
                 } elseif (!headers_sent()) {
@@ -326,9 +327,7 @@ class NuminixSeekmodoObserver extends \base
             return;
         }
 
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            $_SESSION[self::SESSION_CATEGORY_REDIRECT_KW] = $keyword;
-        }
+        $this->stashCategoryRedirectKeyword($keyword);
 
         // 302 Found: matches Klevu / Algolia behaviour, marks the
         // redirect as situational (a shopper bookmarking the
@@ -1044,6 +1043,54 @@ class NuminixSeekmodoObserver extends \base
      * competitor-rendered SERPs (Klevu) still feed LTR when the
      * shopper clicks before navigating to product_info.
      */
+    private function stashCategoryRedirectKeyword(string $keyword): void
+    {
+        $keyword = trim($keyword);
+        if ($keyword === '') {
+            return;
+        }
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $_SESSION[self::SESSION_CATEGORY_REDIRECT_KW] = $keyword;
+        }
+        if (headers_sent()) {
+            return;
+        }
+        $params = [
+            'expires' => time() + 600,
+            'path' => '/',
+            'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ];
+        if (defined('COOKIE_SAMESITE')) {
+            $sameSite = (string) COOKIE_SAMESITE;
+            if (in_array($sameSite, ['lax', 'strict', 'none'], true)) {
+                $params['samesite'] = ucfirst($sameSite);
+            }
+        }
+        setcookie(self::COOKIE_CATEGORY_REDIRECT_KW, $keyword, $params);
+    }
+
+    private function readCategoryRedirectKeyword(): string
+    {
+        $keyword = isset($_GET['keyword']) ? trim((string) $_GET['keyword']) : '';
+        if ($keyword !== '') {
+            return $keyword;
+        }
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $keyword = trim((string) ($_SESSION[self::SESSION_CATEGORY_REDIRECT_KW] ?? ''));
+            if ($keyword !== '') {
+                return $keyword;
+            }
+        }
+        return trim((string) ($_COOKIE[self::COOKIE_CATEGORY_REDIRECT_KW] ?? ''));
+    }
+
+    private function hasCategoryRedirectKeyword(): bool
+    {
+        return $this->readCategoryRedirectKeyword() !== '';
+    }
+
     private function emitSerpClickBeacon(): void
     {
         static $emitted = false;
@@ -1055,21 +1102,11 @@ class NuminixSeekmodoObserver extends \base
         }
         $mainPage = $this->currentMainPage();
         $onSerp = $this->isSearchResultsPage($mainPage);
-        $keyword = isset($_GET['keyword']) ? trim((string) $_GET['keyword']) : '';
-        if ($keyword === '' && session_status() === PHP_SESSION_ACTIVE) {
-            $keyword = trim((string) ($_SESSION[self::SESSION_CATEGORY_REDIRECT_KW] ?? ''));
-        }
+        $keyword = $this->readCategoryRedirectKeyword();
         if ($keyword === '') {
             return;
         }
-        if (!$onSerp && $keyword !== '') {
-            // Category / merchandising redirect landed on a tag or listing
-            // page — still wire click beacons using the stashed query.
-            if (session_status() !== PHP_SESSION_ACTIVE
-                || trim((string) ($_SESSION[self::SESSION_CATEGORY_REDIRECT_KW] ?? '')) === '') {
-                return;
-            }
-        } elseif (!$onSerp) {
+        if (!$onSerp && !$this->hasCategoryRedirectKeyword()) {
             return;
         }
         $clickUrl = 'numinix_seekmodo_click.php';
