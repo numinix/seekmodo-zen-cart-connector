@@ -197,11 +197,11 @@ class NuminixSeekmodoObserver extends \base
                     $this->onShoppingCartHeader();
                     break;
                 case 'NOTIFY_HEADER_END_INDEX':
-                    // Sprint 4 PR 6 — home/category placement
-                    // injection lives in the footer hook (we need the
-                    // category id from $_GET which has been parsed by
-                    // then). Hook is reserved for future per-template
-                    // recommendation banners.
+                    // Category / tag landing pages after a search redirect
+                    // use main_page=index — emit click beacon here because
+                    // NOTIFY_FOOTER_END on some Numinix templates runs too
+                    // late or skips plugin observers on SEO tag URLs.
+                    $this->emitSerpClickBeacon();
                     break;
             }
         } catch (\Throwable $e) {
