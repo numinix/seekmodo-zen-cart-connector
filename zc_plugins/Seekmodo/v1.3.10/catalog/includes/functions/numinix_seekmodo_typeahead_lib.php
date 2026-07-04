@@ -541,6 +541,37 @@ if (!function_exists('numinix_seekmodo_suggest_image_px')) {
     }
 }
 
+if (!function_exists('numinix_seekmodo_suggest_product_image_url_catalog')) {
+    /**
+     * Original catalog image path (no Image Handler bmz_cache). Mirror
+     * hosts like numinix.ca rsync /images/ but often lack generated
+     * bmz_cache thumbs, so hydration must fall back here.
+     */
+    function numinix_seekmodo_suggest_product_image_url_catalog(int $pid): string
+    {
+        if ($pid <= 0 || !function_exists('numinix_seekmodo_catalog_doc_image_url')) {
+            return '';
+        }
+        global $db;
+        if (!isset($db) || !defined('TABLE_PRODUCTS')) {
+            return '';
+        }
+        $rs = $db->Execute(
+            'SELECT products_image FROM ' . TABLE_PRODUCTS
+            . ' WHERE products_id = ' . (int) $pid . ' LIMIT 1'
+        );
+        if (!$rs || $rs->EOF) {
+            return '';
+        }
+        $raw = trim((string) ($rs->fields['products_image'] ?? ''));
+        if ($raw === '') {
+            return '';
+        }
+
+        return numinix_seekmodo_catalog_doc_image_url($raw);
+    }
+}
+
 if (!function_exists('numinix_seekmodo_suggest_product_image_url')) {
     /**
      * Storefront-optimized absolute image URL for one product.
@@ -563,17 +594,23 @@ if (!function_exists('numinix_seekmodo_suggest_product_image_url')) {
                 ) {
                     $parsed = trim($m[2]);
                     if ($parsed !== '') {
+                        $abs = '';
                         if (preg_match('#^https?://#i', $parsed) === 1) {
-                            return $parsed;
-                        }
-                        if (function_exists('numinix_seekmodo_catalog_doc_image_url')) {
+                            $abs = $parsed;
+                        } elseif (function_exists('numinix_seekmodo_catalog_doc_image_url')) {
                             $abs = numinix_seekmodo_catalog_doc_image_url($parsed);
-                            if ($abs !== '') {
-                                return $abs;
-                            }
+                        } elseif ($parsed[0] === '/') {
+                            $abs = $parsed;
                         }
-                        if ($parsed[0] === '/') {
-                            return $parsed;
+                        if ($abs !== '') {
+                            if (stripos($abs, '/bmz_cache/') !== false) {
+                                $catalog = numinix_seekmodo_suggest_product_image_url_catalog($pid);
+                                if ($catalog !== '') {
+                                    return $catalog;
+                                }
+                            }
+
+                            return $abs;
                         }
                     }
                 }

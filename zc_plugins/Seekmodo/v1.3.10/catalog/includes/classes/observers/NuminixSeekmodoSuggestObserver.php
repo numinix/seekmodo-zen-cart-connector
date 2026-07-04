@@ -991,6 +991,14 @@ final class NuminixSeekmodoSuggestObserver extends base
     ni.src = src;
     parent.replaceChild(ni, img);
   }
+  function _suggestThumbNeedsHydrate(img, force) {
+    if (force) return true;
+    if (!img) return false;
+    var cur = img.getAttribute('src') || '';
+    if (cur === '') return true;
+    if (img.complete && img.naturalWidth === 0) return true;
+    return false;
+  }
   function _paintSuggestThumbs(map, force) {
     if (!map) return;
     force = !!force;
@@ -1006,12 +1014,20 @@ final class NuminixSeekmodoSuggestObserver extends base
         var img = rows[r].querySelector('img.thumb');
         var empty = rows[r].querySelector('.thumb-empty');
         if (img) {
+          if (!_suggestThumbNeedsHydrate(img, force)) continue;
           if (force || img.getAttribute('src') !== src) {
+            var prior = img.getAttribute('data-src') || img.getAttribute('src') || '';
             if (force) {
               _reloadSuggestThumbImg(img, src);
             } else {
               img.loading = 'eager';
               img.decoding = 'async';
+              img.onerror = function () {
+                if (prior && prior !== src) {
+                  img.onerror = null;
+                  img.src = prior;
+                }
+              };
               img.src = src;
             }
           }
