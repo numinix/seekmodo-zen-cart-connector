@@ -91,6 +91,9 @@ class NuminixSeekmodoObserver extends \base
     /** Short-lived cookie mirror — survives 302 before session write flush. */
     private const COOKIE_CATEGORY_REDIRECT_KW = '_sm_rd_kw';
 
+    /** Query param echoed on redirect landing pages for click beacon context. */
+    private const QUERY_CATEGORY_REDIRECT_KW = 'sm_rd_kw';
+
     /**
      * Hard cap on how many products_ids we ever stash in the session
      * position map — protects $_SESSION growth on a 250-result SERP.
@@ -301,13 +304,7 @@ class NuminixSeekmodoObserver extends \base
                 $merchUrl = null;
             }
             if ($merchUrl !== null && $merchUrl !== '') {
-                $this->stashCategoryRedirectKeyword($keyword);
-                if (function_exists('numinix_seekmodo_issue_redirect')) {
-                    numinix_seekmodo_issue_redirect($merchUrl);
-                } elseif (!headers_sent()) {
-                    header('Location: ' . $merchUrl, true, 302);
-                    exit;
-                }
+                $this->issueCategoryRedirect($merchUrl, $keyword);
             }
         }
 
@@ -327,22 +324,54 @@ class NuminixSeekmodoObserver extends \base
             return;
         }
 
-        $this->stashCategoryRedirectKeyword($keyword);
+        $this->issueCategoryRedirect($url, $keyword);
+    }
 
-        // 302 Found: matches Klevu / Algolia behaviour, marks the
-        // redirect as situational (a shopper bookmarking the
-        // /advanced_search_result URL still has it intact) and lets
-        // search-bots see the source page on a re-crawl.
-        if (!headers_sent()) {
+    private function issueCategoryRedirect(string $url, string $keyword): void
+    {
+        $this->stashCategoryRedirectKeyword($keyword);
+        $url = $this->redirectUrlWithKeywordContext($url, $keyword);
+        if (function_exists('numinix_seekmodo_issue_redirect')) {
+            numinix_seekmodo_issue_redirect($url);
+        } elseif (!headers_sent()) {
             header('Location: ' . $url, true, 302);
             exit;
         }
-        // Headers already flushed (rare with stock Zen Cart -- the
-        // notifier fires before any echo); emit a JS fallback so the
-        // shopper still lands on the right page rather than seeing an
-        // empty SERP scaffold render below.
         echo '<script>window.location.href=' . json_encode($url) . ';</script>';
         exit;
+    }
+
+    private function redirectUrlWithKeywordContext(string $url, string $keyword): string
+    {
+        $keyword = trim($keyword);
+        if ($keyword === '') {
+            return $url;
+        }
+        $fragment = '';
+        $hashPos = strpos($url, '#');
+        if ($hashPos !== false) {
+            $fragment = substr($url, $hashPos);
+            $url = substr($url, 0, $hashPos);
+        }
+        $parts = parse_url($url);
+        if (!is_array($parts)) {
+            return $url . $fragment;
+        }
+        $query = [];
+        if (!empty($parts['query'])) {
+            parse_str((string) $parts['query'], $query);
+        }
+        $query[self::QUERY_CATEGORY_REDIRECT_KW] = $keyword;
+        $path = (string) ($parts['path'] ?? '');
+        $built = $path !== '' ? $path : '/';
+        $queryString = http_build_query($query);
+        if ($queryString !== '') {
+            $built .= '?' . $queryString;
+        }
+        if (!empty($parts['scheme']) && !empty($parts['host'])) {
+            $built = $parts['scheme'] . '://' . $parts['host'] . $built;
+        }
+        return $built . $fragment;
     }
 
     private function onSearchResults(&$listingSql, $keywords, &$result): void
@@ -1073,6 +1102,11 @@ class NuminixSeekmodoObserver extends \base
 
     private function readCategoryRedirectKeyword(): string
     {
+        $queryKey = self::QUERY_CATEGORY_REDIRECT_KW;
+        $keyword = isset($_GET[$queryKey]) ? trim((string) $_GET[$queryKey]) : '';
+        if ($keyword !== '') {
+            return $keyword;
+        }
         $keyword = isset($_GET['keyword']) ? trim((string) $_GET['keyword']) : '';
         if ($keyword !== '') {
             return $keyword;
