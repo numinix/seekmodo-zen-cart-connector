@@ -477,9 +477,11 @@ final class NuminixSeekmodoSuggestObserver extends base
         $shopperCurrency = function_exists('numinix_seekmodo_shopper_currency')
             ? numinix_seekmodo_shopper_currency()
             : '';
-        $serpPassthrough = function_exists('_numinix_seekmodo_typesense_tuning_params')
-            ? _numinix_seekmodo_typesense_tuning_params(true)
-            : [];
+        $serpPassthrough = function_exists('_numinix_seekmodo_build_serp_passthrough')
+            ? _numinix_seekmodo_build_serp_passthrough()
+            : (function_exists('_numinix_seekmodo_typesense_tuning_params')
+                ? _numinix_seekmodo_typesense_tuning_params(true)
+                : []);
         if (!is_array($serpPassthrough)) {
             $serpPassthrough = [];
         }

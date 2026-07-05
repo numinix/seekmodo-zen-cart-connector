@@ -1317,6 +1317,24 @@ if (!function_exists('_numinix_seekmodo_typesense_tuning_params')) {
     }
 }
 
+if (!function_exists('_numinix_seekmodo_build_serp_passthrough')) {
+    /**
+     * Typesense tuning the suggest web component forwards as
+     * `serp_passthrough` so gateway SerpPreview runs the same
+     * SearchTool pipeline as the SERP observer (RED-1612).
+     *
+     * Must stay identical to the tuning slice merged by
+     * `_numinix_seekmodo_build_search_payload()` — pinned by
+     * tests/test_serp_passthrough_parity.php.
+     *
+     * @return array<string, mixed>
+     */
+    function _numinix_seekmodo_build_serp_passthrough(): array
+    {
+        return _numinix_seekmodo_typesense_tuning_params(true);
+    }
+}
+
 if (!function_exists('_numinix_seekmodo_build_search_payload')) {
     /**
      * Translate the storefront's search params into the gateway's
