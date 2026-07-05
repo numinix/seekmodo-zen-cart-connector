@@ -104,18 +104,21 @@ if (!function_exists('numinix_seekmodo_catalog_partition_product_ids_live_stock'
             }
             $byId[(int) $doc['id']] = $doc;
         }
-        $inStock = [];
+        $inStockIds = [];
         $demoted = [];
         foreach ($productIds as $pid) {
             $doc = $byId[$pid] ?? null;
-            $shoppable = is_array($doc) && !empty($doc['purchasable']);
-            if ($shoppable) {
-                $inStock[] = $pid;
+            $liveInStock = is_array($doc) && !empty($doc['in_stock']);
+            if (!$liveInStock && !is_array($doc) && function_exists('numinix_seekmodo_catalog_doc_live_in_stock')) {
+                $liveInStock = numinix_seekmodo_catalog_doc_live_in_stock($pid, 0);
+            }
+            if ($liveInStock) {
+                $inStockIds[] = $pid;
             } else {
                 $demoted[] = $pid;
             }
         }
-        return array_merge($inStock, $demoted);
+        return array_merge($inStockIds, $demoted);
     }
 }
 
