@@ -4,6 +4,12 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.13 — 2026-07-05 (occasion + sales index fields)
+
+- **Occasion metadata** — `occasion_tags` and `occasion_peak_month` on catalog docs (UK gift-store lexicon from title, description, category breadcrumbs).
+- **Sales signal** — `units_sold_lifetime` from `products.products_ordered` for gateway popularity percentile and LTR features.
+- **Push catalog** — `numinix_seekmodo_push_catalog.php` reuses `numinix_seekmodo_catalog_doc_from_row()` for parity with delta indexing.
+
 ## v1.3.9 — 2026-07-03 (suggest tab-switch thumbnail fix)
 
 - **Suggest tab-switch thumbnails** — vendored `@seekmodo/web-components` v0.3.7
