@@ -1092,6 +1092,14 @@ final class NuminixSeekmodoSuggestObserver extends base
       }
     }
   }
+  function _rowNeedsThumbHydrate(row) {
+    var empty = row.querySelector('.thumb-empty');
+    if (empty) return true;
+    var img = row.querySelector('img.thumb');
+    if (!img) return true;
+    if (img.complete && img.naturalWidth === 0) return true;
+    return false;
+  }
   function _collectSuggestProductIdsForImages() {
     var ids = [];
     var seen = Object.create(null);
@@ -1101,6 +1109,7 @@ final class NuminixSeekmodoSuggestObserver extends base
       if (!root) continue;
       var rows = root.querySelectorAll('[data-seekmodo-id]');
       for (var r = 0; r < rows.length; r++) {
+        if (!_rowNeedsThumbHydrate(rows[r])) continue;
         var id = rows[r].getAttribute('data-seekmodo-id');
         if (!id || seen[id]) continue;
         seen[id] = true;
@@ -1109,11 +1118,72 @@ final class NuminixSeekmodoSuggestObserver extends base
     }
     return ids;
   }
-  function _hydrateSuggestThumbsFromIds(ids) {
+  function _countEmptySuggestThumbs() {
+    var n = 0;
+    var hosts = document.querySelectorAll('seekmodo-suggest');
+    for (var h = 0; h < hosts.length; h++) {
+      var root = hosts[h].shadowRoot;
+      if (!root) continue;
+      n += root.querySelectorAll('.thumb-empty').length;
+    }
+    return n;
+  }
+  function _applyFallbackSuggestThumbs() {
+    var hosts = document.querySelectorAll('seekmodo-suggest');
+    for (var h = 0; h < hosts.length; h++) {
+      var root = hosts[h].shadowRoot;
+      if (!root) continue;
+      var empties = root.querySelectorAll('.thumb-empty[data-seekmodo-fallback-src]');
+      for (var i = 0; i < empties.length; i++) {
+        var empty = empties[i];
+        var src = empty.getAttribute('data-seekmodo-fallback-src');
+        if (!src) continue;
+        src = _thumbSrcWithVer(src);
+        var ni = document.createElement('img');
+        ni.className = empty.className.replace(/\bthumb-empty\b/g, '').trim() || 'thumb';
+        if (ni.className.indexOf('thumb') < 0) ni.className = 'thumb';
+        ni.setAttribute('part', 'thumb');
+        ni.loading = 'eager';
+        ni.decoding = 'async';
+        ni.alt = '';
+        ni.setAttribute('data-src', src);
+        ni.setAttribute('data-seekmodo-fallback', '1');
+        ni.src = src;
+        empty.replaceWith(ni);
+      }
+    }
+  }
+  var _thumbHydrateRetryTimer = null;
+  var _thumbHydrateRetryGen = 0;
+  function _scheduleThumbHydrateRetry(q, attempt) {
+    if (attempt > 12) {
+      _applyFallbackSuggestThumbs();
+      return;
+    }
+    if (_countEmptySuggestThumbs() === 0) return;
+    var gen = _thumbHydrateRetryGen;
+    var delay = attempt === 0 ? 0 : Math.min(1200, 40 * attempt);
+    setTimeout(function () {
+      if (gen !== _thumbHydrateRetryGen) return;
+      var ids = _collectSuggestProductIdsForImages();
+      if (ids.length > 0) {
+        _hydrateSuggestThumbsFromIds(ids, true);
+      } else if (!(CFG && CFG.img_ver)) {
+        _hydrateSuggestThumbs(q);
+      }
+      if (_countEmptySuggestThumbs() > 0) {
+        _scheduleThumbHydrateRetry(q, attempt + 1);
+      }
+    }, delay);
+  }
+  function _hydrateSuggestThumbsFromIds(ids, allowRetry) {
     if (!ids || !ids.length) return;
     var cacheKey = 'ids:' + ids.join(',');
     if (_thumbHydrateCache[cacheKey]) {
-      _paintSuggestThumbs(_thumbHydrateCache[cacheKey]);
+      _paintSuggestThumbs(_thumbHydrateCache[cacheKey], !!(CFG && CFG.img_ver));
+      if (allowRetry && _countEmptySuggestThumbs() > 0) {
+        _scheduleThumbHydrateRetry('', 1);
+      }
       return;
     }
     if (_thumbHydrateInflight === cacheKey) return;
@@ -1124,21 +1194,35 @@ final class NuminixSeekmodoSuggestObserver extends base
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
         _thumbHydrateInflight = null;
-        if (!data || !data.ok || !data.images || typeof data.images !== 'object') return;
+        if (!data || !data.ok || !data.images || typeof data.images !== 'object') {
+          if (allowRetry) _scheduleThumbHydrateRetry('', 1);
+          return;
+        }
         var keys = Object.keys(data.images);
-        if (keys.length === 0) return;
+        if (keys.length === 0) {
+          if (allowRetry) _scheduleThumbHydrateRetry('', 1);
+          return;
+        }
         _thumbHydrateCache[cacheKey] = data.images;
-        _paintSuggestThumbs(data.images);
+        _paintSuggestThumbs(data.images, !!(CFG && CFG.img_ver));
+        if (allowRetry && _countEmptySuggestThumbs() > 0) {
+          _scheduleThumbHydrateRetry('', 1);
+        }
       })
-      .catch(function () { _thumbHydrateInflight = null; });
+      .catch(function () {
+        _thumbHydrateInflight = null;
+        if (allowRetry) _scheduleThumbHydrateRetry('', 1);
+      });
   }
   function _hydrateSuggestThumbs(q) {
     q = String(q || '').trim();
     var ids = _collectSuggestProductIdsForImages();
     if (ids.length > 0) {
-      _hydrateSuggestThumbsFromIds(ids);
+      _hydrateSuggestThumbsFromIds(ids, true);
       return;
     }
+    // img-ver mode defers to the 240px images action — never paint 60px q-shim thumbs.
+    if (CFG && CFG.img_ver) return;
     if (q.length < 2) return;
     if (_thumbHydrateCache[q]) {
       _paintSuggestThumbs(_thumbHydrateCache[q]);
@@ -1165,6 +1249,49 @@ final class NuminixSeekmodoSuggestObserver extends base
         _paintSuggestThumbs(map);
       })
       .catch(function () { _thumbHydrateInflight = null; });
+  }
+  function _scheduleSuggestThumbHydrate(q) {
+    q = String(q || '').trim();
+    _thumbHydrateRetryGen += 1;
+    if (_thumbHydrateRetryTimer) {
+      clearTimeout(_thumbHydrateRetryTimer);
+      _thumbHydrateRetryTimer = null;
+    }
+    _repaintCachedSuggestThumbs(!!(CFG && CFG.img_ver));
+    _scheduleThumbHydrateRetry(q, 0);
+    _thumbHydrateRetryTimer = setTimeout(function () {
+      _thumbHydrateRetryTimer = null;
+      if (_countEmptySuggestThumbs() > 0) {
+        _applyFallbackSuggestThumbs();
+      }
+    }, 900);
+  }
+  var _suggestThumbObservers = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+  function _ensureSuggestThumbObservers() {
+    if (!_suggestThumbObservers) return;
+    var hosts = document.querySelectorAll('seekmodo-suggest');
+    for (var h = 0; h < hosts.length; h++) {
+      var host = hosts[h];
+      if (_suggestThumbObservers.has(host)) continue;
+      var root = host.shadowRoot;
+      if (!root) continue;
+      var obs = new MutationObserver(function () {
+        var ids = _collectSuggestProductIdsForImages();
+        if (ids.length > 0) {
+          _hydrateSuggestThumbsFromIds(ids, true);
+        }
+      });
+      obs.observe(root, { childList: true, subtree: true });
+      _suggestThumbObservers.set(host, obs);
+    }
+  }
+  if (typeof MutationObserver !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', _ensureSuggestThumbObservers);
+    } else {
+      _ensureSuggestThumbObservers();
+    }
+    setInterval(_ensureSuggestThumbObservers, 2000);
   }
   // v1.3.6 — hydrate suggest prices in the shopper's session currency.
   var _priceHydrateCache = Object.create(null);
@@ -1258,7 +1385,7 @@ final class NuminixSeekmodoSuggestObserver extends base
   function _onSuggestTabVisible(q) {
     requestAnimationFrame(function () {
       _repaintCachedSuggestThumbs(true);
-      if (q) _hydrateSuggestThumbs(q);
+      if (q) _scheduleSuggestThumbHydrate(q);
     });
     setTimeout(function () {
       _repaintCachedSuggestThumbs(true);
@@ -1267,14 +1394,18 @@ final class NuminixSeekmodoSuggestObserver extends base
   document.addEventListener('seekmodo-suggest:open', function (ev) {
     var q = ev && ev.detail && ev.detail.q;
     if (!q) return;
+    _scheduleSuggestThumbHydrate(q);
     requestAnimationFrame(function () {
-      _hydrateSuggestThumbs(q);
       _hydrateSuggestPrices();
     });
     setTimeout(function () {
-      _hydrateSuggestThumbs(q);
       _hydrateSuggestPrices();
     }, 50);
+  });
+  document.addEventListener('seekmodo-suggest:rendered', function (ev) {
+    var q = ev && ev.detail && ev.detail.q;
+    _ensureSuggestThumbObservers();
+    _scheduleSuggestThumbHydrate(q || '');
   });
   document.addEventListener('seekmodo-suggest:tab-visible', function (ev) {
     var q = ev && ev.detail && ev.detail.q;
