@@ -4,6 +4,11 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.17 — 2026-07-07 (Zen Cart 1.5.7 admin + manifest)
+
+- **1.5.7 Tools menu fix** — self-healing admin page registration via `zen_register_admin_page()` (singular) on ZC 1.5.7; earlier releases only called the 1.5.8+ plural API.
+- **`zcVersions`** — manifest now includes `v157` for official 1.5.7 compatibility.
+
 ## v1.3.13 — 2026-07-05 (occasion + sales index fields)
 
 - **Occasion metadata** — `occasion_tags` and `occasion_peak_month` on catalog docs (UK gift-store lexicon from title, description, category breadcrumbs).
