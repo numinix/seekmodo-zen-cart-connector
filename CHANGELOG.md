@@ -4,6 +4,10 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.20 — 2026-07-08 (view-all SERP redirect parity)
+
+- **View-all SERP parity** — `seekmodo_skip_category_redirect=1` now forwards `skip_merchandising_redirect=true` to the gateway so suggest "View all N results" matches the ranked SERP for keyword-redirect terms (KIP `pint`).
+
 ## v1.3.19 — 2026-07-07 (Zen Cart 1.5.7 admin + fleet head)
 
 - **1.5.7 Tools menu fix** — self-healing admin page registration via `zen_register_admin_page()` (singular) on ZC 1.5.7; earlier releases only called the 1.5.8+ plural API.
