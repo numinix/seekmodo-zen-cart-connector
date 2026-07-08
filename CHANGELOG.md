@@ -4,6 +4,13 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.19 — 2026-07-07 (Zen Cart 1.5.7 admin + fleet head)
+
+- **1.5.7 Tools menu fix** — self-healing admin page registration via `zen_register_admin_page()` (singular) on ZC 1.5.7; earlier releases only called the 1.5.8+ plural API.
+- **`extra_configures` bootstrap** — Connect to Seekmodo + Seekmodo Updates appear after file-only installs without Plugin Manager → Install.
+- **`zcVersions`** — manifest now includes `v157` for official 1.5.7 compatibility.
+- **Fleet head** — includes KIP v1.3.17–v1.3.18 suggest/SERP live-stock parity.
+
 ## v1.3.17 — 2026-07-07 (Zen Cart 1.5.7 admin + manifest)
 
 - **1.5.7 Tools menu fix** — self-healing admin page registration via `zen_register_admin_page()` (singular) on ZC 1.5.7; earlier releases only called the 1.5.8+ plural API.
