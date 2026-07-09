@@ -74,6 +74,20 @@ final class EnvProbe
             && (function_exists('apcu_enabled')
                 ? (bool) @apcu_enabled()
                 : (bool) ini_get('apc.enabled'));
+        // Some ea-php74 FPM pools report apcu_enabled()=false even when
+        // the user cache is live (apc.enabled=0 in php.ini but APCu
+        // still serves web requests). A one-shot store/fetch probe is the
+        // only reliable signal — same posture as the admin Diagnostics
+        // panel, which merchants trust over the INI flag.
+        if (!$apcuEnabled && $apcuExt && function_exists('apcu_store')) {
+            $probeKey = '__seekmodo_apcu_probe_' . (function_exists('getmypid') ? getmypid() : 0);
+            if (@apcu_store($probeKey, 1, 5) && apcu_fetch($probeKey) === 1) {
+                $apcuEnabled = true;
+                if (function_exists('apcu_delete')) {
+                    @apcu_delete($probeKey);
+                }
+            }
+        }
         $opcacheEnabled = false;
         if (function_exists('opcache_get_status')) {
             $status = @opcache_get_status(false);

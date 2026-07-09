@@ -20,6 +20,7 @@
 
 require 'includes/application_top.php';
 
+use Numinix\Seekmodo\AutoPromoter;
 use Numinix\Seekmodo\EnvProbe;
 use Numinix\Seekmodo\Pairing;
 use Numinix\Seekmodo\RemoteConfig;
