@@ -232,9 +232,10 @@ require DIR_WS_INCLUDES . 'admin_html_head.php';
 .seekmodo-card table.transitions th{background:#f9fafb;font-weight:600;}
 .seekmodo-card table.transitions td.reason{color:#6b7280;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;}
 .seekmodo-card table.diag{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;}
-.seekmodo-card table.diag th,.seekmodo-card table.diag td{padding:7px 10px;border-bottom:1px solid #eee;text-align:left;vertical-align:top;}
-.seekmodo-card table.diag th{background:#f9fafb;font-weight:600;}
-.seekmodo-card table.diag td.value{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;}
+.seekmodo-card table.diag th,.seekmodo-card table.diag td{padding:7px 10px;border-bottom:1px solid #eee;text-align:left;vertical-align:top;color:#111827;}
+.seekmodo-card table.diag th{background:#f9fafb;font-weight:600;color:#374151;}
+.seekmodo-card table.diag td.label{color:#111827;font-weight:500;}
+.seekmodo-card table.diag td.value{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#111827;}
 .seekmodo-card table.diag td.hint{color:#6b7280;font-size:12px;}
 .seekmodo-card table.diag tr.sev-ok td.label::before{content:"\2713 ";color:#127436;font-weight:700;}
 .seekmodo-card table.diag tr.sev-warn td.label::before{content:"\26A0 ";color:#a16207;font-weight:700;}
