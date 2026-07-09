@@ -6,6 +6,38 @@ each storefront platform we plan to support. The integration contract
 itself — four swap-points, filter registry, surface-tagged events — is
 identical on every platform; only the wiring location moves.
 
+## Zen Cart 1.5.7 (supported since connector v1.3.19)
+
+**Compatibility**
+
+- Manifest declares `v157` alongside `v158` and `v200`.
+- PHP **7.4+** (PHP 8.x recommended; tested on 8.3).
+- Admin **Tools → Connect to Seekmodo** self-heals on 1.5.7 via
+  `zen_register_admin_page()` (singular); releases before v1.3.19
+  only called the 1.5.8+ plural API.
+
+**Install path**
+
+Use **Plugin Manager → Upload New Plugin → Install/Upgrade** (see
+[`INSTALL.md`](INSTALL.md) §2 and §2a). Do **not** rely on copying
+only the `zc_plugins/Seekmodo/` tree — catalog-root shims must land
+in your catalog directory (e.g. `/shop/`).
+
+**Upgrade path**
+
+Prefer **Plugin Manager → Update** over **Tools → Seekmodo Updates →
+Apply update** when moving between releases on 1.5.7. The in-plugin
+auto-updater replaces the versioned plugin directory but may not
+re-copy catalog-root `numinix_seekmodo_*.php` shims on older cores.
+
+**Subdirectory catalogs**
+
+Stores whose catalog root is `/shop/` (or any `DIR_WS_CATALOG` other
+than `/`) work without extra Seekmodo configuration. Pairing builds
+the callback URL from `HTTPS_CATALOG_SERVER` + `DIR_WS_CATALOG`.
+Register the **apex domain** (e.g. `example.com`) in Seekmodo admin,
+not the `/shop/` path.
+
 ## Zen Cart 1.5.8+ (current)
 
 **Swap-point locations**

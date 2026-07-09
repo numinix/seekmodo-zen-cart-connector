@@ -49,6 +49,31 @@ fail silently with "expected callback never received".
 
 Fix: try the pairing in a clean browser profile.
 
+### Pair callback returns storefront HTML (still "Not connected")
+
+seekmodo.com may show pairing as complete while Zen Cart admin still
+reads **Not connected**. This happens when
+`numinix_seekmodo_pair_callback.php` is **missing from the catalog
+root** — Zen Cart serves the homepage with HTTP 200, our servers
+treat that as success, but credentials never reach the
+`configuration` table.
+
+**Confirm:**
+
+```bash
+curl -s -X POST "https://<host><catalog-path>/numinix_seekmodo_pair_callback.php" \
+  -H "Content-Type: application/json" -d "{}"
+```
+
+JSON (e.g. `{"ok":false,"error":"empty body"}`) = shim is live.
+Homepage HTML = shim missing.
+
+**Fix:** follow [`INSTALL.md`](INSTALL.md) §2a — re-run Plugin
+Manager **Install/Upgrade**, or manually copy the eight
+`numinix_seekmodo_*.php` shims from
+`zc_plugins/Seekmodo/v<X.Y.Z>/catalog/` into your catalog root.
+Then pair again from **Tools → Connect to Seekmodo**.
+
 ### Outbound connectivity
 
 Your Zen Cart host must be able to reach `https://mcp.seekmodo.com`

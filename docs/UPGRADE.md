@@ -13,8 +13,14 @@ each version directory's `CHANGELOG.md`.
 
 ## Routine path: in-plugin auto-update (v1.0.7+)
 
-**The supported routine update path is the in-plugin Updates page.**
-From the Zen Cart admin, navigate to **Tools → Seekmodo Updates**:
+**The supported routine update path on Zen Cart 1.5.8+ is the
+in-plugin Updates page.** From the Zen Cart admin, navigate to
+**Tools → Seekmodo Updates**:
+
+> **Zen Cart 1.5.7:** prefer **Plugin Manager → Upload New Plugin →
+> Update/Upgrade** instead of **Apply update** on the Updates page.
+> See [`INSTALL.md`](INSTALL.md) §2a — older cores may not redeploy
+> catalog-root pairing shims via the in-plugin auto-updater alone.
 
 1. The page pulls
    `https://seekmodo.com/plugins/manifest.json` (5-min APCu cache),
