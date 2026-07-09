@@ -4,6 +4,11 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.22 — 2026-07-09 (1.5.7 install docs + slug regex fix)
+
+- **Install docs** — `docs/INSTALL.md` §2a covers Zen Cart 1.5.7, subdirectory catalogs, file-only/rsync installs, catalog-root shim deployment, and pair-callback verification.
+- **Slug URL fix** — `NuminixSeekmodoObserver::productsIdFromRequest()` no longer fatals on SEO product URLs.
+
 ## v1.3.20 — 2026-07-08 (view-all SERP redirect parity)
 
 - **View-all SERP parity** — `seekmodo_skip_category_redirect=1` now forwards `skip_merchandising_redirect=true` to the gateway so suggest "View all N results" matches the ranked SERP for keyword-redirect terms (KIP `pint`).

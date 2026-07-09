@@ -3,12 +3,19 @@
 This is the operator-facing install guide. It assumes:
 
 - You have a Seekmodo subscription at <https://seekmodo.com>.
-- Your storefront is on **Zen Cart 1.5.8+**.
+- Your storefront is on **Zen Cart 1.5.7+** (1.5.7 supported since
+  connector **v1.3.19**; see [`PLATFORM_NOTES.md`](PLATFORM_NOTES.md)).
 - You have admin access to your Zen Cart store.
 
 If you're upgrading from an existing install, skip to
 [`UPGRADE.md`](UPGRADE.md). If something goes sideways, see
 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
+
+> **Download size sanity check:** the signed release zip from
+> `seekmodo.com/plugins` is typically **~300–350 KB** and expands to
+> **~1 MB** of plugin files under `zc_plugins/Seekmodo/v<X.Y.Z>/`.
+> If you see **tens of megabytes** after unzip, you likely extracted
+> into your whole storefront tree or grabbed the wrong archive.
 
 ---
 
@@ -107,6 +114,122 @@ download.
      — once paired, settings live on `admin.seekmodo.com`.
 
 After install, the row should read **Seekmodo v1.0.5 — Installed**.
+
+> **Upload alone is not enough.** Zen Cart stages the zip when you
+> click **Upload New Plugin**, but the catalog-root callback shims
+> (see §2a) are not live until you click **Install** (first time) or
+> **Update / Upgrade** (existing row). A Plugin Manager message of
+> "Successful" on upload does **not** mean pairing will work yet.
+
+## 2a. Zen Cart 1.5.7, subdirectory catalogs, and file-only installs
+
+These stores need one extra check that 1.5.8+ installs often get for
+free from Plugin Manager.
+
+### When this section applies
+
+- **Zen Cart 1.5.7** (manifest `v157`; use connector **v1.3.19+**).
+- You copied `zc_plugins/Seekmodo/` by **FTP, git, or rsync** instead
+  of using Plugin Manager end-to-end.
+- Your catalog lives in a **subdirectory** (e.g.
+  `https://www.example.com/shop/`). That layout is fine — you do
+  **not** put `/shop/` in the Seekmodo store-domain setting; pairing
+  uses Zen Cart's `HTTPS_CATALOG_SERVER` + `DIR_WS_CATALOG`
+  automatically.
+
+### What Plugin Manager must deploy
+
+Pairing posts credentials to a **catalog-root** URL:
+
+```text
+https://<your-storefront-host><DIR_WS_CATALOG>numinix_seekmodo_pair_callback.php
+```
+
+For a shop at `https://www.example.com/shop/`, that is:
+
+```text
+https://www.example.com/shop/numinix_seekmodo_pair_callback.php
+```
+
+Plugin Manager **Install** or **Upgrade** copies these top-level
+shims from the plugin tree into your catalog root (same directory as
+`index.php`):
+
+| Shim (catalog root) | Purpose |
+|---|---|
+| `numinix_seekmodo_pair_callback.php` | **Required for Connect to Seekmodo** |
+| `numinix_seekmodo_suggest.php` | Typeahead / suggest proxy |
+| `numinix_seekmodo_push_catalog.php` | Initial + scheduled indexing |
+| `numinix_seekmodo_click.php` | Click telemetry |
+| `numinix_seekmodo_recommend.php` | Recommendation widgets |
+| `numinix_seekmodo_index_delta.php` | Delta indexing |
+| `numinix_seekmodo_forget_me.php` | Shopper forget-me |
+| `numinix_seekmodo_reconcile_cron.php` | Cron reconciliation |
+
+The observer / library code under
+`zc_plugins/Seekmodo/v<X.Y.Z>/catalog/includes/` loads via Zen
+Cart's plugin auto-loader once the plugin row is **Installed** — but
+**pairing will silently fail** if the callback shim above is missing
+from the catalog root.
+
+### Standard recovery (recommended)
+
+1. Download the latest signed zip from `seekmodo.com/plugins`.
+2. **Tools → Plugin Manager → Upload New Plugin** (even if files are
+   already on disk).
+3. On the **Seekmodo** row, click **Install** (new) or **Update /
+   Upgrade** (existing).
+4. Run the verification curl in §2a below — it must return **JSON**,
+   not your storefront homepage HTML.
+5. Go to **Tools → Connect to Seekmodo** and pair again.
+
+On **Zen Cart 1.5.7**, prefer this Plugin Manager path over **Tools →
+Seekmodo Updates → Apply update** alone — the in-plugin auto-updater
+refreshes the versioned plugin tree but may not redeploy catalog-root
+shims on older cores.
+
+### Manual recovery (FTP / SSH)
+
+If Plugin Manager Install/Upgrade is unavailable or returns HTTP 500
+on 1.5.7, copy the eight `numinix_seekmodo_*.php` files from:
+
+```text
+zc_plugins/Seekmodo/v<X.Y.Z>/catalog/
+```
+
+into your **catalog root** (e.g. `/shop/` on the server). Then ensure
+the plugin row is active:
+
+```sql
+SELECT unique_key, version, status FROM plugin_control WHERE unique_key = 'Seekmodo';
+-- expect status = 1 and version = v<X.Y.Z>
+```
+
+### Verify catalog shims before pairing
+
+From any machine that can reach your storefront:
+
+```bash
+curl -s -X POST "https://www.example.com/shop/numinix_seekmodo_pair_callback.php" \
+  -H "Content-Type: application/json" -d "{}"
+```
+
+| Response | Meaning |
+|---|---|
+| `{"ok":false,"error":"empty body"}` (or similar JSON) | Shim is live — proceed to §3 |
+| Full storefront HTML (homepage) | Shim missing or not routed — redo §2a |
+| HTTP 404 | Wrong catalog path or file not copied |
+
+After pairing succeeds, confirm credentials landed:
+
+```sql
+SELECT configuration_key, configuration_value
+FROM   configuration
+WHERE  configuration_key IN (
+  'NUMINIX_SEEKMODO_TENANT_ID',
+  'NUMINIX_SEEKMODO_SHARED_SECRET'
+);
+```
 
 ## 3. Pair the storefront with your Seekmodo tenant
 
