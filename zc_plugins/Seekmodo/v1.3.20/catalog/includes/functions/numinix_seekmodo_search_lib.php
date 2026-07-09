@@ -734,6 +734,8 @@ if (!function_exists('numinix_seekmodo_run_search')) {
         $page = 1;
         $sawFailure = false;
         $firstResp = null;
+        $seenProductIds = [];
+        $authoritativeFound = null;
         while ($page <= $maxPages) {
             $payload['page'] = $page;
             $resp = numinix_seekmodo_search($payload);
@@ -746,20 +748,40 @@ if (!function_exists('numinix_seekmodo_run_search')) {
             }
             $hits = $resp['results']['hits'] ?? null;
             $found = isset($resp['results']['found']) ? (int)$resp['results']['found'] : null;
-            if ($found !== null) {
+            if ($page === 1 && $found !== null) {
+                $authoritativeFound = $found;
                 $merged['results']['found'] = $found;
             }
             if (is_array($hits) && $hits !== []) {
+                $addedThisPage = 0;
                 foreach ($hits as $h) {
+                    if (!is_array($h)) {
+                        continue;
+                    }
+                    $doc = $h['document'] ?? null;
+                    $pid = 0;
+                    if (is_array($doc)) {
+                        $pid = (int)($doc['products_id'] ?? $doc['id'] ?? 0);
+                    }
+                    if ($pid > 0) {
+                        if (isset($seenProductIds[$pid])) {
+                            continue;
+                        }
+                        $seenProductIds[$pid] = true;
+                    }
                     $merged['results']['hits'][] = $h;
+                    $addedThisPage++;
                 }
-                $hitCount = count($hits);
+                $hitCount = $addedThisPage;
             } else {
                 $hitCount = 0;
             }
             // Last page when we either hit the global found-count or
             // got fewer hits than the page size.
-            if ($found !== null && count($merged['results']['hits']) >= $found) {
+            if ($authoritativeFound !== null && count($seenProductIds) >= $authoritativeFound) {
+                break;
+            }
+            if ($hitCount === 0) {
                 break;
             }
             if ($hitCount < $pageSize) {
