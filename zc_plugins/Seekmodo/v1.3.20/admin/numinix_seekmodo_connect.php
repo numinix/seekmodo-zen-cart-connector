@@ -154,6 +154,12 @@ if ($action === 'refresh' && _seekmodo_check_csrf() && $isPaired) {
         if ($rc !== null) {
             $rc->invalidate();
             $rc->pull();
+            // Pull only reads gateway state; push fresh env + FSM so
+            // admin.seekmodo.com's Connector environment card updates
+            // (APCu/OPcache flags were stale when refresh only pulled).
+            if (class_exists(AutoPromoter::class)) {
+                (new AutoPromoter())->pushSnapshot('admin_refresh');
+            }
             $messages[] = ['type' => 'success', 'text' => 'Snapshot refreshed from gateway.'];
         }
     }
