@@ -1,140 +1,140 @@
-# Seekmodo for Zen Cart — top-level changelog
+# Seekmodo for Zen Cart â€" top-level changelog
 
 This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
-## v1.3.23 � 2026-07-12 (fleet-health SERP click tracking)
+## v1.3.23 - 2026-07-12 (fleet-health SERP click tracking)
 
-- **Typed product-info notifiers** � listen for `NOTIFY_HEADER_START_SERVICE_PRODUCT_INFO` (and download/document/music/free-shipping variants) so SERP?PDP click mirroring works on Numinix `serviceproductinfoBody` SEO URLs (www.numinix.ca).
+- **Typed product-info notifiers** - listen for `NOTIFY_HEADER_START_SERVICE_PRODUCT_INFO` (and download/document/music/free-shipping variants) so SERP?PDP click mirroring works on Numinix `serviceproductinfoBody` SEO URLs (www.numinix.ca).
 - Retains the v1.3.22 SEO slug `pidFromHref` in the SERP sendBeacon (`/product-name-902`).
-## v1.3.22 — 2026-07-09 (1.5.7 install docs + slug regex fix)
+## v1.3.22 â€" 2026-07-09 (1.5.7 install docs + slug regex fix)
 
-- **Install docs** — `docs/INSTALL.md` §2a covers Zen Cart 1.5.7, subdirectory catalogs, file-only/rsync installs, catalog-root shim deployment, and pair-callback verification.
-- **Slug URL fix** — `NuminixSeekmodoObserver::productsIdFromRequest()` no longer fatals on SEO product URLs.
+- **Install docs** â€" `docs/INSTALL.md` Â§2a covers Zen Cart 1.5.7, subdirectory catalogs, file-only/rsync installs, catalog-root shim deployment, and pair-callback verification.
+- **Slug URL fix** â€" `NuminixSeekmodoObserver::productsIdFromRequest()` no longer fatals on SEO product URLs.
 
-## v1.3.20 — 2026-07-08 (view-all SERP redirect parity)
+## v1.3.20 â€" 2026-07-08 (view-all SERP redirect parity)
 
-- **View-all SERP parity** — `seekmodo_skip_category_redirect=1` now forwards `skip_merchandising_redirect=true` to the gateway so suggest "View all N results" matches the ranked SERP for keyword-redirect terms (KIP `pint`).
+- **View-all SERP parity** â€" `seekmodo_skip_category_redirect=1` now forwards `skip_merchandising_redirect=true` to the gateway so suggest "View all N results" matches the ranked SERP for keyword-redirect terms (KIP `pint`).
 
-## v1.3.19 — 2026-07-07 (Zen Cart 1.5.7 admin + fleet head)
+## v1.3.19 â€" 2026-07-07 (Zen Cart 1.5.7 admin + fleet head)
 
-- **1.5.7 Tools menu fix** — self-healing admin page registration via `zen_register_admin_page()` (singular) on ZC 1.5.7; earlier releases only called the 1.5.8+ plural API.
-- **`extra_configures` bootstrap** — Connect to Seekmodo + Seekmodo Updates appear after file-only installs without Plugin Manager → Install.
-- **`zcVersions`** — manifest now includes `v157` for official 1.5.7 compatibility.
-- **Fleet head** — includes KIP v1.3.17–v1.3.18 suggest/SERP live-stock parity.
+- **1.5.7 Tools menu fix** â€" self-healing admin page registration via `zen_register_admin_page()` (singular) on ZC 1.5.7; earlier releases only called the 1.5.8+ plural API.
+- **`extra_configures` bootstrap** â€" Connect to Seekmodo + Seekmodo Updates appear after file-only installs without Plugin Manager â†' Install.
+- **`zcVersions`** â€" manifest now includes `v157` for official 1.5.7 compatibility.
+- **Fleet head** â€" includes KIP v1.3.17â€"v1.3.18 suggest/SERP live-stock parity.
 
-## v1.3.17 — 2026-07-07 (Zen Cart 1.5.7 admin + manifest)
+## v1.3.17 â€" 2026-07-07 (Zen Cart 1.5.7 admin + manifest)
 
-- **1.5.7 Tools menu fix** — self-healing admin page registration via `zen_register_admin_page()` (singular) on ZC 1.5.7; earlier releases only called the 1.5.8+ plural API.
-- **`zcVersions`** — manifest now includes `v157` for official 1.5.7 compatibility.
+- **1.5.7 Tools menu fix** â€" self-healing admin page registration via `zen_register_admin_page()` (singular) on ZC 1.5.7; earlier releases only called the 1.5.8+ plural API.
+- **`zcVersions`** â€" manifest now includes `v157` for official 1.5.7 compatibility.
 
-## v1.3.13 — 2026-07-05 (occasion + sales index fields)
+## v1.3.13 â€" 2026-07-05 (occasion + sales index fields)
 
-- **Occasion metadata** — `occasion_tags` and `occasion_peak_month` on catalog docs (UK gift-store lexicon from title, description, category breadcrumbs).
-- **Sales signal** — `units_sold_lifetime` from `products.products_ordered` for gateway popularity percentile and LTR features.
-- **Push catalog** — `numinix_seekmodo_push_catalog.php` reuses `numinix_seekmodo_catalog_doc_from_row()` for parity with delta indexing.
+- **Occasion metadata** â€" `occasion_tags` and `occasion_peak_month` on catalog docs (UK gift-store lexicon from title, description, category breadcrumbs).
+- **Sales signal** â€" `units_sold_lifetime` from `products.products_ordered` for gateway popularity percentile and LTR features.
+- **Push catalog** â€" `numinix_seekmodo_push_catalog.php` reuses `numinix_seekmodo_catalog_doc_from_row()` for parity with delta indexing.
 
-## v1.3.9 — 2026-07-03 (suggest tab-switch thumbnail fix)
+## v1.3.9 â€" 2026-07-03 (suggest tab-switch thumbnail fix)
 
-- **Suggest tab-switch thumbnails** — vendored `@seekmodo/web-components` v0.3.7
+- **Suggest tab-switch thumbnails** â€" vendored `@seekmodo/web-components` v0.3.7
   with eager product thumbs, forced recovery on tab return, and
   `seekmodo-suggest:tab-visible` event; `NuminixSeekmodoSuggestObserver`
   force-repaints hydrated thumbs when `img.src` already matches (Chrome/Windows).
-- **Keyword merchandising redirects** — server 302 via
+- **Keyword merchandising redirects** â€" server 302 via
   `numinix_seekmodo_redirect_lib.php` before auto category redirect.
 
-## v1.3.8 — 2026-07-03 (suggest tab-switch thumbnail fix)
+## v1.3.8 â€" 2026-07-03 (suggest tab-switch thumbnail fix)
 
-- **Suggest tab-switch thumbnails** — vendored `@seekmodo/web-components` v0.3.3
+- **Suggest tab-switch thumbnails** â€" vendored `@seekmodo/web-components` v0.3.3
   loads product thumbnails eagerly and reloads any stalled images when the
   browser tab becomes visible again, fixing blank gray thumb slots after
   switching away and back while the suggest dropdown stays open.
 
-## v1.3.7 — 2026-07-03 (suggest high-DPI thumbnail hydration)
+## v1.3.7 â€" 2026-07-03 (suggest high-DPI thumbnail hydration)
 
-- **Suggest image quality** — hydrates all product thumbnails at 240px via
+- **Suggest image quality** â€" hydrates all product thumbnails at 240px via
   `zen_get_products_image()` (Image Handler / Numinix optimizer) and replaces
   low-res gateway `image_url` values that looked pixelated in split-rail grids.
 
-## v1.3.6 — 2026-07-03 (suggest session-currency prices)
+## v1.3.6 â€" 2026-07-03 (suggest session-currency prices)
 
-- **Suggest price currency** — vendored web-components bundle resolves
+- **Suggest price currency** â€" vendored web-components bundle resolves
   `meta.region.currency` instead of defaulting to USD; connector stamps
   `currency` on indexed docs and hydrates session-aware display prices via
   `seekmodo_action=prices` on the suggest shim (multicurrency storefronts).
 
-## v1.3.5 — 2026-07-02 (suggest thumbnail hydration + ZC route fix)
+## v1.3.5 â€" 2026-07-02 (suggest thumbnail hydration + ZC route fix)
 
-- **Suggest product thumbnails** — `<seekmodo-suggest>` fetches gateway
+- **Suggest product thumbnails** â€" `<seekmodo-suggest>` fetches gateway
   `/v1/suggest` in-browser; when indexed docs lack `image_url`, the
   observer hydrates empty thumb slots via
-  `numinix_seekmodo_suggest.php?seekmodo_action=images&ids=…` (batch
+  `numinix_seekmodo_suggest.php?seekmodo_action=images&ids=â€¦` (batch
   lookup from `zen_get_products_image()`).
-- **Zen Cart cart-handler collision fix** — shim routes use
+- **Zen Cart cart-handler collision fix** â€" shim routes use
   `seekmodo_action=` instead of bare `action=` so `init_cart_handler.php`
   does not 302 to `cookie_usage` or run cart actions before the shim
   handler (regression on any storefront with `DISPLAY_CART`).
-- **Optimized thumb URLs** — `numinix_seekmodo_catalog_doc_image_url()`
+- **Optimized thumb URLs** â€" `numinix_seekmodo_catalog_doc_image_url()`
   no longer prefixes `cache/optimized_images/` paths with `DIR_WS_IMAGES`.
-- **Catalog-root shim sync tool** — `tools/sync_catalog_shims.php` copies
+- **Catalog-root shim sync tool** â€" `tools/sync_catalog_shims.php` copies
   the five HTTP shims from the active plugin version to the catalog root
   after deploy (required because `zc_plugins/.htaccess` blocks direct PHP
   access under the plugin tree).
-- **SERP listing SQL helper** — `numinix_seekmodo_build_listing_sql()`
+- **SERP listing SQL helper** â€" `numinix_seekmodo_build_listing_sql()`
   preserves `products_image` in enforce-mode SERP swaps (v1.3.4 carry-over).
 
-## v1.3.4 — 2026-06-27 (view-all SERP route + suggest vehicle filter)
+## v1.3.4 â€" 2026-06-27 (view-all SERP route + suggest vehicle filter)
 
-- **View-all SERP route detection** — suggest `view_all_href` now picks
+- **View-all SERP route detection** â€" suggest `view_all_href` now picks
   `search_result` when the storefront ships that page, otherwise falls back to
   `advanced_search_result` with `search_in_description=1`. Fixes legacy forks
   (KIP-style) where linking to a missing `search_result` 301'd to the homepage.
-- **Suggest vehicle filter sync** — autoboot stamps garage/YMM fitment context on
+- **Suggest vehicle filter sync** â€" autoboot stamps garage/YMM fitment context on
   the suggest web component and refreshes the vendored bundle so gateway queries
   and view-all URLs carry active vehicle filters.
 
-## v1.3.3 — 2026-06-27 (purchase telemetry zero-arg notify fallback)
+## v1.3.3 â€" 2026-06-27 (purchase telemetry zero-arg notify fallback)
 
-- **Purchase observer fallback** — when
+- **Purchase observer fallback** â€" when
   `NOTIFY_CHECKOUT_PROCESS_AFTER_ORDER_CREATE_ADD_PRODUCTS` fires with no
   notifier args (PayPal saved-card recurring on Numinix forks), the observer
   reads line items from the global `$order` and session order id so purchase
   events are not silently dropped.
 
-## v1.3.2 — 2026-06-27 (add-to-cart telemetry on fork cart paths)
+## v1.3.2 â€" 2026-06-27 (add-to-cart telemetry on fork cart paths)
 
-- **Add-to-cart observer fix** — `NOTIFY_CART_ADD_CART_END` now reads the
+- **Add-to-cart observer fix** â€" `NOTIFY_CART_ADD_CART_END` now reads the
   products_id and qty the cart notifier passes (same bug class as v1.2.7
   purchase telemetry). Numinix forks that add via `?pid=`, multi-add POST
   arrays, or AJAX wallet paths no longer silently drop add_to_cart events.
 
-## v1.2.9 — 2026-06-24 (search/click session_id parity)
+## v1.2.9 â€" 2026-06-24 (search/click session_id parity)
 
-- **PHP session first + stashed search session** — gateway search, SERP clicks,
+- **PHP session first + stashed search session** â€" gateway search, SERP clicks,
   and checkout purchases now share the same `session_id` within a visit so
   session-aware linkage and search-attributed revenue rollups work end-to-end.
 
-## v1.2.8 — 2026-06-24 (search-click session attribution)
+## v1.2.8 â€" 2026-06-24 (search-click session attribution)
 
-- **Session id parity** — click, impression, add-to-cart, and purchase events
+- **Session id parity** â€" click, impression, add-to-cart, and purchase events
   now share the same `session_id` resolution as gateway search calls, fixing
   session-aware click linkage and search-attributed revenue rollups when the
   click-log cookie was not yet set.
 
-## v1.2.7 — 2026-06-24 (purchase telemetry on forked checkout)
+## v1.2.7 â€" 2026-06-24 (purchase telemetry on forked checkout)
 
-- **Purchase observer fix** — checkout purchase mirroring now handles Redline /
+- **Purchase observer fix** â€" checkout purchase mirroring now handles Redline /
   Numinix fork notifier arity (single `$order` notify) and cart-style product
   `id` keys, restoring purchase + revenue analytics on enforce storefronts.
 
-## v1.2.5 — 2026-06-23 (mobile split-rail slider fix)
+## v1.2.5 â€" 2026-06-23 (mobile split-rail slider fix)
 
-- **Suggest bundle:** Mobile split-rail draggable divider works again — the
+- **Suggest bundle:** Mobile split-rail draggable divider works again â€" the
   `7.5rem` rail cap is scoped to the static stack only; resize mode uses flex
   growth so both keyword and product panels expand/contract when dragging.
 
-## v1.2.4 — 2026-06-23 (catalog orphan prune + suggest bundle refresh)
+## v1.2.4 â€" 2026-06-23 (catalog orphan prune + suggest bundle refresh)
 
 - **Catalog orphan prune:** After a successful full push,
   `numinix_seekmodo_push_catalog.php` calls gateway `catalog.prune` with
@@ -146,29 +146,29 @@ per-version detail lives next to the source under
   overflow). Native `title`/`alt` for product names; rAF-throttled
   dropdown anchor; `bundleSrc()` filemtime cache-bust for Cloudflare.
 
-## v1.2.3 — 2026-06-16 (typeahead search_event_id + SEO SERP clicks)
+## v1.2.3 â€" 2026-06-16 (typeahead search_event_id + SEO SERP clicks)
 
 - **Typeahead LTR linkage:** `/v1/suggest` `meta.search_event_id` threads
   through product-row click beacons (`surface=typeahead`).
 - **SERP click attribution:** Product-info clicks resolve `products_id`
   from SEO slug URLs and referer `search_query`/`q`.
 
-## v1.2.2 — 2026-06-23 (SERP click beacon for SEO product URLs)
+## v1.2.2 â€" 2026-06-23 (SERP click beacon for SEO product URLs)
 
 - **SERP click beacon:** Recognises Numinix-style SEO slugs
   (`/product-name-921`) in addition to `?products_id=` links. Stamps
   rank from the session position-map and tags `surface=results` when
   the clicked SKU is in the Seekmodo swap set.
 
-## v1.2.1 — 2026-06-22 (typeahead product-row click attribution)
+## v1.2.1 â€" 2026-06-22 (typeahead product-row click attribution)
 
 - **Suggest click beacon:** `<seekmodo-suggest>` product-row clicks now
   fire a `sendBeacon` to `numinix_seekmodo_click.php` with
-  `surface=typeahead` before navigation — parity with WordPress
+  `surface=typeahead` before navigation â€" parity with WordPress
   connector v0.8.2. Fixes silent LTR click gaps when shoppers pick a
   product directly from the dropdown instead of the full SERP.
 
-## v1.1.7 — 2026-06-20 (CORS-block UX + purchasable indexing)
+## v1.1.7 â€" 2026-06-20 (CORS-block UX + purchasable indexing)
 
 - **CORS-block UX:** When gateway script loads or suggest fetches are
   blocked by the browser, storefronts show an inline notice where the
@@ -181,29 +181,29 @@ per-version detail lives next to the source under
   `purchasable` alongside `in_stock` (backorder-eligible OOS stays
   purchasable; discontinued / call-for-price SKUs do not).
 
-## v1.1.6 — 2026-06-20 (Enhanced Native layer)
+## v1.1.6 â€" 2026-06-20 (Enhanced Native layer)
 
-- **Enhanced Native** — connector-owned multi-field SQL search, popularity
+- **Enhanced Native** â€" connector-owned multi-field SQL search, popularity
   ranking, and local typeahead when the gateway is off or unavailable.
-- **Gate split** — `numinix_seekmodo_gateway_enabled()` vs
+- **Gate split** â€" `numinix_seekmodo_gateway_enabled()` vs
   `numinix_seekmodo_enhanced_native_enabled()` so unpaired installs still
   get improved search.
-- **Hotfix (2026-06-21)** — Enhanced Native `ORDER BY` probes for
+- **Hotfix (2026-06-21)** â€" Enhanced Native `ORDER BY` probes for
   `products_viewed` on `products_description` (Numinix) or `products` (core
   ZC) instead of assuming `p.products_viewed` exists.
 
-## v1.1.3 — 2026-06-17 (in-plugin Update test release)
+## v1.1.3 â€" 2026-06-17 (in-plugin Update test release)
 
 - Test release to verify the Connect page **Update** button and signed apply path on git-enabled tenants (numinix.com). No functional connector changes beyond version bump.
 
-## v1.1.2 — 2026-06-17 (Connect Update + git auto-sync)
+## v1.1.2 â€" 2026-06-17 (Connect Update + git auto-sync)
 
 - **Connect page Update button** when a newer signed release is published (same apply path as Seekmodo Updates).
 - **`GitSyncTrigger`** runs `cron/sync-to-git.sh` immediately after a successful in-plugin apply on git-enabled hosts; admin UI surfaces sync status. Branch propagation cherry-picks are documented in `zencart_git`.
 
-## v1.1.1 — 2026-06-15 (suggest dropdown widens to 480 px default)
+## v1.1.1 â€" 2026-06-15 (suggest dropdown widens to 480 px default)
 
-### v1.1.1 fix-pack #3 — 2026-06-15 (category rows -> resolver redirect)
+### v1.1.1 fix-pack #3 â€" 2026-06-15 (category rows -> resolver redirect)
 
 - **Categories block now leads shoppers to category landing pages.**
   The gateway's per-doc breadcrumb walk landed earlier today, so the
@@ -226,7 +226,7 @@ per-version detail lives next to the source under
 - **`<seekmodo-suggest>` bundle refresh.** Vendors
   `@seekmodo/web-components@0.2.1` into
   `zc_plugins/Seekmodo/v1.1.1/catalog/includes/templates/template_default/jscript/seekmodo_suggest.bundle.js`.
-  The bundle's default `anchor-min-width` raises from 320 → 480 px so
+  The bundle's default `anchor-min-width` raises from 320 â†' 480 px so
   catalog-grade product names (`Handy Standard SBC990 Snowmobile
   Lift`, `Redline TR1500 Trailer`) stop truncating at ~15 chars in
   the typeahead dropdown on storefronts where the bound search input
@@ -241,14 +241,14 @@ per-version detail lives next to the source under
   (`numinix/seekmodo-connector ^0.2`) stays at the v1.1.0 version
   and every other catalog-side file is byte-identical to v1.1.0.
 - **Plugin Manager swap is non-destructive.** The v1.1.0 row in
-  Admin → Plugin Manager remains installed; the operator picks
+  Admin â†' Plugin Manager remains installed; the operator picks
   v1.1.1 from the dropdown and clicks `Update`. Persistent settings
   (mode, indexer schedule, tenant ID, paired-gateway URL) carry over
   unchanged.
 
-## v1.1.0 — 2026-06-14 (PHP SDK + connector migration, phase 3)
+## v1.1.0 â€" 2026-06-14 (PHP SDK + connector migration, phase 3)
 
-- **Internal refactor — shared SDK extraction.** The shared transport
+- **Internal refactor â€" shared SDK extraction.** The shared transport
   / breaker / mode-FSM / pairing / events code lifted out into a new
   Composer package, `numinix/seekmodo-connector` (PSR-4 root
   `Numinix\SeekmodoSdk\`), and is now vendored into the plugin tree
@@ -265,20 +265,20 @@ per-version detail lives next to the source under
   move in this release. See [MIGRATION.md](MIGRATION.md) for the
   full back-out path.
 - **New plugin autoloader prefix.** `init_numinix_seekmodo.php` now
-  registers a second PSR-4 prefix (`Numinix\SeekmodoSdk\` →
+  registers a second PSR-4 prefix (`Numinix\SeekmodoSdk\` â†'
   `catalog/includes/library/Numinix/SeekmodoSdk/`) so the vendored
   SDK is reachable without touching composer at runtime.
 - **No runtime composer dependency.** The plugin zip still installs
-  cleanly on a vanilla cPanel Zen Cart host — composer is only used
+  cleanly on a vanilla cPanel Zen Cart host â€" composer is only used
   by `tools/build_release.py` on the operator's workstation.
 
-## v1.0.22 — 2026-06-14 (in-place refresh #6 — CSP drop-in template)
+## v1.0.22 â€" 2026-06-14 (in-place refresh #6 â€" CSP drop-in template)
 
 - **Storefronts with a strict Content-Security-Policy need to allow
   `mcp.seekmodo.com`** or the `<seekmodo-suggest>` widget mints a
   browser token fine (via the same-origin shim) but every follow-up
   POST to `/v1/suggest` is blocked by the browser before it leaves
-  the page — the SDK surfaces the block as
+  the page â€" the SDK surfaces the block as
   `[seekmodo-suggest] fetch failed Seekmodo network failure: Failed
   to fetch` and the dropdown's `current` envelope stays null, which
   the shopper experiences as "no suggestions at all".
@@ -300,7 +300,7 @@ per-version detail lives next to the source under
   Numinix.ca were patched by hand on 2026-06-14). No DB schema or
   observer change.
 
-## v1.0.22 — 2026-06-14 (in-place refresh #5 — browser-token POST refresh)
+## v1.0.22 â€" 2026-06-14 (in-place refresh #5 â€" browser-token POST refresh)
 
 - **Suggest dropdown now refreshes its JWT cleanly under the new
   web-component SDK.** The `<seekmodo-suggest>` bundle's
@@ -335,7 +335,7 @@ per-version detail lives next to the source under
   pick this up by syncing the file in their
   `catalog/zc_plugins/Seekmodo/v1.0.22/catalog/` tree.
 
-## v1.0.22 — 2026-06-14 (in-place refresh #4 — row-click navigation)
+## v1.0.22 â€" 2026-06-14 (in-place refresh #4 â€" row-click navigation)
 
 - **Suggest dropdown clicks now navigate.** The
   `<seekmodo-suggest>` web component is intentionally inert on click:
@@ -344,12 +344,12 @@ per-version detail lives next to the source under
   to decide where to send the shopper. The v1.0.22 universal-suggest
   rollout wired the autoboot script that *attaches* the element but
   forgot the listener that *navigates* on the event, so every click
-  on a product row felt completely dead — visually the row
+  on a product row felt completely dead â€" visually the row
   highlighted, the input briefly stole focus back, then nothing
   happened. (Reported on `redlinestands.com/catalog/`,
   `poco-marine.com`, `numinix.com`, and `numinix.ca`.)
   - `NuminixSeekmodoSuggestObserver::autobootScript()` now appends a
-    `document.addEventListener('seekmodo-suggest:row-click', …)`
+    `document.addEventListener('seekmodo-suggest:row-click', â€¦)`
     handler inside the same IIFE so it has the `CFG` view-all
     template in scope.
   - Behaviour: products / categories with `row.url` navigate to
@@ -357,15 +357,15 @@ per-version detail lives next to the source under
     `keywords`, `did_you_mean`) and products / categories that
     happen to lack `row.url` substitute the row's keyword (or name)
     into `CFG.view_all_href` and navigate to the SERP.
-  - Pure additive change to the inline autoboot template — no other
+  - Pure additive change to the inline autoboot template â€" no other
     files touched, no plugin schema or DB change.
 
-## v1.0.22 — 2026-06-14 (in-place refresh — index `image_url`)
+## v1.0.22 â€" 2026-06-14 (in-place refresh â€" index `image_url`)
 
 - **Catalog pusher now indexes product thumbnails.**
   `numinix_seekmodo_push_catalog.php` previously emitted documents with
   `id / name / model / sku / description / brand / category_id /
-  p_type / category_breadcrumbs / price / in_stock / url` — no image
+  p_type / category_breadcrumbs / price / in_stock / url` â€" no image
   reference. The `<seekmodo-suggest>` bundle's product-row template
   reads `o.image_url ?? o.image` and renders an empty
   `<div class="thumb">` placeholder when neither is present, which is
@@ -377,7 +377,7 @@ per-version detail lives next to the source under
     the standard Zen Cart catalog base
     (`HTTPS_SERVER + DIR_WS_HTTPS_CATALOG` when SSL is on,
     `HTTP_SERVER + DIR_WS_CATALOG` otherwise) plus `DIR_WS_IMAGES`.
-  - Already-absolute `https://…` values in `products_image` (a few
+  - Already-absolute `https://â€¦` values in `products_image` (a few
     legacy storefronts pre-bake CDN URLs there) pass through
     unchanged.
   - Empty / missing image rows omit the `image_url` field so the
@@ -385,13 +385,13 @@ per-version detail lives next to the source under
     yields the empty-thumbnail placeholder.
 - After deploying this file, operators must re-run
   `numinix_seekmodo_push_catalog.php` once per paired tenant to
-  populate `image_url` on existing Typesense documents — the connector
+  populate `image_url` on existing Typesense documents â€" the connector
   upserts whole docs per batch, so the next normal cron pass picks
   up the new field automatically. The fix lands as an in-place
   refresh of `v1.0.22` (no plugin schema or behaviour change beyond
   the cron payload shape).
 
-## v1.0.21 — 2026-06-13 (in-place refresh #2, signing-key rotation)
+## v1.0.21 â€" 2026-06-13 (in-place refresh #2, signing-key rotation)
 
 - **Release-signing key rotation to `seekmodo-2026-06-r2`.** The
   original `seekmodo-2026-06` ed25519 private key was unrecoverable
@@ -419,7 +419,7 @@ per-version detail lives next to the source under
     next auto-update (v1.0.21 -> v1.0.22+) will succeed because
     v1.0.21 vendors the r2 trust root.
 
-## v1.0.21 — 2026-06-12 (in-place refresh, SM-606 follow-up)
+## v1.0.21 â€" 2026-06-12 (in-place refresh, SM-606 follow-up)
 
 - **Self-anchoring suggest bundle.** Refreshed the pinned
   `seekmodo_suggest.bundle.js` to the build that ships SM-606's
@@ -440,13 +440,13 @@ per-version detail lives next to the source under
   (KIP / Numinix dropdown-cart suggest, wishlist suggest) keep
   their legacy widget because we only target inputs by id.
 
-## v1.0.21 — 2026-06-12
+## v1.0.21 â€" 2026-06-12
 
 - **SM-606 Universal Suggest Widget.** Storefront typeahead now ships
   the new `<seekmodo-suggest>` web component (the same custom element
   the WordPress / BigCommerce / AKS connectors enqueue) and renders
-  the rich `/v1/suggest` envelope — recent + did-you-mean + keywords
-  + trending + products + categories + "View all N results" CTA —
+  the rich `/v1/suggest` envelope â€" recent + did-you-mean + keywords
+  + trending + products + categories + "View all N results" CTA â€"
   all from one server round-trip. The legacy v1.0.14-era three-section
   vanilla-JS dropdown is preserved on disk at
   `seekmodo_typeahead.legacy.js` and enabled via the
@@ -469,7 +469,7 @@ per-version detail lives next to the source under
     that returns `{token, expires_at, session_id}` so a long-running
     tab can refresh the gateway-direct JWT without a page reload.
   - Browser-token mint is APCu-cached per-tenant (~1 mint / 4 min
-    regardless of keystroke volume) — same posture as the WP
+    regardless of keystroke volume) â€" same posture as the WP
     connector's transient cache.
 
   KIP's `numinix_seekmodo_suggest.php` catalog-root override (the
@@ -481,18 +481,18 @@ per-version detail lives next to the source under
 
   - `NUMINIX_SEEKMODO_SUGGEST_ENABLED` (default true)
   - `NUMINIX_SEEKMODO_SUGGEST_USE_LEGACY` (default false)
-  - `NUMINIX_SEEKMODO_SUGGEST_BLOCKS` — CSV of blocks in render
+  - `NUMINIX_SEEKMODO_SUGGEST_BLOCKS` â€" CSV of blocks in render
     order; default `recent,did_you_mean,keywords,trending,products,
     categories`.
-  - `NUMINIX_SEEKMODO_SUGGEST_VIEW_ALL_HREF` — URL template for the
+  - `NUMINIX_SEEKMODO_SUGGEST_VIEW_ALL_HREF` â€" URL template for the
     "View all N results" CTA. Default: Zen Cart core SERP URL.
 
-  Bundle size: 22.6 KB raw / 7.25 KB gzip — under the 12 KB gzip
+  Bundle size: 22.6 KB raw / 7.25 KB gzip â€" under the 12 KB gzip
   plan target.
 
   Spec: `seekmodo/docs/CONNECTOR_TYPEAHEAD_SPEC.md` Phase E.
 
-## v1.0.20 — 2026-06-11
+## v1.0.20 â€" 2026-06-11
 
 - **Typeahead-perf parity with the WordPress connector v0.5.0
   (SM-602 phase B).** The storefront-side typeahead JS now keeps a
@@ -502,7 +502,7 @@ per-version detail lives next to the source under
   arriving after the user has moved on to `boats` can't overwrite
   the freshly-rendered dropdown.
 
-  JS-only change — no PHP, no schema, no gateway-call shape shifts.
+  JS-only change â€" no PHP, no schema, no gateway-call shape shifts.
   Phase C (browser-token gateway-direct fetch) is queued for
   v1.0.21 because the Zen Cart connector doesn't mint browser
   tokens today; the flat-rows `/v1/typeahead` migration is queued
@@ -510,21 +510,21 @@ per-version detail lives next to the source under
 
   Spec: `seekmodo/docs/CONNECTOR_TYPEAHEAD_SPEC.md`.
 
-## v1.0.19 — 2026-06-11
+## v1.0.19 â€" 2026-06-11
 
 - **Category landing-page redirect** (search-features-plan Sprint 6
-  PR 1) — Klevu / Algolia parity for navigational-intent queries.
+  PR 1) â€" Klevu / Algolia parity for navigational-intent queries.
   See `zc_plugins/Seekmodo/v1.0.19/CHANGELOG.md` for the full detail.
 
-## v1.0.18 — 2026-06-08
+## v1.0.18 â€" 2026-06-08
 
 - **Stable ed25519 release-signing key (`seekmodo-2026-06`).** The
-  prior label `marketing-2026-05` was aspirational — no production
+  prior label `marketing-2026-05` was aspirational â€" no production
   build ever wrote a real public key under it. v1.0.13 shipped with
   a literal `PLACEHOLDER_REPLACED_BY_BUILD_RELEASE_PY` string in
-  `admin/release-signing.pub`; v1.0.14–v1.0.17 shipped with a
+  `admin/release-signing.pub`; v1.0.14â€"v1.0.17 shipped with a
   per-build *ephemeral* keypair whose private half was generated on
-  the build host, used to sign that one zip, then discarded —
+  the build host, used to sign that one zip, then discarded â€"
   unverifiable forever from the operator's side. Every release since
   v1.0.7 has therefore carried the `dev-ephemeral` flag that the
   in-plugin UpdateClient refuses outright (i.e. **auto-update has
@@ -537,7 +537,7 @@ per-version detail lives next to the source under
   manifest, and (newly) vendors the pubkey **before** building the
   zip so the shipped artifact actually carries the trust root.
 
-  **Operator action required (one-time):** v1.0.17 → v1.0.18 must be
+  **Operator action required (one-time):** v1.0.17 â†' v1.0.18 must be
   a manual upgrade because v1.0.17's vendored pubkey carries
   `kid: dev-ephemeral` and the v1.0.18 manifest entry will carry
   `sig_kid: seekmodo-2026-06`. The in-plugin verifier raises
@@ -545,7 +545,7 @@ per-version detail lives next to the source under
   (dev-ephemeral); manual upgrade required to rotate keys" exactly
   as documented in `UpdateClient`'s rotation contract. From v1.0.18
   forward, the vendored key matches the kid we sign under, so
-  v1.0.18 → v1.0.19+ auto-updates flow normally. See
+  v1.0.18 â†' v1.0.19+ auto-updates flow normally. See
   `docs/SIGNING_KEYS.md` in `numinix/seekmodo` for the rotation
   runbook and the manual cutover steps for the live fleet.
 
@@ -555,12 +555,12 @@ per-version detail lives next to the source under
   `~/.numinix/release-signing-<kid>.key` on the operator's disk
   serves both pipelines. No more PEM-only assumption.
 
-## v1.0.17 — 2026-06-08
+## v1.0.17 â€" 2026-06-08
 
 - **AKS-connector parity port (generic improvements only).** Two
   features lifted from the AKS connector v1.3 (`numinix/aks-seekmodo-connector`,
   2026-06-07) that aren't AKS- or vehicle-specific. Both are
-  additive and backwards-compatible — every existing tenant's
+  additive and backwards-compatible â€" every existing tenant's
   payload shape is unchanged in the no-trigger case.
 
   1. **SKU / part-number exact-match boost** (port of AKS
@@ -585,16 +585,16 @@ per-version detail lives next to the source under
      `tenant_disabled`, and applies the body peek to **both**
      403 and 404 responses (the gateway emits 404 for
      `tenant_not_found` / `tenant_unknown`, 403 for the rest).
-     Behaviourally the fallback to native search is unchanged —
+     Behaviourally the fallback to native search is unchanged â€"
      `Client::call()` returns `null` on every 4xx exactly as
-     before — but the structured log line now distinguishes
+     before â€" but the structured log line now distinguishes
      `tenant_unavailable` (with `fallback_reason =
      tenant_unavailable`) from the generic `caller_error` so
      admin observability can attribute the volume correctly.
 
   Full per-version detail: [`zc_plugins/Seekmodo/v1.0.17/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.17/CHANGELOG.md).
 
-## v1.0.14 — 2026-06-04
+## v1.0.14 â€" 2026-06-04
 
 - **Typeahead routes through the gateway's SuggestTool (Sprint 3 PR 6).**
   v1.0.13 packed every typeahead keystroke into a `/v1/search` payload
@@ -611,18 +611,18 @@ per-version detail lives next to the source under
   endpoint (`catalog/numinix_seekmodo_suggest.php`) so unmodified
   storefronts can opt into Seekmodo-driven typeahead without editing
   their own search templates. Sites on a custom template need to copy
-  the JS file into their own template's `jscript/` folder — Zen Cart
+  the JS file into their own template's `jscript/` folder â€" Zen Cart
   doesn't auto-inherit `jscript_*.js` from `template_default`.
 
   Operators can roll back to the v1.0.13 `/v1/search` typeahead path
   per-call (`opts.use_search=true`) or globally
   (`NUMINIX_SEEKMODO_TYPEAHEAD_USE_SEARCH=true`) for the cutover
-  window. Form-submit behaviour is intentionally unchanged — the
+  window. Form-submit behaviour is intentionally unchanged â€" the
   SERP still routes through `numinix_seekmodo_run_search()`.
 
   Full detail in `zc_plugins/Seekmodo/v1.0.14/CHANGELOG.md`.
 
-## v1.0.12 — 2026-06-02
+## v1.0.12 â€" 2026-06-02
 
 - **Static `.well-known/mcp.json` writer (Sprint 14 PR 4 follow-up,
   2026-06-02).** v1.0.11's PHP-driven `.well-known/mcp.json`
@@ -633,7 +633,7 @@ per-version detail lives next to the source under
   physically writing a real `.well-known/mcp.json` file (plus a
   defence-in-depth `<Files "mcp.json"> Require all granted </Files>`
   `.htaccess`) to **every viable docroot the connector can
-  resolve** — `DIR_FS_CATALOG`, `$_SERVER['DOCUMENT_ROOT']` when
+  resolve** â€" `DIR_FS_CATALOG`, `$_SERVER['DOCUMENT_ROOT']` when
   distinct, and the parent of `DIR_FS_CATALOG` as a CLI fallback.
   Apache serves the resulting file directly; no rewrite required.
   Triggers: pair callback (immediate on Connect), `RemoteConfig::
@@ -643,13 +643,13 @@ per-version detail lives next to the source under
 - Idempotency: the writer reads existing on-disk content and skips
   the write when it matches the canonical payload. Safe to call on
   every storefront request; ~free when nothing has changed.
-- Failure posture unchanged from v1.0.11 — every code path is
+- Failure posture unchanged from v1.0.11 â€" every code path is
   wrapped in try/catch, the writer NEVER throws to its caller, and
   a writer failure does NOT block pairing or 500 a storefront page.
 
 Full per-version detail: [`zc_plugins/Seekmodo/v1.0.12/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.12/CHANGELOG.md).
 
-## v1.0.11 — 2026-06-02
+## v1.0.11 â€" 2026-06-02
 
 - **Public-MCP (anonymous-tier) discovery for AI agents (Sprint 14 PR 4).**
   Two new discovery surfaces let third-party AI agents (ChatGPT,
@@ -657,7 +657,7 @@ Full per-version detail: [`zc_plugins/Seekmodo/v1.0.12/CHANGELOG.md`](zc_plugins
   MCP endpoint at `https://<tenant_id>.mcp.seekmodo.com/mcp` without
   any merchant intervention:
 
-  - **`/.well-known/mcp.json`** — a small JSON discovery document
+  - **`/.well-known/mcp.json`** â€" a small JSON discovery document
     served by a new early-init interceptor
     (`catalog/includes/init_includes/init_numinix_seekmodo_well_known.php`,
     registered at `autoLoadConfig[60]`). Advertises the gateway
@@ -665,23 +665,23 @@ Full per-version detail: [`zc_plugins/Seekmodo/v1.0.12/CHANGELOG.md`](zc_plugins
     limits, and a link to the operator runbook. Requires a one-line
     `.htaccess` rewrite (`RewriteRule ^\.well-known/mcp\.json$ index.php [L,QSA]`)
     on stock Zen Cart docroots; falls through cleanly when missing.
-  - **`<link rel="mcp-server">` + `<meta name="mcp-server">`** —
+  - **`<link rel="mcp-server">` + `<meta name="mcp-server">`** â€"
     injected into every storefront page's `<head>` via a new
     `NOTIFY_HTML_HEAD_END` observer
     (`NuminixSeekmodoMcpDiscoveryObserver`). No web-server config
     required; works on stock Zen Cart 1.5.8 / 2.0 unmodified.
 
   Both surfaces emit only when the connector is enabled
-  (`numinix_seekmodo_enabled()` true — i.e. paired, mode != off,
+  (`numinix_seekmodo_enabled()` true â€" i.e. paired, mode != off,
   not domain-locked-out) and silently no-op otherwise. Every code
-  path is wrapped in `try/catch` — a discovery failure NEVER 500s a
+  path is wrapped in `try/catch` â€" a discovery failure NEVER 500s a
   storefront page.
 
 Full per-version detail: [`zc_plugins/Seekmodo/v1.0.11/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.11/CHANGELOG.md).
 
-## v1.0.7 — 2026-05-31
+## v1.0.7 â€" 2026-05-31
 
-- **In-plugin auto-update — admin "Updates" page (Sprint 4 PR 2).**
+- **In-plugin auto-update â€" admin "Updates" page (Sprint 4 PR 2).**
   New `admin/numinix_seekmodo_updates.php` (sibling of
   `numinix_seekmodo_connect.php`) pulls
   `https://seekmodo.com/plugins/manifest.json`, compares
@@ -709,11 +709,11 @@ Full per-version detail: [`zc_plugins/Seekmodo/v1.0.11/CHANGELOG.md`](zc_plugins
 
 Full per-version detail: [`zc_plugins/Seekmodo/v1.0.7/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.7/CHANGELOG.md).
 
-## v1.0.6 — 2026-05-31
+## v1.0.6 â€" 2026-05-31
 
-- **Bot-check backend selector (W6c, PROJECT_PLAN.md §P1-14 Phase B).**
+- **Bot-check backend selector (W6c, PROJECT_PLAN.md Â§P1-14 Phase B).**
   `RemoteConfig::writeThrough()` now mirrors **eight** keys from the
-  gateway snapshot (was seven) — adding `bot_check_backend` →
+  gateway snapshot (was seven) â€" adding `bot_check_backend` â†'
   `NUMINIX_BOT_CHECK_BACKEND`. Values are clamped to `legacy` |
   `gateway`; anything else is dropped (the row is left untouched, and
   the bot-check client falls through to its built-in `legacy`
@@ -738,12 +738,12 @@ Full per-version detail: [`zc_plugins/Seekmodo/v1.0.7/CHANGELOG.md`](zc_plugins/
 
 Full per-version detail: [`zc_plugins/Seekmodo/v1.0.6/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.6/CHANGELOG.md).
 
-## v1.0.5 — 2026-05-30
+## v1.0.5 â€" 2026-05-30
 
 - **W6b consumption (default_mode + indexer_schedule).**
   `RemoteConfig::writeThrough()` now mirrors **seven** keys from the
-  gateway snapshot (was five) — adding `default_mode` →
-  `NUMINIX_SEEKMODO_DEFAULT_MODE` and `indexer_schedule` →
+  gateway snapshot (was five) â€" adding `default_mode` â†'
+  `NUMINIX_SEEKMODO_DEFAULT_MODE` and `indexer_schedule` â†'
   `NUMINIX_SEEKMODO_INDEXER_SCHEDULE`.
 - **Mode resolver fall-through.** `numinix_seekmodo_mode()` consults
   `NUMINIX_SEEKMODO_DEFAULT_MODE` when `MODE` is empty / unset /
@@ -756,20 +756,20 @@ Full per-version detail: [`zc_plugins/Seekmodo/v1.0.6/CHANGELOG.md`](zc_plugins/
 - **Installer rows.** ScriptedInstaller now seeds
   `NUMINIX_SEEKMODO_DEFAULT_MODE=active` and
   `NUMINIX_SEEKMODO_INDEXER_SCHEDULE=daily` as safe defaults.
-- **Tests.** New `tests/W6bConsumptionTest.php` pins the 5-key →
+- **Tests.** New `tests/W6bConsumptionTest.php` pins the 5-key â†'
   7-key writeThrough surface plus the four-case mode-resolver
   fall-through behaviour.
 
 Full per-version detail: [`zc_plugins/Seekmodo/v1.0.5/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.5/CHANGELOG.md).
 
-## v1.0.4 — 2026-05-29
+## v1.0.4 â€" 2026-05-29
 
 - LTR P6 conversion-event helpers
   (`numinix_seekmodo_mirror_add_to_cart`, `numinix_seekmodo_mirror_purchase`).
 - Filter-context propagation: structured `filters` map on every
   `/v1/search` so the trainer can group clicks by `(query, filter_hash)`
   without a JSON-extract scan.
-- `search_event_id` linkage from search response → click beacon →
+- `search_event_id` linkage from search response â†' click beacon â†'
   trainer's grade joiner.
 - New SERP impression beacon helper
   (`numinix_seekmodo_mirror_serp_impression`).
@@ -779,33 +779,33 @@ Full per-version detail: [`zc_plugins/Seekmodo/v1.0.5/CHANGELOG.md`](zc_plugins/
 
 Full per-version detail: [`zc_plugins/Seekmodo/v1.0.4/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.4/CHANGELOG.md).
 
-## v1.0.3 — 2026-05-28
+## v1.0.3 â€" 2026-05-28
 
 - Storefront tuning forwarded to gateway (typo / drop / query_by /
   query_by_weights / sort_by). Hot-fix for the
   `keyword=automotive+rotisserie` regression on Redline.
-- Generic filter pass-through — runtime filter-mapping registry
+- Generic filter pass-through â€" runtime filter-mapping registry
   (`numinix_seekmodo_register_filter_mapping`).
 - Local-filter intersection helper for non-indexed filters.
 - Type-ahead through the gateway with surface-tagged click mirroring.
 
 Full detail: [`zc_plugins/Seekmodo/v1.0.3/CHANGELOG.md`](zc_plugins/Seekmodo/v1.0.3/CHANGELOG.md).
 
-## v1.0.2 — 2026-05-28
+## v1.0.2 â€" 2026-05-28
 
 - Forward shopper session / UA / IP to gateway so the bot-check
   classifier runs on `/v1/search`. Closes Seekmodo P0-1 / P0-3.
 
-## v1.0.1 — 2026-05-28
+## v1.0.1 â€" 2026-05-28
 
 - Connector now pages through gateway results so Zen Cart's local
   pagination sees every matching product (was capped at 10).
-- IPv4 forced + connect timeout relaxed (250-750ms) — fixes the flaky
+- IPv4 forced + connect timeout relaxed (250-750ms) â€" fixes the flaky
   Cloudflare IPv6 path that was tripping the circuit breaker.
 - Response normaliser handles both the gateway's nested
   `results.hits[*].document` envelope and the legacy flat shape.
 
-## v1.0.0 — 2026-05-26
+## v1.0.0 â€" 2026-05-26
 
 - Initial release. Four swap-points (search, indexer, click beacon,
   type-ahead). Mode-aware (`off` / `shadow` / `enforce`). HMAC-signed

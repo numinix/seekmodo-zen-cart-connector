@@ -2,7 +2,7 @@
 
 ## Fixed
 
-- **Fleet-health SERP click tracking on Numinix typed PDPs** — observer now
+- **Fleet-health SERP click tracking on Numinix typed PDPs** - observer now
   listens for `NOTIFY_HEADER_START_SERVICE_PRODUCT_INFO`,
   `DOWNLOAD_PRODUCT_INFO`, `DOCUMENT_PRODUCT_INFO`,
   `PRODUCT_MUSIC_INFO`, and `PRODUCT_FREE_SHIPPING_INFO` in addition to
