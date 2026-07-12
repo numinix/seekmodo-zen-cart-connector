@@ -4,6 +4,10 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.23 — 2026-07-12 (fleet-health SERP click tracking)
+
+- **Typed product-info notifiers** — listen for `NOTIFY_HEADER_START_SERVICE_PRODUCT_INFO` (and download/document/music/free-shipping variants) so SERP?PDP click mirroring works on Numinix `serviceproductinfoBody` SEO URLs (www.numinix.ca).
+- Retains the v1.3.22 SEO slug `pidFromHref` in the SERP sendBeacon (`/product-name-902`).
 ## v1.3.22 â€” 2026-07-09 (1.5.7 install docs + slug regex fix)
 
 - **Install docs** â€” `docs/INSTALL.md` Â§2a covers Zen Cart 1.5.7, subdirectory catalogs, file-only/rsync installs, catalog-root shim deployment, and pair-callback verification.
