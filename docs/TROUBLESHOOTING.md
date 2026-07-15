@@ -68,10 +68,18 @@ curl -s -X POST "https://<host><catalog-path>/numinix_seekmodo_pair_callback.php
 JSON (e.g. `{"ok":false,"error":"empty body"}`) = shim is live.
 Homepage HTML = shim missing.
 
+**Also watch for** `Class "Numinix\Seekmodo\Pairing" not found` or
+`seekmodo_plugin_init_missing` — that means the shim file is live but
+the plugin's catalog init did not load (common on Zen Cart 1.5.7 when
+only the eight flat PHP files were copied and `zc_plugins` auto_loaders
+never merged). Connector **v1.3.24+** self-bootstraps init from
+`zc_plugins/Seekmodo/v*` and Redeploys the shims on Install/Upgrade.
+
 **Fix:** follow [`INSTALL.md`](INSTALL.md) §2a — re-run Plugin
 Manager **Install/Upgrade**, or manually copy the eight
 `numinix_seekmodo_*.php` shims from
-`zc_plugins/Seekmodo/v<X.Y.Z>/catalog/` into your catalog root.
+`zc_plugins/Seekmodo/v<X.Y.Z>/catalog/` into your catalog root
+(keeping the matching `zc_plugins/Seekmodo/v*` tree in place).
 Then pair again from **Tools → Connect to Seekmodo**.
 
 ### Outbound connectivity
