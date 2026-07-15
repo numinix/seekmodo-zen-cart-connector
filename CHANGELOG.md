@@ -4,6 +4,14 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.25 - 2026-07-15 (suggest thumb paint race)
+
+- **Suggest thumbnails** — vendored `@seekmodo/web-components` v0.3.13
+  paints gateway `image_url` eagerly (no empty placeholders while
+  `img-ver` hydration races). Emits `seekmodo-suggest:rendered` after
+  DOM paint; observer upgrades to 240px from that event + double-rAF.
+  Fixes grey boxes after `pin` → `pint` / clear+retype.
+
 ## v1.3.24 - 2026-07-15 (1.5.7 shim bootstrap)
 
 - **Catalog-root shim self-bootstrap** - pair_callback / suggest / click / recommend / forget-me / CLI push scripts load `init_numinix_seekmodo.php` from `zc_plugins/Seekmodo/v*` when Plugin Manager auto_loaders did not merge (fixes `Pairing` class not found and `connector_unavailable` on Zen Cart 1.5.7 file-only installs).
