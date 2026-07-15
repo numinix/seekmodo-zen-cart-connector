@@ -4,6 +4,11 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.24 - 2026-07-15 (1.5.7 shim bootstrap)
+
+- **Catalog-root shim self-bootstrap** - pair_callback / suggest / click / recommend / forget-me / CLI push scripts load `init_numinix_seekmodo.php` from `zc_plugins/Seekmodo/v*` when Plugin Manager auto_loaders did not merge (fixes `Pairing` class not found and `connector_unavailable` on Zen Cart 1.5.7 file-only installs).
+- **Installer shim deploy** - Install/Upgrade copies the eight flat `numinix_seekmodo_*.php` files next to catalog `index.php`.
+
 ## v1.3.23 - 2026-07-12 (fleet-health SERP click tracking)
 
 - **Typed product-info notifiers** - listen for `NOTIFY_HEADER_START_SERVICE_PRODUCT_INFO` (and download/document/music/free-shipping variants) so SERP?PDP click mirroring works on Numinix `serviceproductinfoBody` SEO URLs (www.numinix.ca).
