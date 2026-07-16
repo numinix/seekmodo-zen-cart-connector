@@ -156,6 +156,48 @@ if (!function_exists('numinix_seekmodo_redirect_normalize')) {
     }
 }
 
+if (!function_exists('numinix_seekmodo_redirect_normalize_exact')) {
+    /**
+     * Exact-match key with English plural→singular fold so
+     * "personalised photo frames" equals "personalised photo frame".
+     * Mirrors gateway QueryNormalizer::normalizeForExactMatch (light).
+     */
+    function numinix_seekmodo_redirect_normalize_exact(string $s): string
+    {
+        $norm = numinix_seekmodo_redirect_normalize($s);
+        if ($norm === '') {
+            return '';
+        }
+        $parts = preg_split('/\s+/u', $norm) ?: [];
+        $out = [];
+        foreach ($parts as $p) {
+            if ($p === '') {
+                continue;
+            }
+            $len = strlen($p);
+            if ($len >= 4 && preg_match('/^[a-z]+$/', $p) === 1) {
+                if ($len >= 5 && substr($p, -3) === 'ies') {
+                    $p = substr($p, 0, $len - 3) . 'y';
+                } elseif (
+                    substr($p, -3) === 'xes' || substr($p, -3) === 'zes'
+                    || substr($p, -4) === 'sses'
+                    || substr($p, -4) === 'shes'
+                    || substr($p, -4) === 'ches'
+                ) {
+                    $p = substr($p, 0, $len - 2);
+                } elseif (substr($p, -1) === 's') {
+                    $prev = substr($p, -2, 1);
+                    if ($prev !== 's' && $prev !== 'u' && $prev !== 'i') {
+                        $p = substr($p, 0, $len - 1);
+                    }
+                }
+            }
+            $out[] = $p;
+        }
+        return implode(' ', $out);
+    }
+}
+
 if (!function_exists('numinix_seekmodo_redirect_term_matches')) {
     function numinix_seekmodo_redirect_term_matches(
         string $qNorm,
@@ -194,6 +236,14 @@ if (!function_exists('numinix_seekmodo_redirect_match_score')) {
         }
         if ($qNorm === $termNorm) {
             return 10000 + strlen($termNorm);
+        }
+        // Plural fold (frames ↔ frame) for exact rules.
+        if (
+            function_exists('numinix_seekmodo_redirect_normalize_exact')
+            && numinix_seekmodo_redirect_normalize_exact($qNorm)
+                === numinix_seekmodo_redirect_normalize_exact($termNorm)
+        ) {
+            return 9000 + strlen($termNorm);
         }
         if ($mode === 'suggest' && strncmp($termNorm, $qNorm, strlen($qNorm)) === 0) {
             return 5000 + strlen($termNorm);
