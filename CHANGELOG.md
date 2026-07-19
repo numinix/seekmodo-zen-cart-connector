@@ -4,6 +4,15 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.27 - 2026-07-19 (multi-language packs EN/DE/ES/FR)
+
+- **Language files** — ships english / german / deutsch / spanish /
+  french packs for admin Tools menu labels and suggest dropdown
+  chrome. Active language is loaded from the plugin tree at runtime
+  (works on Zen Cart 1.5.7 file-only installs). Suggest widget
+  receives translated labels automatically from the shopper's
+  session language.
+
 ## v1.3.26 - 2026-07-15 (exact suggest redirect auto-nav)
 
 - **Exact category / keyword redirects** — vendored
