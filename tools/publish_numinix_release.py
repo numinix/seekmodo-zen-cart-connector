@@ -99,6 +99,8 @@ def _mcp_call(endpoint: str, bearer: str, tool: str, arguments: dict) -> dict:
         headers={
             "Authorization": f"Bearer {bearer}",
             "Content-Type": "application/json",
+            "User-Agent": "NuminixReleaseBot/1.0",
+            "Accept": "application/json",
         },
         method="POST",
     )
