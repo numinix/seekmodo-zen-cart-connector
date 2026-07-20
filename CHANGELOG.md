@@ -4,6 +4,14 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.28 - 2026-07-20 (delta indexer CLI parse fix)
+
+- **Delta indexer parse error** — `numinix_seekmodo_index_delta.php`
+  file-header cron example used `*/15` inside a `/**` docblock, which
+  prematurely closed the comment and caused
+  `Parse error: syntax error, unexpected token "*"` on line 10.
+  Example now uses an equivalent `0,15,30,45` minute list.
+
 ## v1.3.27 - 2026-07-19 (multi-language packs EN/DE/ES/FR)
 
 - **Language files** — ships english / german / deutsch / spanish /
