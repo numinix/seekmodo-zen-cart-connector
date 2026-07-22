@@ -4,6 +4,14 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.29 - 2026-07-22 (suggest observer docblock parse fix)
+
+- **SuggestObserver parse error** - `suggestLabels()` docblock used
+  `languages/*/extra_definitions` inside a `/**` comment, which closed
+  the comment early and caused
+  `Parse error: unexpected identifier "extra_definitions"` on line 1453
+  (storefront HTTP 500). Path now uses `languages/{lang}/extra_definitions`.
+
 ## v1.3.28 - 2026-07-20 (delta indexer CLI parse fix)
 
 - **Delta indexer parse error** — `numinix_seekmodo_index_delta.php`
