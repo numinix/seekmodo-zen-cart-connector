@@ -12,7 +12,7 @@ If you're upgrading from an existing install, skip to
 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
 
 > **Download size sanity check:** the signed release zip from
-> `seekmodo.com/plugins` is typically **~300–350 KB** and expands to
+> `seekmodo.com/plugins` is typically **~300–370 KB** and expands to
 > **~1 MB** of plugin files under `zc_plugins/Seekmodo/v<X.Y.Z>/`.
 > If you see **tens of megabytes** after unzip, you likely extracted
 > into your whole storefront tree or grabbed the wrong archive.
@@ -81,22 +81,25 @@ update).
 
 ## 1. Download the plugin
 
-Always download the **signed** zip from `seekmodo.com/plugins`:
+Always download the **signed** zip from the
+[Zen Cart plugin page](https://seekmodo.com/plugins/zen-cart)
+(that page always shows the current release). For scripting, read
+`platforms.zen_cart.latest` from
+<https://seekmodo.com/plugins/manifest.json>:
 
 ```bash
-curl -fLO https://seekmodo.com/plugins/seekmodo-zen-cart-v1.0.5.zip
-curl -fLO https://seekmodo.com/plugins/seekmodo-zen-cart-v1.0.5.zip.sha256
-sha256sum -c seekmodo-zen-cart-v1.0.5.zip.sha256
-# expected: seekmodo-zen-cart-v1.0.5.zip: OK
+# Replace VERSION with platforms.zen_cart.latest from manifest.json
+VERSION=1.3.29
+curl -fLO "https://seekmodo.com/plugins/seekmodo-zen-cart-v${VERSION}.zip"
+curl -fLO "https://seekmodo.com/plugins/seekmodo-zen-cart-v${VERSION}.zip.sha256"
+sha256sum -c "seekmodo-zen-cart-v${VERSION}.zip.sha256"
+# expected: seekmodo-zen-cart-v${VERSION}.zip: OK
 ```
-
-The latest version pointer lives at
-<https://seekmodo.com/plugins/manifest.json> if you're scripting the
-download.
 
 > **Don't grab the zip from a third-party mirror.** Numinix.com
 > publishes a mirror with a separate signing chain; any other source
-> is unverified.
+> is unverified. Prefer the Seekmodo.com download when the two
+> disagree.
 
 ## 2. Install through Zen Cart's Plugin Manager
 
@@ -113,7 +116,8 @@ download.
    - Hide the configuration group from the admin sidebar by default
      — once paired, settings live on `admin.seekmodo.com`.
 
-After install, the row should read **Seekmodo v1.0.5 — Installed**.
+After install, the row should read `Seekmodo v<latest> — Installed`
+(for example `Seekmodo v1.3.29 — Installed`).
 
 > **Upload alone is not enough.** Zen Cart stages the zip when you
 > click **Upload New Plugin**, but the catalog-root callback shims
@@ -259,7 +263,7 @@ gateway. NTP is your friend.
 > group visible. The pairing flow is preferred because it avoids
 > exposing the secret in your terminal history.
 
-## 4. Flip from `off` to `active`
+## 4. Flip from `off` to Learning or Active
 
 Open <https://admin.seekmodo.com>, find your tenant, and switch
 `Mode` from `Disabled` to `Learning` or `Active`. The connector polls
@@ -268,24 +272,56 @@ paired); within that window your storefront starts using Seekmodo.
 
 | seekmodo.com label | Internal mode | What it does |
 |---|---|---|
-| Disabled | `off` | Bypass — direct Typesense + local row. |
-| Learning | `shadow` | Calls the gateway for diff/observation; native result still served. |
-| Active (recommended) | `active` | Auto-promotes shadow → enforce based on observed gateway health; auto-demotes on sustained failures. |
+| Disabled | `off` | Bypass — native Zen Cart search only; no gateway calls. |
+| Learning | `shadow` | Safe soak: Seekmodo runs in the background for telemetry / comparison, but **shoppers still see native Zen Cart results**. Use this while you tune synonyms, pins, and catalog coverage. |
+| Active (recommended) | `active` | Seekmodo powers storefront search. Auto-promotes shadow → enforce based on observed gateway health; auto-demotes on sustained failures. |
+
+**If you are on Learning / shadow and search "looks wrong":** that is
+expected — the SERP is still native Zen Cart. Flip Mode to **Active**
+when you are ready for shoppers to see Seekmodo ranking. You can
+switch back to Learning any time without reinstalling.
 
 On a brand-new install, `Active` self-promotes from `shadow` to
 `enforce` after about 50 successful storefront searches with the
 gateway healthy. You can watch the promotion in
 `<docroot>/logs/numinix_seekmodo.log` if `NUMINIX_SEEKMODO_DEBUG=true`.
 
-## 5. Verify
+## 5. Day-two checklist (catalog, languages, tuning)
+
+After pairing, most merchant work happens in
+<https://admin.seekmodo.com>, not in Zen Cart configuration screens.
+
+1. **Index the catalog.** From Zen Cart admin use **Tools → Connect
+   to Seekmodo** (or run the catalog push endpoint / cron that ships
+   with the plugin) so products land in Seekmodo before you flip to
+   Active. Empty or stale indexes look like "search is broken" even
+   when the connector is healthy.
+2. **Confirm languages.** Suggest labels follow the shopper's Zen Cart
+   language (English / German / `deutsch` / Spanish / French packs
+   ship in recent plugin releases). Catalog text is indexed from the
+   store's default language unless you use Regions on a higher plan —
+   keep German as the Zen Cart default if that should be the primary
+   indexed language.
+3. **Tune relevance without code.** In admin: synonyms, pins,
+   redirects, banners, and deboosts. Changes apply on the next
+   gateway snapshot pull (usually within a few minutes).
+4. **Watch Analytics.** *Top queries*, *Zero results*, and *Top
+   clicked products* tell you what to fix before (and after) leaving
+   Learning.
+
+The public HTML version of this guide lives at
+<https://seekmodo.com/docs/zen-cart/install>.
+
+## 6. Verify
 
 Three checks. Two manual, one scripted.
 
-### 5a. Plugin Manager smoke
+### 6a. Plugin Manager smoke
 
-**Admin → Plugin Manager**: row reads `Seekmodo v1.0.4 — Installed`.
+**Admin → Plugin Manager**: row reads the version you installed (for
+example `Seekmodo v1.3.29 — Installed`).
 
-### 5b. Storefront smoke
+### 6b. Storefront smoke
 
 Search for a known product on the storefront. Tail
 `<docroot>/logs/numinix_seekmodo.log` while running the search:
@@ -294,16 +330,18 @@ Search for a known product on the storefront. Tail
 2026-05-30T18:14:07Z  search backend=gateway  mode=enforce  ms=84  hits=12  status=200
 ```
 
-If the line says `backend=native` or doesn't appear at all, see
-[`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
+In Learning / `shadow` you should still see gateway log lines, but
+the HTML SERP stays native. In Active / `enforce` expect
+`backend=gateway`. If the line says `backend=native` or doesn't
+appear at all, see [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
 
-### 5c. Gateway-side telemetry
+### 6c. Gateway-side telemetry
 
 Sign in to <https://admin.seekmodo.com>, open **Analytics → Top
 queries**, and confirm your test search appears. Click events arrive
 within ~5 seconds.
 
-## 6. Recurring maintenance
+## 7. Recurring maintenance
 
 There isn't much. The plugin pulls policy from the gateway in real
 time, the indexer runs from your existing Zen Cart cron, and the
@@ -312,5 +350,6 @@ circuit breaker handles transient gateway issues automatically.
 When a new release ships, you'll receive an email from
 `releases@seekmodo.com`. Re-run the **Upload New Plugin** flow with
 the new zip — the Scripted Installer detects the existing version and
-upgrades cleanly, preserving config rows. Detail in
-[`UPGRADE.md`](UPGRADE.md).
+upgrades cleanly, preserving config rows. Prefer
+<https://seekmodo.com/plugins/zen-cart> for the signed package.
+Detail in [`UPGRADE.md`](UPGRADE.md).

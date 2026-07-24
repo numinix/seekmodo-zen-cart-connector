@@ -26,6 +26,22 @@ You should see 13 rows, with `NUMINIX_SEEKMODO_MODE = 'off'` until
 you change it. If you see fewer than 13, the Scripted Installer
 didn't finish — re-run the install from Plugin Manager.
 
+## "I am on Learning / shadow and search still looks like Zen Cart"
+
+That is expected. **Learning** maps to internal mode `shadow`:
+Seekmodo still receives queries for telemetry and comparison, but the
+HTML results page stays native Zen Cart. Shoppers will not see
+Seekmodo ranking until you switch Mode to **Active** in
+<https://admin.seekmodo.com>.
+
+Before flipping to Active, complete the day-two checklist in
+[`INSTALL.md`](INSTALL.md#5-day-two-checklist-catalog-languages-tuning)
+(catalog index, languages, synonyms / pins). Suggest dropdown chrome
+can already follow the shopper language while the SERP is still
+native. Public HTML docs:
+<https://seekmodo.com/docs/zen-cart/install#day-two> and
+<https://seekmodo.com/docs/zen-cart/troubleshooting#learning-shadow>.
+
 ## "I clicked Connect to Seekmodo and got an error"
 
 The most common causes, in order of likelihood:
