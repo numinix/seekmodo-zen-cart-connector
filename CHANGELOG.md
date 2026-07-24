@@ -4,6 +4,15 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.30 - 2026-07-24 (PDP/cart recommendation cascades)
+
+- **PDP/cart cascades** — `pdp-cascade` and `cart` placements compose
+  `also_bought` / `related` / `also_viewed` / `bundle.suggest` with
+  cross-section de-dupe and in-cart excludes (AKS
+  `RecommendationsAdapter` parity). Observer injects one cascade
+  container on product_info and shopping_cart; JS renders multi-section
+  strips. See `docs/connectors/recommendations-pdp-cart.md` on seekmodo.
+
 ## v1.3.29 - 2026-07-22 (suggest observer docblock parse fix)
 
 - **SuggestObserver parse error** - `suggestLabels()` docblock used
