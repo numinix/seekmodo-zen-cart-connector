@@ -166,6 +166,33 @@ if ($action === 'refresh' && _seekmodo_check_csrf() && $isPaired) {
     }
 }
 
+if ($action === 'push_catalog' && _seekmodo_check_csrf() && $isPaired) {
+    if (!function_exists('numinix_seekmodo_enabled') || !numinix_seekmodo_enabled()) {
+        $messages[] = [
+            'type' => 'error',
+            'text' => 'Cannot push catalog while mode is off. Set Mode to Active (or Learning) on admin.seekmodo.com, click Refresh snapshot here, then try again.',
+        ];
+    } elseif (!class_exists(Pairing::class) || !method_exists(Pairing::class, 'request_catalog_push')) {
+        $messages[] = [
+            'type' => 'error',
+            'text' => 'This connector build cannot fork a catalog push from admin. Upgrade the plugin, or run numinix_seekmodo_push_catalog.php from CLI.',
+        ];
+    } else {
+        $result = Pairing::request_catalog_push(true);
+        if (!empty($result['forked'])) {
+            $messages[] = [
+                'type' => 'success',
+                'text' => 'Catalog push started in the background. Watch logs/numinix_seekmodo_indexer.log — when it finishes, search on admin.seekmodo.com → Analytics should show activity.',
+            ];
+        } else {
+            $messages[] = [
+                'type' => 'error',
+                'text' => 'Catalog push did not start: ' . (string)($result['err'] ?? 'unknown error'),
+            ];
+        }
+    }
+}
+
 // Pull the latest snapshot for display. APCu-cached so this is cheap
 // even on every page render.
 $snapshot = null;
@@ -465,6 +492,10 @@ systemctl restart <?= htmlspecialchars($fpmSvcA, ENT_QUOTES, CHARSET) ?></pre>
     <?php if ($isPaired): ?>
       <button type="submit" name="action" value="refresh" class="btn btn-secondary">
         Refresh snapshot
+      </button>
+      <button type="submit" name="action" value="push_catalog" class="btn"
+              onclick="return confirm('Start a full catalog push to Seekmodo now? This runs in the background and may take several minutes on large catalogs.');">
+        Push catalog now
       </button>
       <button type="submit" name="action" value="pair" class="btn"<?= $sodiumOk ? '' : ' disabled title="PHP sodium extension is required — see warning above"' ?>>
         Re-pair
