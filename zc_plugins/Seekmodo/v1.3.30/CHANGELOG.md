@@ -1,5 +1,11 @@
 # Seekmodo for Zen Cart v1.3.30
 
+## 2026-07-24 — cart support_count ranking
+
+- **Cart cascade** — multi-line carts rank by `support_count` across up
+  to 10 anchors (`meta.anchor_cap`), then score and source priority.
+  `rejectColdStartSources` on also_bought for cart and PDP bought.
+
 ## 2026-07-24 — PDP/cart recommendation cascades
 
 - **PDP/cart cascades** — adds `pdp-cascade` and `cart` placements that
