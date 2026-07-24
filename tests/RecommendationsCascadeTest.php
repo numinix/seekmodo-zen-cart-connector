@@ -88,4 +88,62 @@ assert_true(!in_array('2', $cartIds, true), 'cart excludes anchor 2');
 assert_true(!in_array('3', $cartIds, true), 'cart excludes in-basket 3');
 assert_true(in_array('10', $cartIds, true) || in_array('40', $cartIds, true), 'cart returns candidates');
 
+$kept = RecommendationsCascade::rejectColdStartSources([
+    ['doc_id' => '1', 'source' => 'co_purchase'],
+    ['doc_id' => '2', 'source' => 'lexical'],
+    ['doc_id' => '3', 'source' => 'category_peer'],
+    ['doc_id' => '4', 'source' => 'pairs'],
+    ['doc_id' => '5', 'source' => 'trending'],
+]);
+assert_true(array_column($kept, 'doc_id') === ['1', '4'], 'rejectColdStartSources');
+
+$supportFn = static function (string $algo, array $params): ?array {
+    if ($algo !== 'also_bought') {
+        return ['recommendations' => []];
+    }
+    $anchor = (string) ($params['anchor_doc_id'] ?? '');
+    if ($anchor === '1') {
+        return ['recommendations' => [
+            ['doc_id' => '99', 'score' => 0.5, 'source' => 'co_purchase'],
+            ['doc_id' => '88', 'score' => 0.99, 'source' => 'co_purchase'],
+        ]];
+    }
+    if ($anchor === '2' || $anchor === '3') {
+        return ['recommendations' => [
+            ['doc_id' => '99', 'score' => 0.5, 'source' => 'co_purchase'],
+        ]];
+    }
+    return ['recommendations' => []];
+};
+$supportCart = RecommendationsCascade::runCart(['1', '2', '3'], ['1', '2', '3'], 2, [], $supportFn, $hydrate);
+assert_true(array_column($supportCart['recommendations'], 'doc_id') === ['99', '88'], 'support_count ranks multi-anchor first');
+assert_true(($supportCart['recommendations'][0]['support_count'] ?? 0) === 3, 'support_count=3');
+assert_true(($supportCart['recommendations'][1]['support_count'] ?? 0) === 1, 'support_count=1');
+
+$seenAnchors = [];
+$capFn = static function (string $algo, array $params) use (&$seenAnchors): ?array {
+    $anchor = (string) ($params['anchor_doc_id'] ?? '');
+    if ($anchor !== '' && !in_array($anchor, $seenAnchors, true)) {
+        $seenAnchors[] = $anchor;
+    }
+    return ['recommendations' => []];
+};
+$twelve = array_map('strval', range(1, 12));
+$capCart = RecommendationsCascade::runCart($twelve, $twelve, 5, [], $capFn, $hydrate);
+assert_true(count($capCart['meta']['anchors']) === 10, 'meta.anchors capped at 10');
+assert_true(($capCart['meta']['anchor_cap'] ?? 0) === 10, 'meta.anchor_cap=10');
+assert_true(count(array_unique($seenAnchors)) === 10, 'only 10 anchors queried');
+
+$edgeFn = static function (string $algo, array $params): ?array {
+    if ($algo === 'related') {
+        return ['recommendations' => [['doc_id' => '50', 'score' => 1.0, 'source' => 'co_view']]];
+    }
+    return ['recommendations' => []];
+};
+$emptyCart = RecommendationsCascade::runCart([], [], 5, [], $edgeFn, $hydrate);
+assert_true($emptyCart['recommendations'] === [], 'empty cart works');
+$singleCart = RecommendationsCascade::runCart(['7'], ['7'], 5, [], $edgeFn, $hydrate);
+assert_true(array_column($singleCart['recommendations'], 'doc_id') === ['50'], 'single-line cart works');
+assert_true($singleCart['meta']['anchors'] === ['7'], 'single anchor in meta');
+
 echo "All cascade tests passed.\n";

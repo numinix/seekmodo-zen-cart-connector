@@ -65,6 +65,21 @@
         );
     }
 
+    function collectCartDocIdsFromDom() {
+        var ids = [];
+        // Zen Cart cart forms often expose products_id on qty/update inputs.
+        var nodes = document.querySelectorAll(
+            'form[name="cart_quantity"] input[name^="products_id"], #cartContentsDisplay input[name^="products_id"], .cartItem input[name^="products_id"], [data-seekmodo-cart-product-id]'
+        );
+        for (var i = 0; i < nodes.length; i++) {
+            var pid = String(nodes[i].value || nodes[i].getAttribute('data-seekmodo-cart-product-id') || '').trim();
+            if (pid !== '' && /^\d+$/.test(pid) && ids.indexOf(pid) === -1) {
+                ids.push(pid);
+            }
+        }
+        return ids;
+    }
+
     function buildEndpoint(el) {
         var placement = el.getAttribute('data-seekmodo-placement') || '';
         if (placement === '') {
@@ -79,11 +94,19 @@
         }
 
         var docIds = el.getAttribute('data-seekmodo-doc-ids') || '';
+        var exclude = el.getAttribute('data-seekmodo-exclude-doc-ids') || '';
+        if (placement === 'cart' || placement === 'cart_below' || placement.indexOf('cart-') === 0) {
+            var live = collectCartDocIdsFromDom();
+            if (live.length) {
+                docIds = live.join(',');
+                exclude = docIds;
+                el.setAttribute('data-seekmodo-doc-ids', docIds);
+                el.setAttribute('data-seekmodo-exclude-doc-ids', exclude);
+            }
+        }
         if (docIds !== '') {
             params.set('doc_ids', docIds);
         }
-
-        var exclude = el.getAttribute('data-seekmodo-exclude-doc-ids') || '';
         if (exclude !== '') {
             params.set('exclude_doc_ids', exclude);
         }
