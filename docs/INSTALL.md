@@ -291,11 +291,13 @@ gateway healthy. You can watch the promotion in
 After pairing, most merchant work happens in
 <https://admin.seekmodo.com>, not in Zen Cart configuration screens.
 
-1. **Index the catalog.** From Zen Cart admin use **Tools → Connect
-   to Seekmodo** (or run the catalog push endpoint / cron that ships
-   with the plugin) so products land in Seekmodo before you flip to
-   Active. Empty or stale indexes look like "search is broken" even
-   when the connector is healthy.
+1. **Index the catalog.** On admin.seekmodo.com set Mode to **Active**
+   (or **Learning / Shadow**). In Zen Cart admin open **Tools → Connect
+   to Seekmodo**, click **Refresh snapshot**, then **Push catalog now**
+   (v1.3.31+). Watch `logs/numinix_seekmodo_indexer.log`. CLI remains
+   available: `php numinix_seekmodo_push_catalog.php --ack-quota` from
+   the catalog root. Empty or stale indexes look like "search is
+   broken" even when the connector is healthy.
 2. **Confirm languages.** Suggest labels follow the shopper's Zen Cart
    language (English / German / `deutsch` / Spanish / French packs
    ship in recent plugin releases). Catalog text is indexed from the

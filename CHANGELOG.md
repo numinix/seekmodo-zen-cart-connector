@@ -1,10 +1,19 @@
-﻿# Seekmodo for Zen Cart — top-level changelog
+# Seekmodo for Zen Cart — top-level changelog
 
 This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.31 - 2026-07-24 (Connect Push catalog now)
+
+- **Push catalog now** — Tools → Connect can fork a full catalog push in
+  the background so a freshly paired store recovers from an empty
+  Seekmodo index without SSH/CLI. Set Mode to Active (or Learning) on
+  admin.seekmodo.com, click Refresh snapshot, then Push catalog now.
+  Watch `logs/numinix_seekmodo_indexer.log`.
+
 ## v1.3.30 - 2026-07-24 (PDP/cart recommendation cascades)
+
 
 - **PDP/cart cascades** — `pdp-cascade` and `cart` placements compose
   `also_bought` / `related` / `also_viewed` / `bundle.suggest` with
