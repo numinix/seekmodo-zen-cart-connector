@@ -287,6 +287,31 @@ final class Pairing
     }
 
     /**
+     * Merchant/admin: fork a full catalog push (same path as post-pair).
+     *
+     * Used by Tools → Connect → "Push catalog now" so organic sign-ups
+     * can recover from an empty Typesense collection without SSH/CLI.
+     * Pass $force=true to clear the APCu throttle (e.g. after flipping
+     * gateway mode from off → active).
+     *
+     * @return array{forked: bool, err: string|null, cmd: string}
+     */
+    public static function request_catalog_push(bool $force = false): array
+    {
+        if ($force && function_exists('apcu_delete')) {
+            @\apcu_delete(self::FIRST_PUSH_THROTTLE_KEY);
+        }
+        if (!$force && !self::should_fork_initial_push()) {
+            return [
+                'forked' => false,
+                'err' => 'throttled (a catalog push was started recently — wait a few minutes or check logs/numinix_seekmodo_indexer.log)',
+                'cmd' => '',
+            ];
+        }
+        return self::fork_initial_push();
+    }
+
+    /**
      * v1.0.13 — fork the standalone catalog pusher detached from
      * the request. Stamps the APCu throttle marker on success so a
      * back-to-back re-pair doesn't queue a second reindex.
