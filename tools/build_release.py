@@ -139,6 +139,14 @@ _RELEASE_SIGNING_KID = "seekmodo-2026-06-r2"
 _RELEASE_SIGNING_KEY_DEFAULT = "/etc/numinix/release-signing.key"
 _RELEASE_SIGNING_KEY_LEGACY = "/etc/numinix/marketing-jwt.ed25519"
 
+# Canonical public key for `_RELEASE_SIGNING_KID` (JWK ``x``,
+# base64url-nopad). Build hosts that resolve *any* key file under the
+# kid-namespaced path used to stamp this kid onto whatever seed was
+# present — v1.3.27..v1.3.30 shipped with a wrong ``x`` labeled as
+# ``seekmodo-2026-06-r2``, which broke in-plugin upgrades. Pin the
+# expected material so a mis-named private key fails the build.
+_RELEASE_SIGNING_PUB_X = "ozNs5QQUhP6YNjE_KffhJqYtDQL8m2mHzWNivlhgoPA"
+
 # Note the LEGACY pre-rotation kid we still recognize in old manifests
 # / vendored pubkeys. Surfaced here for the operator-facing key-
 # inventory section of docs/SIGNING_KEYS.md, not consumed by this
@@ -449,6 +457,19 @@ def _b64url_nopad(b: bytes) -> str:
     return base64.urlsafe_b64encode(b).rstrip(b"=").decode("ascii")
 
 
+def _assert_production_pubkey(public_raw: bytes, key_path: Path) -> None:
+    """Refuse to label a build as ``_RELEASE_SIGNING_KID`` unless the
+    derived public key matches the pinned production ``x`` value."""
+    got = _b64url_nopad(public_raw)
+    if got != _RELEASE_SIGNING_PUB_X:
+        raise SystemExit(
+            f"ERROR: {key_path} derives public key x={got}, but "
+            f"kid {_RELEASE_SIGNING_KID} requires x={_RELEASE_SIGNING_PUB_X}. "
+            "Refusing to stamp the production kid onto a mismatched key "
+            "(this is how v1.3.27..v1.3.30 shipped a wrong trust root)."
+        )
+
+
 def _resolve_signing_key_path() -> Path | None:
     """Resolve the on-disk release-signing private key path or None
     if we should fall back to an ephemeral keypair.  Honours
@@ -553,12 +574,18 @@ def _load_or_generate_signing_key() -> tuple[Any, Any, str, str]:
             encoding=_crypto_serialization.Encoding.Raw,
             format=_crypto_serialization.PublicFormat.Raw,
         )
+        _assert_production_pubkey(pub, key_path)
 
         class _CryptographySigner:
             def sign(self, data: bytes) -> bytes:
                 return priv.sign(data)
 
-        return _CryptographySigner(), pub, _RELEASE_SIGNING_KID, _RELEASE_SIGNING_KID
+        return (
+            _CryptographySigner(),
+            pub,
+            f"file:{key_path}",
+            _RELEASE_SIGNING_KID,
+        )
 
     if _CRYPTO_BACKEND == "pynacl" and key_path is not None:
         raw = key_path.read_bytes()
@@ -574,12 +601,13 @@ def _load_or_generate_signing_key() -> tuple[Any, Any, str, str]:
             )
         signing = _NaclSigningKey(seed)  # type: ignore[misc]
         pub = bytes(signing.verify_key)
+        _assert_production_pubkey(pub, key_path)
 
         class _NaclSigner:
             def sign(self, data: bytes) -> bytes:
                 return signing.sign(data).signature  # type: ignore[no-any-return]
 
-        return _NaclSigner(), pub, _RELEASE_SIGNING_KID, _RELEASE_SIGNING_KID
+        return _NaclSigner(), pub, f"file:{key_path}", _RELEASE_SIGNING_KID
 
     # Dev-ephemeral fallback.  Surface this loudly — production CI
     # MUST NOT land here, and the manifest entry will carry a
