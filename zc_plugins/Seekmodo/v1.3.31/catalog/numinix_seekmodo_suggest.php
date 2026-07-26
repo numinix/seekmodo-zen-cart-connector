@@ -81,11 +81,27 @@ declare(strict_types=1);
 // IMPORTANT: never use bare `action=` — Zen Cart's init_cart_handler.php
 // treats ANY `$_GET['action']` as a cart command and 302s to
 // cookie_usage when the session cookie is missing.
+$seekmodoAction = (string) ($_GET['seekmodo_action'] ?? '');
+$seekmodoRichSuggestBody = null;
 if (
-    (($_GET['seekmodo_action'] ?? '') === 'browser-token')
+    $seekmodoAction === 'rich-suggest'
+    && (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST')
+) {
+    $raw = file_get_contents('php://input');
+    if (is_string($raw) && $raw !== '') {
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            $seekmodoRichSuggestBody = $decoded;
+        }
+    }
+}
+if (
+    ($seekmodoAction === 'browser-token' || $seekmodoAction === 'rich-suggest')
     && (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST')
 ) {
     $_SERVER['REQUEST_METHOD'] = 'GET';
+    // Keep php://input already consumed above for rich-suggest; clear
+    // $_POST so Zen Cart's CSRF gate does not 302 to /time-out.
     $_POST = [];
 }
 
@@ -197,6 +213,107 @@ if (($_GET['seekmodo_action'] ?? '') === 'browser-token') {
         'expires_at' => (int)    $resp['expires_at'],
         'session_id' => isset($resp['session_id']) ? (string) $resp['session_id'] : '',
     ], JSON_UNESCAPED_SLASHES);
+    return;
+}
+
+// Rich suggest proxy for `<seekmodo-suggest>` (default boot via
+// seekmodo:suggest-proxy). Body mirrors SuggestArgs; HMAC is applied
+// server-side by numinix_seekmodo_suggest(). Returns the gateway rich
+// envelope (or an empty envelope on fail-open).
+if (($seekmodoAction ?: ($_GET['seekmodo_action'] ?? '')) === 'rich-suggest') {
+    $empty = [
+        'keywords'     => [],
+        'products'     => [],
+        'categories'   => [],
+        'recent'       => [],
+        'trending'     => [],
+        'did_you_mean' => null,
+        'meta'         => [
+            'surface_id' => 'suggest',
+            'total'      => 0,
+            'counts'     => [
+                'keywords'   => 0,
+                'products'   => 0,
+                'categories' => 0,
+                'recent'     => 0,
+                'trending'   => 0,
+            ],
+        ],
+    ];
+    if (!function_exists('numinix_seekmodo_enabled') || !numinix_seekmodo_enabled()) {
+        echo json_encode($empty, JSON_UNESCAPED_SLASHES);
+        return;
+    }
+    if (!function_exists('numinix_seekmodo_suggest')) {
+        if (function_exists('numinix_seekmodo_ensure_plugin_init')) {
+            numinix_seekmodo_ensure_plugin_init();
+        }
+    }
+    $body = is_array($seekmodoRichSuggestBody) ? $seekmodoRichSuggestBody : [];
+    $q = isset($body['q']) ? trim((string) $body['q']) : '';
+    if ($q === '') {
+        echo json_encode($empty, JSON_UNESCAPED_SLASHES);
+        return;
+    }
+    $limit = 8;
+    if (isset($body['limit']) && is_numeric($body['limit'])) {
+        $limit = max(1, min(20, (int) $body['limit']));
+    }
+    $payload = [
+        'q'        => $q,
+        'limit'    => $limit,
+        'complete' => array_key_exists('complete', $body) ? (bool) $body['complete'] : true,
+    ];
+    if (array_key_exists('include_products', $body)) {
+        $payload['include_products'] = (bool) $body['include_products'];
+    }
+    if (isset($body['session_id']) && is_string($body['session_id']) && $body['session_id'] !== '') {
+        $payload['session_id'] = substr(trim($body['session_id']), 0, 64);
+    } elseif (function_exists('_numinix_seekmodo_session_id')) {
+        $payload['session_id'] = _numinix_seekmodo_session_id();
+    }
+    if (isset($body['vehicle_id']) && is_numeric($body['vehicle_id']) && (int) $body['vehicle_id'] > 0) {
+        $payload['vehicle_id'] = (int) $body['vehicle_id'];
+    }
+    if (isset($body['shopper_context']) && is_array($body['shopper_context'])) {
+        $payload['shopper_context'] = $body['shopper_context'];
+    } elseif (function_exists('numinix_seekmodo_shopper_context')) {
+        $payload['shopper_context'] = numinix_seekmodo_shopper_context();
+    }
+    if (isset($body['serp_passthrough']) && is_array($body['serp_passthrough'])) {
+        $payload['serp_passthrough'] = $body['serp_passthrough'];
+    }
+    if (isset($_SERVER['HTTP_USER_AGENT']) && $_SERVER['HTTP_USER_AGENT'] !== '') {
+        $payload['ua'] = substr((string) $_SERVER['HTTP_USER_AGENT'], 0, 512);
+    }
+    $payload['ip'] = function_exists('_numinix_seekmodo_client_ip')
+        ? _numinix_seekmodo_client_ip()
+        : (isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : '');
+    if (!empty($_SERVER['HTTP_REFERER'])) {
+        $payload['referer'] = substr((string) $_SERVER['HTTP_REFERER'], 0, 255);
+    }
+    if (!function_exists('numinix_seekmodo_suggest')) {
+        echo json_encode($empty, JSON_UNESCAPED_SLASHES);
+        return;
+    }
+    $resp = numinix_seekmodo_suggest($payload);
+    if (!is_array($resp)) {
+        echo json_encode($empty, JSON_UNESCAPED_SLASHES);
+        return;
+    }
+    // Prefer rich envelope keys; backfill empty blocks.
+    foreach (['keywords', 'products', 'categories', 'recent', 'trending'] as $key) {
+        if (!isset($resp[$key]) || !is_array($resp[$key])) {
+            $resp[$key] = $empty[$key];
+        }
+    }
+    if (!array_key_exists('did_you_mean', $resp)) {
+        $resp['did_you_mean'] = null;
+    }
+    if (!isset($resp['meta']) || !is_array($resp['meta'])) {
+        $resp['meta'] = $empty['meta'];
+    }
+    echo json_encode($resp, JSON_UNESCAPED_SLASHES);
     return;
 }
 

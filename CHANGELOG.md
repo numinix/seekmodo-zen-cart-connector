@@ -4,6 +4,15 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## Unreleased
+
+- **Suggest default transport** — observer stamps
+  `seekmodo:suggest-proxy` ?
+  `numinix_seekmodo_suggest.php?seekmodo_action=rich-suggest` (HMAC
+  server-side). Omits gateway/token/refresh unless
+  `NUMINIX_SEEKMODO_SUGGEST_GATEWAY_DIRECT` is truthy. Bundle synced
+  for proxy-first client.
+
 ## v1.3.31 - 2026-07-24 (Connect Push catalog now + cart support_count)
 
 - **Push catalog now** — Tools ? Connect can fork a full catalog push in

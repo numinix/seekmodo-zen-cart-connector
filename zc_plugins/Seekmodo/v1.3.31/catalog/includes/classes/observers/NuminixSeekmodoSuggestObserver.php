@@ -26,12 +26,11 @@ declare(strict_types=1);
  *
  * Hooks `NOTIFY_HTML_HEAD_END` and emits:
  *
- *   1. `<meta name="seekmodo:tenant|gateway|refresh|token">` so the
- *      bundled SDK inside `<seekmodo-suggest>` can resolve config on
- *      first access (token is mint-cached for ~5 min via APCu; refresh
- *      URL is `catalog/numinix_seekmodo_suggest.php?action=browser-token`
- *      so a long-running tab can mint a fresh JWT without a page
- *      reload).
+ *   1. `<meta name="seekmodo:tenant">` plus `seekmodo:suggest-proxy`
+ *      (default) pointing at
+ *      `numinix_seekmodo_suggest.php?seekmodo_action=rich-suggest`.
+ *      Gateway-direct metas (`seekmodo:gateway` / `token` / `refresh`)
+ *      only when `NUMINIX_SEEKMODO_SUGGEST_GATEWAY_DIRECT` is truthy.
  *   2. `<script src=".../seekmodo_suggest.bundle.js">` — the
  *      self-registering web-component bundle copied verbatim from
  *      `@seekmodo/web-components` (~7.25 KB gzip). Served from the
@@ -300,12 +299,10 @@ final class NuminixSeekmodoSuggestObserver extends base
     }
 
     /**
-     * Emit the SDK meta-tag block. Tenant + gateway are always
-     * emitted; refresh URL points at the existing
-     * `numinix_seekmodo_suggest.php` PHP shim (which already speaks
-     * `action=browser-token` per the install-time route hook); inline
-     * token is best-effort (skipped when minting fails so the bundle
-     * falls back to the refresh URL).
+     * Emit the SDK meta-tag block. Tenant is always emitted.
+     * Default: `seekmodo:suggest-proxy` → rich POST on the catalog
+     * shim. Gateway-direct (browser → mcp) is opt-in via
+     * `NUMINIX_SEEKMODO_SUGGEST_GATEWAY_DIRECT`.
      */
     private function metaTags(): string
     {
@@ -313,9 +310,6 @@ final class NuminixSeekmodoSuggestObserver extends base
         if ($tenant === '') {
             return '';
         }
-        $gateway = $this->gatewayBase();
-        $refresh = $this->refreshUrl();
-        $token   = $this->browserToken();
 
         $emit = static function (string $name, string $content): string {
             if ($content === '') {
@@ -327,12 +321,42 @@ final class NuminixSeekmodoSuggestObserver extends base
             return '<meta name="' . $n . '" content="' . $c . '">' . "\n";
         };
 
-        $out  = $emit('seekmodo:tenant', $tenant);
-        $out .= $emit('seekmodo:gateway', $gateway);
-        $out .= $emit('seekmodo:refresh', $refresh);
-        $out .= $emit('seekmodo:token',   $token);
+        $out = $emit('seekmodo:tenant', $tenant);
+        if ($this->gatewayDirectEnabled()) {
+            $out .= $emit('seekmodo:gateway', $this->gatewayBase());
+            $out .= $emit('seekmodo:refresh', $this->refreshUrl());
+            $out .= $emit('seekmodo:token', $this->browserToken());
+        } else {
+            $out .= $emit('seekmodo:suggest-proxy', $this->richSuggestProxyUrl());
+        }
 
         return $out;
+    }
+
+    /**
+     * Opt-in browser→mcp suggest (legacy / CSP-allowing storefronts).
+     */
+    private function gatewayDirectEnabled(): bool
+    {
+        if (!defined('NUMINIX_SEEKMODO_SUGGEST_GATEWAY_DIRECT')) {
+            return false;
+        }
+        $v = (string) constant('NUMINIX_SEEKMODO_SUGGEST_GATEWAY_DIRECT');
+
+        return in_array(strtolower($v), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    /**
+     * Same-origin rich suggest POST URL for `seekmodo:suggest-proxy`.
+     */
+    private function richSuggestProxyUrl(): string
+    {
+        if (!defined('DIR_WS_CATALOG')) {
+            return '';
+        }
+        $base = (string) constant('DIR_WS_CATALOG');
+
+        return $base . 'numinix_seekmodo_suggest.php?seekmodo_action=rich-suggest';
     }
 
     private function tenantId(): string

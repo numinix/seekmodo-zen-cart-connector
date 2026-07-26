@@ -117,3 +117,16 @@ Optional **$130 one-time installation** uses Installation option 22
 | Zip documentation template | [`../seekmodo/packages/connector-docs/`](../seekmodo/packages/connector-docs/) |
 | Download manifest | [`../seekmodo/services/marketing-site/public/plugins/manifest.json`](../seekmodo/services/marketing-site/public/plugins/manifest.json) |
 | Public changelog UI | [`../seekmodo/services/marketing-site/app/(marketing)/plugins/zen-cart/page.tsx`](../seekmodo/services/marketing-site/app/(marketing)/plugins/zen-cart/page.tsx) |
+
+## Suggest transport
+
+Default storefront boot stamps `seekmodo:suggest-proxy` at
+`numinix_seekmodo_suggest.php?seekmodo_action=rich-suggest` (HMAC
+server-side). Gateway-direct remains opt-in:
+
+```php
+define('NUMINIX_SEEKMODO_SUGGEST_GATEWAY_DIRECT', 'true');
+```
+
+Sync the vendored bundle after rebuilding web-components into the
+latest `zc_plugins/Seekmodo/v*/catalog/.../jscript/seekmodo_suggest.bundle.js`.
