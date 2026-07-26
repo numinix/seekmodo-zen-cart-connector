@@ -20,18 +20,14 @@
  *      that calls numinix_seekmodo_mirror_click, etc.) can resolve the
  *      helpers when their callers fire later in the same request.
  *
- *   3. autoLoadConfig[200] — registers the v1.0.9 hot-path notifier
- *      observer (NuminixSeekmodoObserver) and the v1.0.11 head-
- *      injecting discovery observer (NuminixSeekmodoMcpDiscoveryObserver).
- *      Loaded LATE so all dependencies (the procedural helper library,
- *      configure.php constants, $_SESSION, the messageStack, the
- *      database connection) are guaranteed initialised. Registering
- *      these in the `class_loaders` slot is what makes the connector
- *      zero-touch: an unmodified Zen Cart 1.5.8 / 2.0+ storefront
- *      now talks to the gateway with no edits to class.search.php /
- *      ajax_search.php / SERP templates / cart pages, AND every
- *      rendered page advertises its public-MCP endpoint via
- *      `<link rel="mcp-server">` in `<head>` for AI-agent discovery.
+ *   3. autoLoadConfig[135] — registers NuminixSeekmodoObserver BEFORE
+ *      init_cart_handler (breakpoint 140). Cart form POSTs
+ *      (action=add_product / buy_now) call shopping_cart::add_cart
+ *      during breakpoint 140; an observer registered at 200 never
+ *      sees those notifies and ATC telemetry stays at zero forever.
+ *
+ *   4. autoLoadConfig[200] — head/UI observers (MCP discovery, suggest,
+ *      indexer). These only need HTML-head / admin hooks and stay late.
  */
 $autoLoadConfig[60][] = [
     'autoType' => 'init_script',
@@ -43,13 +39,14 @@ $autoLoadConfig[80][] = [
     'loadFile' => 'init_numinix_seekmodo.php',
 ];
 
-$autoLoadConfig[200][] = [
+// Cart telemetry must attach before init_cart_handler (140).
+$autoLoadConfig[135][] = [
     'autoType' => 'class',
     'loadFile' => 'observers/NuminixSeekmodoObserver.php',
     'classPath' => DIR_WS_CLASSES,
 ];
 
-$autoLoadConfig[200][] = [
+$autoLoadConfig[135][] = [
     'autoType'  => 'classInstantiate',
     'className' => 'NuminixSeekmodoObserver',
     'objectName' => 'numinixSeekmodoObserver',
