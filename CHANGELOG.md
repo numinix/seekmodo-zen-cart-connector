@@ -4,6 +4,16 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.32 - 2026-07-27 (HMAC auth fallback classification)
+
+- **Auth misconfig native fallback** — gateway `auth_fail` /
+  `signature_mismatch` 4xx responses are logged as `auth_misconfig`
+  with `fallback_reason = auth_misconfig` (storefront still falls back
+  to native Zen Cart search via `null` return). Fixes contradictory
+  docblocks that claimed signature mismatches must not degrade; pairing
+  drift is now documented and classified like AKS connector
+  `KIND_AUTH_MISCONFIG`. `rate_limited` / malformed remain `caller_error`.
+
 ## v1.3.31 - 2026-07-24 (Connect Push catalog now + cart support_count)
 
 - **Push catalog now** — Tools ? Connect can fork a full catalog push in
