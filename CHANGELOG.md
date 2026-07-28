@@ -1,8 +1,16 @@
 # Seekmodo for Zen Cart - top-level changelog
 
-This file tracks what's in the **latest** released zip. The full
+This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
+
+## v1.3.35 - 2026-07-28 (Push catalog open_basedir)
+
+- **Trust NUMINIX_SEEKMODO_PHP_BINARY under open_basedir** - shared hosts
+  often block is_file on /opt/cpanel paths while shell can still run that
+  CLI. Override is trusted without filesystem checks; EasyApache paths
+  are shell-probed when needed. Fixes Push still failing after v1.3.34
+  (NS-26042 Cannapot).
 
 ## v1.3.34 - 2026-07-28 (Push catalog PHP CLI discovery)
 
