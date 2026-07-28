@@ -4,6 +4,12 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.33 - 2026-07-27 (events referer parity)
+
+- **Shopper-context parity (Rec 3)** — click / impression / conversion
+  event builders in `numinix_seekmodo_events_lib.php` now stamp
+  `HTTP_REFERER` onto the event when present (same as search /
+  typeahead payloads).
 ## v1.3.32 - 2026-07-27 (HMAC auth fallback classification)
 
 - **Auth misconfig native fallback** — gateway `auth_fail` /
