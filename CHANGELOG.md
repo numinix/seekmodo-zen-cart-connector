@@ -4,6 +4,15 @@ This file tracks what's in the **latest** released zip. The full
 per-version detail lives next to the source under
 `zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md`.
 
+## v1.3.34 - 2026-07-28 (Push catalog PHP CLI discovery)
+
+- **Push catalog now on PHP 8.3 / EasyApache** — Connect ? Push catalog
+  now resolves CLI PHP on hosts where FPM `$PATH` is empty and the
+  previous candidate list stopped at `ea-php82`. Also derives CLI from
+  `PHP_BINARY`, supports `NUMINIX_SEEKMODO_PHP_BINARY`, and passes
+  `--ack-quota` on admin-forked pushes. Fixes
+  `no php binary found in $PATH` on PHP 8.3 storefronts (NS-26042).
+
 ## v1.3.33 - 2026-07-27 (events referer parity)
 
 - **Shopper-context parity (Rec 3)** — click / impression / conversion
