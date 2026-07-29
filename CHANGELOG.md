@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.39 - 2026-07-29 (Complete storefront i18n)
+
+- **Suggest chrome** — localize remaining hardcoded strings (did-you-mean
+  swap, short view-all, products count pill, redirects). DE powered-by
+  uses Unterstuetzt von. Recommendations headings DE/ES/FR. Legacy
+  typeahead + CORS notice share suggest labels (NS-26042 Cannapot).
+
 ## v1.3.38 - 2026-07-29 (Suggest i18n + admin PHP override)
 
 - **Suggest chrome translations** — `results_for` and `products_pending`
