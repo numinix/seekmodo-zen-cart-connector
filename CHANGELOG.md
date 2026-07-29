@@ -4,6 +4,16 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.38 - 2026-07-29 (Suggest i18n + admin PHP override)
+
+- **Suggest chrome translations** — `results_for` and `products_pending`
+  use the storefront language packs (DE/ES/FR) instead of hardcoded
+  English. French keywords header uses "Propositions".
+- **Admin Push loads catalog PHP binary override** — Connect → Push
+  includes `/shop/includes/extra_configures/numinix_seekmodo_php_binary.php`
+  from the admin SAPI so an existing `/usr/bin/php8.3` override is
+  honoured (NS-26042 Cannapot).
+
 ## v1.3.37 - 2026-07-29 (Suggest thumb + Push session)
 
 - **Suggest thumbnails** — prefer durable catalog originals over Image
