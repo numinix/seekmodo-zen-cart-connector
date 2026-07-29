@@ -4,6 +4,16 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.36 - 2026-07-28 (Log flood hardening)
+
+- **CGI-safe CLI reject** - admin/catalog cron entry points no longer
+  call `fwrite(STDERR)` on the HTTP reject path (undefined-constant
+  STDERR floods under cgi-fcgi).
+- **Rotated numinix_seekmodo.log** - 32 MiB cap with `.1` rotation so
+  shadow telemetry cannot fill the disk.
+- **Shadow push accounting** - standalone `push_catalog.php` treats
+  shadow-mode `null` as observation-ok instead of a failed batch.
+
 ## v1.3.35 - 2026-07-28 (Push catalog open_basedir)
 
 - **Trust NUMINIX_SEEKMODO_PHP_BINARY under open_basedir** - shared hosts
