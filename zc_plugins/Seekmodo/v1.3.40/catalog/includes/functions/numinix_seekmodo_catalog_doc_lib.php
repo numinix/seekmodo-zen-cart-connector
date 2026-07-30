@@ -517,12 +517,12 @@ if (!function_exists('numinix_seekmodo_catalog_doc_index_price')) {
         }
 
         // Match storefront money rounding (EUR 26.50 + 13% -> 29.95).
-        // Avoid float artifacts from rate math (26.5*1.13 -> 29.9449...).
+        // Stabilize float artifacts before 2dp (29.944999... vs 29.945).
         if (function_exists('zen_round')) {
             return (float) zen_round($price, 2);
         }
 
-        return (float) number_format($price, 2, '.', '');
+        return (float) number_format((float) sprintf('%.4f', $price), 2, '.', '');
     }
 }
 
