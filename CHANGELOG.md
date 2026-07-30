@@ -4,6 +4,12 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.40 - 2026-07-29 (Tax-inclusive index prices)
+
+- When DISPLAY_PRICE_WITH_TAX=true, catalog Push indexes VAT-inclusive
+  selling prices (and active specials) so suggest matches the PDP
+  (NS-26042 Cannapot / Austria 13% VAT).
+
 ## v1.3.39 - 2026-07-29 (Complete storefront i18n)
 
 - **Suggest chrome** — localize remaining hardcoded strings (did-you-mean
