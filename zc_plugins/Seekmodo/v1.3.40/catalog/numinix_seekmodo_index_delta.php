@@ -80,6 +80,10 @@ if (function_exists('numinix_seekmodo_mode') && numinix_seekmodo_mode() === 'off
     _delta_log('info', 'mode=off — skipping');
     exit(0);
 }
+if (function_exists('numinix_seekmodo_can_index') && !numinix_seekmodo_can_index()) {
+    _delta_log('error', 'index writes blocked on this host (canonical / nonprod gate)');
+    exit(5);
+}
 if (function_exists('numinix_seekmodo_is_locked_out') && numinix_seekmodo_is_locked_out()) {
     _delta_log('error', 'locked out on this host');
     exit(5);

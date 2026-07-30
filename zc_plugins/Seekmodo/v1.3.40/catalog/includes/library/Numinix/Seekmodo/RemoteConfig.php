@@ -392,6 +392,20 @@ final class RemoteConfig
             'NUMINIX_SEEKMODO_LOCKED_DOMAIN' => array_key_exists('locked_domain', $row)
                 ? (string) ($row['locked_domain'] ?? '')
                 : null,
+            // Same-apex preview hosts (JSON array string). Empty = none.
+            'NUMINIX_SEEKMODO_ALLOWED_STOREFRONT_HOSTS' => array_key_exists('allowed_storefront_hosts', $row)
+                ? (
+                    is_array($row['allowed_storefront_hosts'])
+                        ? (string) json_encode(
+                            array_values(array_filter(
+                                $row['allowed_storefront_hosts'],
+                                static fn ($h) => is_string($h) && $h !== ''
+                            )),
+                            JSON_UNESCAPED_SLASHES
+                        )
+                        : (string) ($row['allowed_storefront_hosts'] ?? '')
+                )
+                : null,
             'NUMINIX_SEEKMODO_SUGGEST_LAYOUT' => isset($row['suggest_layout'])
                 && is_string($row['suggest_layout'])
                 ? strtolower(trim((string) $row['suggest_layout'])) : null,
