@@ -917,11 +917,21 @@ final class NuminixSeekmodoSuggestObserver extends base
     var q = String(detail.q || '');
     if ((block === 'products' || block === 'categories' || block === 'redirects')
         && row && typeof row.url === 'string' && row.url) {
-      window.location.href = row.url;
+      try {
+        var u = new URL(row.url, window.location.origin);
+        window.location.href = u.pathname + u.search + u.hash;
+      } catch (_navErr) {
+        window.location.href = row.url;
+      }
       return;
     }
     if (block === 'redirects' && row && typeof row.target_url === 'string' && row.target_url) {
-      window.location.href = row.target_url;
+      try {
+        var tu = new URL(row.target_url, window.location.origin);
+        window.location.href = tu.pathname + tu.search + tu.hash;
+      } catch (_navErr2) {
+        window.location.href = row.target_url;
+      }
       return;
     }
     var keyword = '';

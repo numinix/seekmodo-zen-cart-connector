@@ -195,10 +195,14 @@ if (!function_exists('numinix_seekmodo_mirror_click')) {
         if (!function_exists('numinix_seekmodo_enabled') || !numinix_seekmodo_enabled()) {
             return;
         }
-        // Sprint 12 — tenant domain lock. Even though enabled()
-        // already checks this, gating here avoids the session-token /
-        // IP / opts-parsing cost when we're going to drop the event
-        // anyway.
+        // Production-only analytics / LTR: satellites may read search
+        // but must not post click/impression/conversion events.
+        if (
+            function_exists('numinix_seekmodo_can_events')
+            && !numinix_seekmodo_can_events()
+        ) {
+            return;
+        }
         if (
             function_exists('numinix_seekmodo_is_locked_out')
             && numinix_seekmodo_is_locked_out()
@@ -306,6 +310,12 @@ if (!function_exists('numinix_seekmodo_mirror_impression')) {
         array $opts = []
     ): void {
         if (!function_exists('numinix_seekmodo_enabled') || !numinix_seekmodo_enabled()) {
+            return;
+        }
+        if (
+            function_exists('numinix_seekmodo_can_events')
+            && !numinix_seekmodo_can_events()
+        ) {
             return;
         }
         if ($keyword === '' || $productIds === []) {
@@ -454,6 +464,12 @@ if (!function_exists('numinix_seekmodo_mirror_conversion')) {
         array $opts = []
     ): void {
         if (!function_exists('numinix_seekmodo_enabled') || !numinix_seekmodo_enabled()) {
+            return;
+        }
+        if (
+            function_exists('numinix_seekmodo_can_events')
+            && !numinix_seekmodo_can_events()
+        ) {
             return;
         }
         if ($kind !== 'add_to_cart' && $kind !== 'purchase') {

@@ -8,37 +8,16 @@ if (!function_exists('numinix_seekmodo_log_append')) {
     }
 }
 /**
- * Sprint 12 — tenant domain lock helper.
+ * Sprint 12 — tenant domain lock helper (+ same-apex preview hosts).
  *
- * Gives the storefront a single source of truth for "should this
- * request short-circuit Seekmodo and fall back to native search
- * because the current host doesn't match the tenant's locked
- * storefront domain?".
+ * Read gate (`numinix_seekmodo_is_locked_out`): false when unlocked,
+ * current host equals locked_domain, or current host is in
+ * NUMINIX_SEEKMODO_ALLOWED_STOREFRONT_HOSTS (comma/JSON list of
+ * same-apex satellites mirrored from tenant.snapshot).
  *
- * Used by every hot-path entry in this plugin
- * (search / typeahead / events / indexer) to early-return before
- * any gateway call is even built. Returning true triggers the
- * same native-fallback path that's already battle-tested for
- * MODE=off / MODE=shadow / circuit-breaker-open, so there's no
- * new failure mode to reason about: a misconfigured lock just
- * makes the storefront behave as if the connector were disabled.
- *
- * The lock value is mirrored from the gateway's
- * numinix_mcp_tenant_config.locked_domain column into
- * NUMINIX_SEEKMODO_LOCKED_DOMAIN by
- * Numinix\Seekmodo\RemoteConfig::writeThrough() every 5 minutes.
- * An operator-driven "Refresh now" from the Zen Cart admin
- * Connect page (Numinix\Seekmodo\RemoteConfig::invalidate())
- * forces an immediate re-pull when faster propagation is needed.
- *
- * The current host is the same canonical shape the gateway uses
- * in Store::canonicalizeHost: lowercased, port-stripped, trailing-
- * dot-stripped. We *don't* run the gateway's full canonicalizer
- * here (which IDN-to-ASCIIs and rejects IP literals) because
- * the gateway re-canonicalizes the locked_domain value before
- * sending it down the snapshot — so by the time the value lands
- * in NUMINIX_SEEKMODO_LOCKED_DOMAIN it's already ASCII / lowercased
- * / port-stripped. A simple strcasecmp is enough.
+ * Write gates:
+ *   - `numinix_seekmodo_can_index()`  — locked_domain only (+ nonprod fail-closed)
+ *   - `numinix_seekmodo_can_events()` — locked_domain only (LTR / click stream)
  */
 if (!function_exists('numinix_seekmodo_current_host')) {
     /**
@@ -87,27 +66,46 @@ if (!function_exists('numinix_seekmodo_current_host')) {
     }
 }
 
+if (!function_exists('numinix_seekmodo_allowed_storefront_hosts')) {
+    /**
+     * @return list<string>
+     */
+    function numinix_seekmodo_allowed_storefront_hosts(): array
+    {
+        if (!defined('NUMINIX_SEEKMODO_ALLOWED_STOREFRONT_HOSTS')) {
+            return [];
+        }
+        $raw = trim((string) NUMINIX_SEEKMODO_ALLOWED_STOREFRONT_HOSTS);
+        if ($raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            $out = [];
+            foreach ($decoded as $entry) {
+                if (is_string($entry) && $entry !== '') {
+                    $out[] = strtolower(trim($entry));
+                }
+            }
+            return array_values(array_unique($out));
+        }
+        $parts = preg_split('/[\s,;]+/', $raw) ?: [];
+        $out = [];
+        foreach ($parts as $p) {
+            $p = strtolower(trim((string) $p));
+            if ($p !== '') {
+                $out[] = $p;
+            }
+        }
+        return array_values(array_unique($out));
+    }
+}
+
 if (!function_exists('numinix_seekmodo_is_locked_out')) {
     /**
-     * Returns true when the gateway-managed lock is set AND the
-     * connector's current host does NOT match. Otherwise false.
-     *
-     * Special-cases:
-     *   - Lock not set (NULL / empty)   -> false (never short-circuit).
-     *   - Current host unresolvable     -> false (CLI / cron without a
-     *                                     HTTP_HOST and without an
-     *                                     HTTPS_CATALOG_SERVER define
-     *                                     can't classify the request; we
-     *                                     err on the side of "do the
-     *                                     work" rather than silently
-     *                                     dropping an indexer run.)
-     *   - Otherwise                     -> strcasecmp() against the
-     *                                     mirrored lock value.
-     *
-     * Emits a `seekmodo_skip_locked_domain` debug log line (gated
-     * on NUMINIX_SEEKMODO_DEBUG=true) on every lockout so operators
-     * can grep `logs/numinix_seekmodo.log` on dev hosts when
-     * troubleshooting an unexpected fallback.
+     * Returns true when Seekmodo reads should short-circuit (native
+     * fallback). False when unlocked, on locked_domain, or on an
+     * allowlisted same-apex preview host.
      */
     function numinix_seekmodo_is_locked_out(): bool
     {
@@ -121,13 +119,15 @@ if (!function_exists('numinix_seekmodo_is_locked_out')) {
         $current = numinix_seekmodo_current_host();
         if ($current === '') {
             // CLI / cron with no resolvable host -> don't short-circuit.
-            // The indexer is the main caller that hits this path and
-            // skipping it silently would be a worse outcome than
-            // re-indexing a tenant whose host moved.
             return false;
         }
         if (strcasecmp($current, $locked) === 0) {
             return false;
+        }
+        foreach (numinix_seekmodo_allowed_storefront_hosts() as $allowed) {
+            if (strcasecmp($current, $allowed) === 0) {
+                return false;
+            }
         }
         if (
             defined('NUMINIX_SEEKMODO_DEBUG')
@@ -146,6 +146,7 @@ if (!function_exists('numinix_seekmodo_is_locked_out')) {
                     'msg' => 'seekmodo_skip_locked_domain',
                     'current_host' => $current,
                     'locked_domain' => $locked,
+                    'allowed_storefront_hosts' => numinix_seekmodo_allowed_storefront_hosts(),
                 ], JSON_UNESCAPED_SLASHES);
                 if ($line !== false) {
                     if (function_exists('numinix_seekmodo_log_append')) {
@@ -186,22 +187,34 @@ if (!function_exists('numinix_seekmodo_looks_like_nonprod')) {
     }
 }
 
+if (!function_exists('numinix_seekmodo_can_events')) {
+    /**
+     * Production-only click stream / LTR: only locked_domain may post events.
+     */
+    function numinix_seekmodo_can_events(): bool
+    {
+        $locked = defined('NUMINIX_SEEKMODO_LOCKED_DOMAIN')
+            ? trim((string) NUMINIX_SEEKMODO_LOCKED_DOMAIN)
+            : '';
+        if ($locked === '') {
+            // No lock → allow (pre-Sprint-12 / unset).
+            return true;
+        }
+        $current = numinix_seekmodo_current_host();
+        if ($current === '') {
+            return false;
+        }
+        return strcasecmp($current, $locked) === 0;
+    }
+}
+
 if (!function_exists('numinix_seekmodo_can_index')) {
     /**
-     * Write-side gate (v1.1.7 / WP v0.5.3 pattern).
-     *
-     * Blocks indexing from non-prod hosts when the locked domain is prod,
-     * and blocks self-referential non-prod locks unless the operator
-     * explicitly opts in via NUMINIX_SEEKMODO_ALLOW_NONPROD_INDEXING=true.
+     * Write-side gate. Only the canonical locked_domain may index
+     * (plus nonprod fail-closed / opt-in).
      */
     function numinix_seekmodo_can_index(): bool
     {
-        if (
-            function_exists('numinix_seekmodo_is_locked_out')
-            && numinix_seekmodo_is_locked_out()
-        ) {
-            return false;
-        }
         $current = numinix_seekmodo_current_host();
         if ($current === '') {
             return false;
@@ -215,12 +228,16 @@ if (!function_exists('numinix_seekmodo_can_index')) {
         ) {
             return $locked === '' || strcasecmp($current, $locked) === 0;
         }
-        if ($locked !== '' && numinix_seekmodo_looks_like_nonprod($locked) === false
-            && numinix_seekmodo_looks_like_nonprod($current)
-        ) {
-            return false;
+        if ($locked !== '') {
+            if (strcasecmp($current, $locked) !== 0) {
+                return false;
+            }
+            if (numinix_seekmodo_looks_like_nonprod($locked)) {
+                return false;
+            }
+            return true;
         }
-        if ($locked === '' && numinix_seekmodo_looks_like_nonprod($current)) {
+        if (numinix_seekmodo_looks_like_nonprod($current)) {
             return false;
         }
         return true;

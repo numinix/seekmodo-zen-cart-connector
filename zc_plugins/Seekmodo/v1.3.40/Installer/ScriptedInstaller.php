@@ -248,9 +248,17 @@ class ScriptedInstaller extends ScriptedInstallBase
         $this->addConfigurationKey('NUMINIX_SEEKMODO_LOCKED_DOMAIN', [
             'configuration_title' => 'Seekmodo: Locked Storefront Domain',
             'configuration_value' => '',
-            'configuration_description' => 'Managed at admin.seekmodo.com. The single canonical storefront host this tenant is locked to. Empty (default) = no lock; route everything. Non-empty = this connector short-circuits to native Zen Cart search when <code>$_SERVER[\'HTTP_HOST\']</code> does not match (case-insensitive, port-stripped). Lets a tenant carry the connector on dev / staging / production without polluting the production tenant. Read-only here; set the value on admin.seekmodo.com -> tenant settings -> Storefront domain.',
+            'configuration_description' => 'Managed at admin.seekmodo.com. The single canonical production storefront host this tenant is locked to. Empty (default) = no lock; route everything. Non-empty = this connector short-circuits to native Zen Cart search when the current host is neither the lock nor an allowlisted same-apex preview host. Only the locked host indexes and posts analytics/LTR events. Read-only here; set the value on admin.seekmodo.com -> tenant settings -> Storefront domain.',
             'configuration_group_id' => $groupId,
             'sort_order' => 114,
+        ]);
+
+        $this->addConfigurationKey('NUMINIX_SEEKMODO_ALLOWED_STOREFRONT_HOSTS', [
+            'configuration_title' => 'Seekmodo: Allowed Preview Hosts',
+            'configuration_value' => '',
+            'configuration_description' => 'Managed at admin.seekmodo.com. JSON array of same-apex staging/dev hosts allowed read-only Seekmodo search against the production catalog. Empty = none. Mirrored from tenant.snapshot allowed_storefront_hosts.',
+            'configuration_group_id' => $groupId,
+            'sort_order' => 115,
         ]);
 
         // v1.0.17 — SKU / part-number exact-match boost. Port of the
@@ -509,6 +517,7 @@ class ScriptedInstaller extends ScriptedInstallBase
             'NUMINIX_SEEKMODO_UPDATE_NOTICE',
             // Sprint 12 (v1.0.8+).
             'NUMINIX_SEEKMODO_LOCKED_DOMAIN',
+            'NUMINIX_SEEKMODO_ALLOWED_STOREFRONT_HOSTS',
             // Sprint 15 (v1.0.13+) — split-bucket timeouts.
             'NUMINIX_SEEKMODO_SEARCH_TIMEOUT_MS',
             'NUMINIX_SEEKMODO_INDEX_TIMEOUT_MS',

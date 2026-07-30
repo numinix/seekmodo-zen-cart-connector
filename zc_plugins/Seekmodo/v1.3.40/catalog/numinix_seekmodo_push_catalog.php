@@ -307,6 +307,16 @@ if (!numinix_seekmodo_enabled()) {
     _push_log('error', 'connector mode=off or not paired (NUMINIX_SEEKMODO_MODE / TENANT_ID / SHARED_SECRET unset). Pair via Tools → Connect to Seekmodo before running the pusher.');
     exit(4);
 }
+if (function_exists('numinix_seekmodo_can_index') && !numinix_seekmodo_can_index()) {
+    $observed = function_exists('numinix_seekmodo_current_host')
+        ? (string) numinix_seekmodo_current_host()
+        : (string)($_SERVER['HTTP_HOST'] ?? '');
+    $locked = defined('NUMINIX_SEEKMODO_LOCKED_DOMAIN')
+        ? (string) NUMINIX_SEEKMODO_LOCKED_DOMAIN
+        : '';
+    _push_log('error', "index writes blocked on this host (observed '{$observed}', locked_domain '{$locked}'). Only the production locked host may index.");
+    exit(5);
+}
 if (function_exists('numinix_seekmodo_is_locked_out') && numinix_seekmodo_is_locked_out()) {
     $observed = function_exists('numinix_seekmodo_current_host')
         ? (string) numinix_seekmodo_current_host()
