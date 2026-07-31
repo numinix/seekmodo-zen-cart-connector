@@ -83,6 +83,27 @@ clones `numinix/seekmodo-zen-cart-connector`, creates the git tag,
 archives into `free_download_manager/`, inserts a
 `free_download_manager` row, and updates `products_model`.
 
+If product `2044` has **Zen Cart.com Plugin ID** `2441` set, Releaser
+also queues a zen-cart.com Plugins Library update. This script then
+drains the queue via
+`numinix.com-local/scripts/publish_zencart_com_release.py` (SeleniumBase
+UC on the operator workstation). Use `--skip-zencart-com` to leave the
+queue pending.
+
+### Zen Cart.com Plugins Library
+
+- **First listing is always manual** (Submit New Plugin on zen-cart.com).
+- After moderator activation, set **Admin → Catalog → product → Zen Cart.com Plugin ID**
+  to the numeric `id=` from `downloads.php?do=file&id=NNNN` (Seekmodo = `2441`).
+- Subsequent releases auto-queue updates only when that field is set.
+- Credentials: `NX/secrets/zencart.com.txt`. Drain manually anytime:
+  `python numinix.com-local/scripts/publish_zencart_com_release.py --drain-numinix-queue`
+- Inventory / backfill helpers:
+  `inventory-zencart-com-plugins.py`, `backfill-zencart-com-plugin-ids.sql`
+
+Ensure `manifest.php` `'pluginId' => 2441` so store Plugin Managers can
+detect updates after the listing is live.
+
 ### Auth
 
 Set `NUMINIX_MCP_BEARER` or rely on

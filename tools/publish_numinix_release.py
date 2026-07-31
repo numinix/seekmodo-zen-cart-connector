@@ -5,6 +5,11 @@ Numinix.com packages free plugins through Numinix\\PluginRelease\\Releaser
 signed seekmodo.com zip — run *after* the connector tag is pushed to GitHub
 and seekmodo.com publish is complete.
 
+When the product has products.zencart_com_plugin_id set, Releaser queues a
+zen-cart.com update. This script then drains that queue via
+numinix.com-local/scripts/publish_zencart_com_release.py (SeleniumBase UC)
+unless --skip-zencart-com is passed.
+
 Usage (from connector repo root, after git push origin vX.Y.Z):
 
     python tools/publish_numinix_release.py --tag v1.2.9
@@ -17,6 +22,7 @@ Optional:
     --products-id 2044   (Seekmodo for Zen Cart on www.numinix.com)
     --endpoint https://www.numinix.com/mcp/
     --description "..."  Release notes for the FDM row (default: top CHANGELOG entry)
+    --skip-zencart-com   Do not drain the zen-cart.com marketplace queue
     --dry-run            Print payload without calling MCP
 """
 from __future__ import annotations
@@ -25,6 +31,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -37,6 +44,11 @@ CONFIG_CANDIDATES = [
     Path(os.environ.get("NUMINIX_LOCAL_CONFIG", "")),
     Path("C:/Users/Jeff Lew/Repositories/Clients/NX/numinix.com-local/config/server-access.local.json"),
     Path.home() / "Repositories/Clients/NX/numinix.com-local/config/server-access.local.json",
+]
+SUBMITTER_CANDIDATES = [
+    Path(os.environ.get("ZENCART_COM_SUBMITTER", "")),
+    Path("C:/Users/Jeff Lew/Repositories/Clients/NX/numinix.com-local/scripts/publish_zencart_com_release.py"),
+    Path.home() / "Repositories/Clients/NX/numinix.com-local/scripts/publish_zencart_com_release.py",
 ]
 
 
@@ -76,7 +88,6 @@ def _default_description(tag: str) -> str:
     bare = f"v{tag}"
     for line in text.splitlines():
         if line.startswith(f"## {bare}") or line.startswith(f"## v{tag}"):
-            # grab next non-empty bullet or paragraph
             rest = text.split(line, 1)[1].split("##", 1)[0].strip()
             for chunk in rest.splitlines():
                 chunk = chunk.strip()
@@ -112,12 +123,61 @@ def _mcp_call(endpoint: str, bearer: str, tool: str, arguments: dict) -> dict:
         raise SystemExit(f"MCP HTTP {exc.code}: {detail}") from exc
 
 
+def _find_submitter() -> Path | None:
+    for path in SUBMITTER_CANDIDATES:
+        if path and path.is_file():
+            return path
+    return None
+
+
+def _drain_zencart_com(endpoint: str, tag: str, description: str) -> None:
+    submitter = _find_submitter()
+    if submitter is None:
+        print(
+            "WARN: publish_zencart_com_release.py not found; "
+            "leaving marketplace queue pending.",
+            file=sys.stderr,
+        )
+        return
+    secrets = Path(r"C:\Users\Jeff Lew\Repositories\Clients\NX\secrets\zencart.com.txt")
+    if not secrets.is_file():
+        print(
+            "WARN: NX/secrets/zencart.com.txt missing; "
+            "leaving marketplace queue pending.",
+            file=sys.stderr,
+        )
+        return
+    cmd = [
+        sys.executable,
+        str(submitter),
+        "--drain-numinix-queue",
+        "--endpoint",
+        endpoint,
+    ]
+    print("== Drain zen-cart.com marketplace queue ==")
+    print(" ", " ".join(cmd))
+    try:
+        proc = subprocess.run(cmd, check=False)
+    except FileNotFoundError as exc:
+        print(f"WARN: could not run submitter: {exc}", file=sys.stderr)
+        return
+    if proc.returncode != 0:
+        print(
+            f"WARN: zen-cart.com submit exited {proc.returncode}; "
+            "queue row may be marked failed — check MCP marketplace_queue_list.",
+            file=sys.stderr,
+        )
+    else:
+        print("zen-cart.com marketplace drain finished.")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tag", required=True, help="Release tag (vX.Y.Z or X.Y.Z)")
     ap.add_argument("--products-id", type=int, default=DEFAULT_PRODUCTS_ID)
     ap.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     ap.add_argument("--description", default=None)
+    ap.add_argument("--skip-zencart-com", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -154,6 +214,19 @@ def main() -> int:
     print(
         f"\nLive: https://www.numinix.com/index.php?main_page=download_product_info&products_id={args.products_id}"
     )
+
+    if args.skip_zencart_com:
+        print("Skipping zen-cart.com drain (--skip-zencart-com).")
+        return 0
+
+    if structured.get("marketplace_queued"):
+        _drain_zencart_com(args.endpoint, tag, description)
+    else:
+        reason = structured.get("marketplace_reason") or "not_queued"
+        print(
+            f"zen-cart.com auto-submit not queued ({reason}). "
+            "Set products.zencart_com_plugin_id after a manual first listing."
+        )
     return 0
 
 
