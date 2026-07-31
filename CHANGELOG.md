@@ -4,6 +4,12 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.41 - 2026-07-31 (SERP categories_filter_title)
+
+- Define `$categories_filter_title` on advanced search results so
+  Winchester Responsive / PHP 8+ themes stop logging
+  `Undefined variable $categories_filter_title` (NS-26042 Cannapot).
+
 ## v1.3.40 - 2026-07-29 (Tax-inclusive index prices)
 
 - When DISPLAY_PRICE_WITH_TAX=true, catalog Push indexes VAT-inclusive
