@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.42 - 2026-08-02 (LTR conversion attribution + cron noise)
+
+- Drop wget/curl/CLI `add_to_cart` / `purchase` mirrors so recurring
+  billing crons stop polluting LTR graded labels.
+- First-party `sm_ltr` cookie keeps last `search_event_id` (+ product
+  map) across login session regenerate for buy-now checkout linkage.
+
 ## v1.3.41 - 2026-07-31 (SERP categories_filter_title)
 
 - Define `$categories_filter_title` on advanced search results so
