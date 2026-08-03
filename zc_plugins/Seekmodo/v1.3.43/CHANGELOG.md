@@ -2,13 +2,13 @@
 
 ## 2026-08-03 - Numeric model / SKU lookup (RED-1862)
 
-- **Bare-digit search OR model/sku** — `_numinix_seekmodo_apply_products_id_lookup`
-  still matches `products_id:=N` for admin id paste, but also ORs exact
-  `model:=N` / `sku:=N` (Zen Cart indexes `products_model` into both).
+- **Bare-digit search uses Typesense `id` + exact `model`/`sku`** —
+  `_numinix_seekmodo_apply_products_id_lookup` no longer emits
+  `products_id:=N` (not a filterable field on commerce schemas; Typesense
+  400 → gateway failure → native LIKE fallback). Filters are now
+  `(id:=N || model:=N || sku:=N)` and keep the digit query as `q`.
   Fixes storefront searches like Redline `"4826"` where the product's
-  model is `4826` but `products_id` is different: previously the
-  exclusive id filter returned 0 gateway hits and native LIKE put the
-  perfect model match at #46 of ~1700 results.
+  model is `4826` but `products_id` is different (was #46 of ~1700).
 
 ## 2026-08-02 - LTR conversion attribution + cron noise (from v1.3.42)
 
