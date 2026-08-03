@@ -4,6 +4,14 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.43 - 2026-08-03 (Numeric model / SKU lookup)
+
+- **Bare-digit search OR model/sku** - Numeric queries still match
+  `products_id` for admin id paste, and now also exact `model` / `sku`
+  (Zen Cart `products_model`). Fixes digit-only model numbers (e.g.
+  Redline `4826` / RED-1862) that previously missed the gateway and
+  fell back to poorly ranked native LIKE results.
+
 ## v1.3.42 - 2026-08-02 (LTR conversion attribution + cron noise)
 
 - Drop wget/curl/CLI `add_to_cart` / `purchase` mirrors so recurring

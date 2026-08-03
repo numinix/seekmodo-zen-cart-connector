@@ -1,6 +1,6 @@
 <?php
 /**
- * Regression test for products_id lookup routing (connector v1.3.15).
+ * Regression test for products_id / numeric model lookup routing.
  *
  *     php tests/test_products_id_search.php
  */
@@ -9,7 +9,7 @@ declare(strict_types=1);
 $errors = [];
 $passed = 0;
 
-require_once __DIR__ . '/../zc_plugins/Seekmodo/v1.3.15/catalog/includes/functions/numinix_seekmodo_search_lib.php';
+require_once __DIR__ . '/../zc_plugins/Seekmodo/v1.3.43/catalog/includes/functions/numinix_seekmodo_search_lib.php';
 
 /** @param mixed $expected @param mixed $actual */
 function assertEq(string $label, $expected, $actual, array &$errors, int &$passed): void
@@ -43,25 +43,34 @@ assertEq('multi_id', [167, 1898], _numinix_seekmodo_parse_products_id_query('167
 assertEq('text_query_null', null, _numinix_seekmodo_parse_products_id_query('wine glass'), $errors, $passed);
 assertEq('alpha_suffix_null', null, _numinix_seekmodo_parse_products_id_query('1898a'), $errors, $passed);
 
-echo "Case 2. build_search_payload products_id routing\n";
+echo "Case 2. build_search_payload products_id + model/sku OR (RED-1862)\n";
 $_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0';
 $_SERVER['REMOTE_ADDR'] = '10.0.0.7';
 
+$expectedSingle = '(products_id:=1898 || model:=`1898` || sku:=`1898`)';
 $payload = _numinix_seekmodo_build_search_payload(['keyword' => '1898']);
 assertEq('search_q_wildcard', '*', $payload['q'], $errors, $passed);
-assertEq('search_filter_by', 'products_id:=1898', $payload['filter_by'], $errors, $passed);
+assertEq('search_filter_by', $expectedSingle, $payload['filter_by'], $errors, $passed);
 
+// RED-1862: digit-only model number must OR model/sku, not exclusive id.
+$expectedRed = '(products_id:=4826 || model:=`4826` || sku:=`4826`)';
+$payload = _numinix_seekmodo_build_search_payload(['keyword' => '4826']);
+assertEq('red_model_q_wildcard', '*', $payload['q'], $errors, $passed);
+assertEq('red_model_filter_or', $expectedRed, $payload['filter_by'], $errors, $passed);
+
+$expectedMulti = '(products_id:=[167,1898] || model:=[`167`,`1898`] || sku:=[`167`,`1898`])';
 $payload = _numinix_seekmodo_build_search_payload(['keyword' => '167,1898']);
-assertEq('search_multi_filter', 'products_id:=[167,1898]', $payload['filter_by'], $errors, $passed);
+assertEq('search_multi_filter', $expectedMulti, $payload['filter_by'], $errors, $passed);
 
 $payload = _numinix_seekmodo_build_search_payload(['keyword' => 'mug']);
 assertEq('text_search_unchanged', 'mug', $payload['q'], $errors, $passed);
 assertTruthy('text_search_no_pid_filter', !isset($payload['filter_by']), $errors, $passed);
 
-echo "Case 3. build_suggest_payload products_id routing\n";
+echo "Case 3. build_suggest_payload products_id + model/sku OR\n";
+$expectedSuggest = '(products_id:=167 || model:=`167` || sku:=`167`)';
 $suggest = _numinix_seekmodo_build_suggest_payload('167', 8);
 assertEq('suggest_q_wildcard', '*', $suggest['q'], $errors, $passed);
-assertEq('suggest_filter_by', 'products_id:=167', $suggest['filter_by'], $errors, $passed);
+assertEq('suggest_filter_by', $expectedSuggest, $suggest['filter_by'], $errors, $passed);
 assertEq('suggest_complete', true, $suggest['complete'], $errors, $passed);
 
 echo "\n";
