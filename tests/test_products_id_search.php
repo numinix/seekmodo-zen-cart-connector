@@ -47,29 +47,30 @@ echo "Case 2. build_search_payload products_id + model/sku OR (RED-1862)\n";
 $_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0';
 $_SERVER['REMOTE_ADDR'] = '10.0.0.7';
 
-$expectedSingle = '(products_id:=1898 || model:=`1898` || sku:=`1898`)';
+$expectedSingle = '(id:=`1898` || model:=`1898` || sku:=`1898`)';
 $payload = _numinix_seekmodo_build_search_payload(['keyword' => '1898']);
-assertEq('search_q_wildcard', '*', $payload['q'], $errors, $passed);
+assertEq('search_q_keeps_digits', '1898', $payload['q'], $errors, $passed);
 assertEq('search_filter_by', $expectedSingle, $payload['filter_by'], $errors, $passed);
 
 // RED-1862: digit-only model number must OR model/sku, not exclusive id.
-$expectedRed = '(products_id:=4826 || model:=`4826` || sku:=`4826`)';
+$expectedRed = '(id:=`4826` || model:=`4826` || sku:=`4826`)';
 $payload = _numinix_seekmodo_build_search_payload(['keyword' => '4826']);
-assertEq('red_model_q_wildcard', '*', $payload['q'], $errors, $passed);
+assertEq('red_model_q_keeps_digits', '4826', $payload['q'], $errors, $passed);
 assertEq('red_model_filter_or', $expectedRed, $payload['filter_by'], $errors, $passed);
 
-$expectedMulti = '(products_id:=[167,1898] || model:=[`167`,`1898`] || sku:=[`167`,`1898`])';
+$expectedMulti = '(id:=[`167`,`1898`] || model:=[`167`,`1898`] || sku:=[`167`,`1898`])';
 $payload = _numinix_seekmodo_build_search_payload(['keyword' => '167,1898']);
 assertEq('search_multi_filter', $expectedMulti, $payload['filter_by'], $errors, $passed);
+assertEq('search_multi_q', '167,1898', $payload['q'], $errors, $passed);
 
 $payload = _numinix_seekmodo_build_search_payload(['keyword' => 'mug']);
 assertEq('text_search_unchanged', 'mug', $payload['q'], $errors, $passed);
 assertTruthy('text_search_no_pid_filter', !isset($payload['filter_by']), $errors, $passed);
 
 echo "Case 3. build_suggest_payload products_id + model/sku OR\n";
-$expectedSuggest = '(products_id:=167 || model:=`167` || sku:=`167`)';
+$expectedSuggest = '(id:=`167` || model:=`167` || sku:=`167`)';
 $suggest = _numinix_seekmodo_build_suggest_payload('167', 8);
-assertEq('suggest_q_wildcard', '*', $suggest['q'], $errors, $passed);
+assertEq('suggest_q_keeps_digits', '167', $suggest['q'], $errors, $passed);
 assertEq('suggest_filter_by', $expectedSuggest, $suggest['filter_by'], $errors, $passed);
 assertEq('suggest_complete', true, $suggest['complete'], $errors, $passed);
 

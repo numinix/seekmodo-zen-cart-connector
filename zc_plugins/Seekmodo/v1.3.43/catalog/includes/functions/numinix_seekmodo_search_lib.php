@@ -1501,8 +1501,9 @@ if (!function_exists('_numinix_seekmodo_build_search_payload')) {
         // Cart operators often search by numeric id; route those to an
         // exact `products_id:=` filter instead of BM25 text search.
         $payload = _numinix_seekmodo_apply_products_id_lookup($payload, $keyword);
-        if ($payload['q'] === '*' && isset($payload['filter_by'])
-            && str_contains((string) $payload['filter_by'], 'products_id:=')
+        if (isset($payload['filter_by'])
+            && (str_contains((string) $payload['filter_by'], 'products_id:=')
+                || preg_match('/\bid:=/', (string) $payload['filter_by']) === 1)
         ) {
             $pidIds = _numinix_seekmodo_parse_products_id_query($keyword);
             if ($pidIds !== null) {
@@ -1605,11 +1606,12 @@ if (!function_exists('_numinix_seekmodo_apply_products_id_lookup')) {
      * 2–4 digit ids (e.g. KIP admin searches for "167", "1898").
      *
      * v1.3.43 (RED-1862) — also match exact `model` / `sku` (Zen Cart
-     * indexes `products_model` into both). Pure-digit model numbers
-     * like Redline "4826" previously became `products_id:=4826` with
-     * `q=*`; when no row had that id the gateway returned 0 hits and
-     * the storefront fell back to native LIKE ranking. OR-ing model/sku
-     * keeps admin id lookup working while numeric model codes hit.
+     * indexes `products_model` into both), and filter on Typesense `id`
+     * (string of products_id) rather than `products_id:=` which is not
+     * a filterable field on commerce schemas and 400s the search.
+     * Pure-digit model numbers like Redline "4826" previously became
+     * `products_id:=4826` with a broken filter → gateway failure →
+     * native LIKE fallback (#46 of ~1700).
      *
      * Returns a new array; never mutates the input.
      */
@@ -1635,9 +1637,13 @@ if (!function_exists('_numinix_seekmodo_apply_products_id_lookup')) {
         }
 
         if (count($ids) === 1) {
-            $idClause = 'products_id:=' . $ids[0];
+            // Zen Cart Seekmodo schema uses Typesense `id` (string of
+            // products_id). `products_id:=` is NOT a filterable field on
+            // commerce collections and 400s Typesense (RED-1862).
+            $idClause = 'id:=' . _numinix_seekmodo_typesense_string_filter_values([(string) $ids[0]]);
         } else {
-            $idClause = 'products_id:=[' . implode(',', $ids) . ']';
+            $idVals = array_map(static fn (int $id): string => (string) $id, $ids);
+            $idClause = 'id:=' . _numinix_seekmodo_typesense_string_filter_values($idVals);
         }
 
         // Exact string match on model/sku (same digit tokens as id list).
@@ -1652,7 +1658,14 @@ if (!function_exists('_numinix_seekmodo_apply_products_id_lookup')) {
         } else {
             $payload['filter_by'] = $clause;
         }
-        $payload['q'] = '*';
+        // Keep the original digit tokens as `q` (do not rewrite to `*`).
+        // Gateway SearchTool rejects empty q; browse-style `q=*` also
+        // skips partitionSkuExactFirst. Keeping the keyword lets Typesense
+        // score within the id/model/sku OR set and keeps LTR/SKU partition
+        // armed (RED-1862).
+        if (!isset($payload['q']) || trim((string) $payload['q']) === '' || (string) $payload['q'] === '*') {
+            $payload['q'] = implode(' ', $modelTokens);
+        }
 
         return $payload;
     }
@@ -1750,7 +1763,12 @@ if (!function_exists('_numinix_seekmodo_build_suggest_payload')) {
             'limit' => $limit,
         ];
         $payload = _numinix_seekmodo_apply_products_id_lookup($payload, $q);
-        if ($payload['q'] === '*') {
+        // Exact numeric lookup (id and/or model/sku OR) — treat as
+        // complete typeahead so the UI doesn't wait for more keystrokes.
+        if (isset($payload['filter_by'])
+            && (str_contains((string) $payload['filter_by'], 'products_id:=')
+                || preg_match('/\bid:=/', (string) $payload['filter_by']) === 1)
+        ) {
             $payload['complete'] = true;
         }
         return $payload;
