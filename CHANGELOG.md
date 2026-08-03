@@ -6,11 +6,10 @@ zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
 ## v1.3.43 - 2026-08-03 (Numeric model / SKU lookup)
 
-- **Bare-digit search OR model/sku** - Numeric queries filter Typesense `id` (products_id as string) OR exact `model` / `sku`
-  (Zen Cart `products_model`). Fixes digit-only model numbers (e.g.
-  Redline `4826` / RED-1862) that previously missed the gateway and
-  fell back to poorly ranked native LIKE results.
-
+- **Bare-digit search uses Typesense `id` + exact `model`/`sku`** -
+  avoids non-filterable `products_id:=` (Typesense 400 ? native LIKE
+  fallback). Keeps digit `q`. Fixes digit-only model numbers (e.g.
+  Redline `4826` / RED-1862).
 ## v1.3.42 - 2026-08-02 (LTR conversion attribution + cron noise)
 
 - Drop wget/curl/CLI `add_to_cart` / `purchase` mirrors so recurring
