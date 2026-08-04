@@ -369,11 +369,27 @@ if ($envelope === null) {
     return;
 }
 
+$products = $envelope['items'] ?? [];
+$keywords = $envelope['keywords'] ?? [];
+$categories = $envelope['categories'] ?? [];
+$total = $envelope['total'] ?? count(is_array($products) ? $products : []);
+// Exact model/sku SERP pins return 0 hits when the SKU is absent. Do
+// not leave prior-search keywords promoting a dead SERP (AKS 1.7.6).
+if (
+    function_exists('_numinix_seekmodo_looks_like_exact_part_token')
+    && _numinix_seekmodo_looks_like_exact_part_token(trim((string) $q))
+    && is_array($products)
+    && $products === []
+) {
+    $keywords = [];
+    $total = 0;
+}
+
 echo json_encode([
     'ok' => true,
     'q' => $envelope['q'] ?? $q,
-    'keywords' => $envelope['keywords'] ?? [],
-    'products' => $envelope['items'] ?? [],
-    'categories' => $envelope['categories'] ?? [],
-    'total' => $envelope['total'] ?? count($envelope['items'] ?? []),
+    'keywords' => $keywords,
+    'products' => $products,
+    'categories' => $categories,
+    'total' => $total,
 ], JSON_UNESCAPED_SLASHES);

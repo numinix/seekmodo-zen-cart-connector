@@ -707,6 +707,55 @@ final class NuminixSeekmodoSuggestObserver extends base
   }
   var OPT_OUT_PARAM = 'seekmodo_no_vehicle_filter';
   var OPT_OUT_STORAGE_KEY = 'seekmodo.vehicle_filter_opted_out';
+  // Exact part-token queries must not promote prior-search keywords /
+  // trending into a SERP that exact-filters model/sku to zero hits
+  // (AKS 1.7.6 / e.g. 4-6340-20). Product + category blocks only.
+  var EXACT_PART_SUGGEST_BLOCKS = 'products,categories';
+  var DEFAULT_SUGGEST_BLOCKS = (CFG && CFG.blocks) || 'recent,did_you_mean,keywords,trending,products,categories';
+  function looksLikeExactPartToken(q) {
+    q = String(q || '').trim();
+    if (q.indexOf('-') < 0) return false;
+    if (/^[A-Z0-9]+-\d{3,16}$/i.test(q)) return true;
+    if (/^\d{3,}[A-Z0-9]*-[A-Z0-9]{2,}(?:-[A-Z0-9]{2,})*$/i.test(q)) return true;
+    if (/^\d+(?:-\d+){2,}$/.test(q)) return true;
+    return /^[A-Z]{2,}-[A-Z0-9\-]*\d[A-Z0-9\-]*$/i.test(q);
+  }
+  function applySuggestExactPartUi(nodes, exactPartMode) {
+    var viewAll = CFG.view_all_href || '/index.php?main_page=advanced_search_result&keyword={q}';
+    for (var i = 0; i < nodes.length; i++) {
+      if (exactPartMode) {
+        if (!nodes[i].getAttribute('data-seekmodo-default-blocks')) {
+          nodes[i].setAttribute(
+            'data-seekmodo-default-blocks',
+            nodes[i].getAttribute('blocks') || DEFAULT_SUGGEST_BLOCKS
+          );
+        }
+        nodes[i].setAttribute('blocks', EXACT_PART_SUGGEST_BLOCKS);
+        nodes[i].removeAttribute('view-all-href');
+      } else {
+        var restore = nodes[i].getAttribute('data-seekmodo-default-blocks');
+        if (restore) {
+          nodes[i].setAttribute('blocks', restore);
+          nodes[i].removeAttribute('data-seekmodo-default-blocks');
+        }
+        if (!nodes[i].getAttribute('view-all-href')) {
+          nodes[i].setAttribute('view-all-href', viewAll);
+        }
+      }
+    }
+  }
+  function activeSuggestSearchQuery() {
+    var inputs = document.querySelectorAll(SELECTOR);
+    for (var i = 0; i < inputs.length; i++) {
+      var v = String(inputs[i].value || '').trim();
+      if (v) return v;
+    }
+    return '';
+  }
+  function syncSuggestExactPartBlocks() {
+    var exact = looksLikeExactPartToken(activeSuggestSearchQuery());
+    applySuggestExactPartUi(document.querySelectorAll('seekmodo-suggest'), exact);
+  }
   function persistVehicleFilterOptOut() {
     try { localStorage.setItem(OPT_OUT_STORAGE_KEY, '1'); } catch (_e) {}
   }
@@ -729,6 +778,7 @@ final class NuminixSeekmodoSuggestObserver extends base
         nodesOptOut[o].removeAttribute('serp-passthrough');
         nodesOptOut[o].setAttribute('view-all-href', viewAllOptOut);
       }
+      syncSuggestExactPartBlocks();
       return;
     }
     var ctx = resolveVehicleContext();
@@ -757,6 +807,8 @@ final class NuminixSeekmodoSuggestObserver extends base
       }
       nodes[i].setAttribute('view-all-href', viewAll);
     }
+    // Exact-part gating wins over vehicle view-all when active.
+    syncSuggestExactPartBlocks();
   }
   window.addEventListener('seekmodo:vehicle:selected', syncSuggestVehicleFilter);
   window.addEventListener('seekmodo:vehicle:cleared', syncSuggestVehicleFilter);
@@ -766,6 +818,10 @@ final class NuminixSeekmodoSuggestObserver extends base
       syncSuggestVehicleFilter();
     }
   }, true);
+  document.addEventListener('input', function (e) {
+    if (!e || !e.target || !e.target.matches) return;
+    if (e.target.matches(SELECTOR)) syncSuggestExactPartBlocks();
+  }, true);
   function scan(root) {
     try {
       var inputs = (root || document).querySelectorAll(SELECTOR);
@@ -773,10 +829,11 @@ final class NuminixSeekmodoSuggestObserver extends base
     } catch (_e) { /* malformed selector — bail silently */ }
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { scan(document); syncSuggestVehicleFilter(); });
+    document.addEventListener('DOMContentLoaded', function () { scan(document); syncSuggestVehicleFilter(); syncSuggestExactPartBlocks(); });
   } else {
     scan(document);
     syncSuggestVehicleFilter();
+    syncSuggestExactPartBlocks();
   }
   if ('MutationObserver' in window) {
     var mo = new MutationObserver(function (list) {

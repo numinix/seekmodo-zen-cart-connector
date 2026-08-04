@@ -1,3 +1,8 @@
+## Exact-part empty suggest alignment (prep for v1.3.45)
+
+- Restrict suggest to products/categories + drop View-all for exact part tokens;
+  REST shim clears keywords when products empty (AKS 1.7.6).
+
 # Seekmodo for Zen Cart v1.3.44
 
 ## 2026-08-03 - Exact SKU filter for hyphenated part tokens

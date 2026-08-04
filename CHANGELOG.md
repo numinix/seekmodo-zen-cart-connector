@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.45 - 2026-08-04 (Exact-part empty suggest alignment)
+
+- **Suggest empty exact-part alignment** - when the query looks like a
+  complete part token (AKS `looksLikeExactPartToken`, incl. `4-6340-20`),
+  restrict `<seekmodo-suggest>` to `products,categories` and drop View-all;
+  REST suggest shim clears keywords when products are empty (AKS 1.7.6).
+
 ## v1.3.44 - 2026-08-03 (Exact SKU filter for hyphenated parts)
 
 - **Exact `model`/`sku` filter for complete part tokens** - AKS
