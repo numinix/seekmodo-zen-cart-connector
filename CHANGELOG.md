@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.46 - 2026-08-04 (German suggest labels on DE-primary shops)
+
+- German-primary storefronts (`DEFAULT_LANGUAGE=german`) no longer ship
+  English suggest chrome ("results for" / "SUGGESTIONS") while ES/FR are
+  localized. Init falls back to `DEFAULT_LANGUAGE`; `suggestLabels()`
+  reloads the active pack from disk (NS-26042 Cannapot).
+
 ## v1.3.45 - 2026-08-04 (Exact-part empty suggest alignment)
 
 - **Suggest empty exact-part alignment** - when the query looks like a

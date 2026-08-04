@@ -1,0 +1,31 @@
+<?php
+/**
+ * Seekmodo language definitions (english) — array form for Zen Cart 1.5.8+.
+ */
+return [
+    'TEXT_SEEKMODO_SUGGEST_RECENT' => 'Recently searched',
+    'TEXT_SEEKMODO_SUGGEST_TRENDING' => 'Trending',
+    'TEXT_SEEKMODO_SUGGEST_KEYWORDS' => 'Suggestions',
+    'TEXT_SEEKMODO_SUGGEST_PRODUCTS' => 'Products',
+    'TEXT_SEEKMODO_SUGGEST_CATEGORIES' => 'Categories',
+    'TEXT_SEEKMODO_SUGGEST_REDIRECTS' => 'Redirects',
+    'TEXT_SEEKMODO_SUGGEST_DID_YOU_MEAN' => 'Did you mean',
+    'TEXT_SEEKMODO_SUGGEST_VIEW_ALL' => 'View all {total} results',
+    'TEXT_SEEKMODO_SUGGEST_VIEW_ALL_SHORT' => 'View all →',
+    'TEXT_SEEKMODO_SUGGEST_RESULTS_FOR' => '{total} results for ',
+    'TEXT_SEEKMODO_SUGGEST_SHOWING_RESULTS_FOR' => 'Showing results for "{query}". Search instead for ',
+    'TEXT_SEEKMODO_SUGGEST_PRODUCTS_COUNT' => '{count} products',
+    'TEXT_SEEKMODO_SUGGEST_PRODUCTS_PENDING' => 'Matching products appear when you pause typing…',
+    'TEXT_SEEKMODO_SUGGEST_EMPTY' => 'No matches yet — keep typing.',
+    'TEXT_SEEKMODO_SUGGEST_POWERED_BY' => 'Powered by ',
+    'TEXT_SEEKMODO_CORS_BLOCKED' => 'Search suggestions couldn\'t load because this site is blocked from reaching Seekmodo (CORS). Ask your store administrator to allowlist this domain on the Seekmodo gateway, or enable the connector\'s same-origin suggest proxy.',
+    'TEXT_SEEKMODO_RECO_PDP_RELATED' => 'Related products',
+    'TEXT_SEEKMODO_RECO_PDP_ALSO_BOUGHT' => 'Customers also bought',
+    'TEXT_SEEKMODO_RECO_PDP_ALSO_VIEWED' => 'Customers also viewed',
+    'TEXT_SEEKMODO_RECO_PDP_BUNDLE' => 'Frequently bought together',
+    'TEXT_SEEKMODO_RECO_CART' => 'Add to your cart',
+    'TEXT_SEEKMODO_RECO_CART_BUNDLE' => 'Complete your bundle',
+    'TEXT_SEEKMODO_RECO_HOME_TRENDING' => 'Trending now',
+    'TEXT_SEEKMODO_RECO_CATEGORY_TRENDING' => 'Trending in this category',
+    'TEXT_SEEKMODO_RECO_POPULAR' => 'Popular in this category',
+];
