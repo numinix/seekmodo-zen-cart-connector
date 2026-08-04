@@ -6,7 +6,7 @@ zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
 ## v1.3.44 - 2026-08-03 (Exact SKU filter for hyphenated parts)
 
-- **Exact `model`/`sku` filter for complete part tokens** — AKS
+- **Exact `model`/`sku` filter for complete part tokens** - AKS
   `looksLikeExactPartToken` parity (incl. all-digit multi-hyphen
   `4-6340-20`). Missing SKU ? zero results instead of a Typesense
   `drop_tokens` popularity dump.
@@ -38,28 +38,28 @@ zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
 ## v1.3.39 - 2026-07-29 (Complete storefront i18n)
 
-- **Suggest chrome** — localize remaining hardcoded strings (did-you-mean
+- **Suggest chrome** - localize remaining hardcoded strings (did-you-mean
   swap, short view-all, products count pill, redirects). DE powered-by
   uses Unterstuetzt von. Recommendations headings DE/ES/FR. Legacy
   typeahead + CORS notice share suggest labels (NS-26042 Cannapot).
 
 ## v1.3.38 - 2026-07-29 (Suggest i18n + admin PHP override)
 
-- **Suggest chrome translations** — `results_for` and `products_pending`
+- **Suggest chrome translations** - `results_for` and `products_pending`
   use the storefront language packs (DE/ES/FR) instead of hardcoded
   English. French keywords header uses "Propositions".
-- **Admin Push loads catalog PHP binary override** — Connect ? Push
+- **Admin Push loads catalog PHP binary override** - Connect ? Push
   includes `/shop/includes/extra_configures/numinix_seekmodo_php_binary.php`
   from the admin SAPI so an existing `/usr/bin/php8.3` override is
   honoured (NS-26042 Cannapot).
 
 ## v1.3.37 - 2026-07-29 (Suggest thumb + Push session)
 
-- **Suggest thumbnails** — prefer durable catalog originals over Image
+- **Suggest thumbnails** - prefer durable catalog originals over Image
   Handler `/images/cache/` 240px URLs that 403 (NS-26042 Cannapot
   flash-then-broken suggest images). Force reload restores prior src
   on error.
-- **CLI Push** — `session_write_close()` after bootstrap to avoid MySQL
+- **CLI Push** - `session_write_close()` after bootstrap to avoid MySQL
   Commands out of sync fatals during catalog push.
 
 ## v1.3.36 - 2026-07-28 (Log flood hardening)
