@@ -1,0 +1,31 @@
+<?php
+/**
+ * Seekmodo language definitions (french) — array form for Zen Cart 1.5.8+.
+ */
+return [
+    'TEXT_SEEKMODO_SUGGEST_RECENT' => 'Recherches récentes',
+    'TEXT_SEEKMODO_SUGGEST_TRENDING' => 'Tendances',
+    'TEXT_SEEKMODO_SUGGEST_KEYWORDS' => 'Propositions',
+    'TEXT_SEEKMODO_SUGGEST_PRODUCTS' => 'Produits',
+    'TEXT_SEEKMODO_SUGGEST_CATEGORIES' => 'Catégories',
+    'TEXT_SEEKMODO_SUGGEST_REDIRECTS' => 'Redirections',
+    'TEXT_SEEKMODO_SUGGEST_DID_YOU_MEAN' => 'Vouliez-vous dire',
+    'TEXT_SEEKMODO_SUGGEST_VIEW_ALL' => 'Voir les {total} résultats',
+    'TEXT_SEEKMODO_SUGGEST_VIEW_ALL_SHORT' => 'Tout voir →',
+    'TEXT_SEEKMODO_SUGGEST_RESULTS_FOR' => '{total} résultats pour ',
+    'TEXT_SEEKMODO_SUGGEST_SHOWING_RESULTS_FOR' => 'Résultats pour « {query} ». Rechercher plutôt ',
+    'TEXT_SEEKMODO_SUGGEST_PRODUCTS_COUNT' => '{count} produits',
+    'TEXT_SEEKMODO_SUGGEST_PRODUCTS_PENDING' => 'Les produits correspondants apparaissent lorsque vous arrêtez de taper…',
+    'TEXT_SEEKMODO_SUGGEST_EMPTY' => 'Aucune correspondance — continuez à saisir.',
+    'TEXT_SEEKMODO_SUGGEST_POWERED_BY' => 'Propulsé par ',
+    'TEXT_SEEKMODO_CORS_BLOCKED' => 'Les suggestions de recherche n\'ont pas pu être chargées car ce site est bloqué pour atteindre Seekmodo (CORS). Demandez à l\'administrateur de la boutique d\'autoriser ce domaine sur la passerelle Seekmodo, ou d\'activer le proxy de suggestions same-origin du connecteur.',
+    'TEXT_SEEKMODO_RECO_PDP_RELATED' => 'Produits associés',
+    'TEXT_SEEKMODO_RECO_PDP_ALSO_BOUGHT' => 'Les clients ont aussi acheté',
+    'TEXT_SEEKMODO_RECO_PDP_ALSO_VIEWED' => 'Les clients ont aussi consulté',
+    'TEXT_SEEKMODO_RECO_PDP_BUNDLE' => 'Fréquemment achetés ensemble',
+    'TEXT_SEEKMODO_RECO_CART' => 'Ajouter à votre panier',
+    'TEXT_SEEKMODO_RECO_CART_BUNDLE' => 'Complétez votre lot',
+    'TEXT_SEEKMODO_RECO_HOME_TRENDING' => 'Tendances du moment',
+    'TEXT_SEEKMODO_RECO_CATEGORY_TRENDING' => 'Tendances dans cette catégorie',
+    'TEXT_SEEKMODO_RECO_POPULAR' => 'Populaire dans cette catégorie',
+];
