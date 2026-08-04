@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.44 - 2026-08-03 (Exact SKU filter for hyphenated parts)
+
+- **Exact `model`/`sku` filter for complete part tokens** — AKS
+  `looksLikeExactPartToken` parity (incl. all-digit multi-hyphen
+  `4-6340-20`). Missing SKU ? zero results instead of a Typesense
+  `drop_tokens` popularity dump.
+
 ## v1.3.43 - 2026-08-03 (Numeric model / SKU lookup)
 
 - **Bare-digit search uses Typesense `id` + exact `model`/`sku`** -

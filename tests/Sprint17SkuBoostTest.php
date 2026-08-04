@@ -108,11 +108,20 @@ foreach ($argvIdx as $arg) {
         // Loaded transitively below; no stub needed.
     }
 
-    require_once __DIR__ . '/../zc_plugins/Seekmodo/v1.0.17/catalog/includes/functions/numinix_seekmodo_search_lib.php';
+    require_once __DIR__ . '/../zc_plugins/Seekmodo/v1.3.44/catalog/includes/functions/numinix_seekmodo_search_lib.php';
 
     $inputPayload = (array)($payload['payload'] ?? []);
     $keyword = (string)($payload['keyword'] ?? '');
-    $result = _numinix_seekmodo_apply_sku_boost($inputPayload, $keyword);
+    $mode = (string)($payload['mode'] ?? 'boost');
+    if ($mode === 'exact') {
+        $result = _numinix_seekmodo_apply_exact_sku_filter($inputPayload, $keyword);
+    } elseif ($mode === 'looks') {
+        $result = [
+            'looks' => _numinix_seekmodo_looks_like_exact_part_token(trim($keyword)),
+        ];
+    } else {
+        $result = _numinix_seekmodo_apply_sku_boost($inputPayload, $keyword);
+    }
 
     echo json_encode($result) . "\n";
     exit(0);
@@ -285,6 +294,79 @@ s17sku_assert_eq(
     true,
     $r['prioritize_exact_match'] ?? null,
     'caller-set true is preserved',
+    $errors,
+    $passed
+);
+
+// ---------------------------------------------------------------------
+// Case 6 — v1.3.44 exact model/sku filter (AKS parity / 4-6340-20).
+// ---------------------------------------------------------------------
+echo "\nCase 6: exact SKU filter for hyphenated part tokens\n";
+
+foreach (['4-6340-20', 'GM-933', '72147-TZ6-A71', 'EZ-LK99', '4-6340'] as $q) {
+    $r = s17sku_runCaseInChild([
+        'mode' => 'looks',
+        'payload' => [],
+        'keyword' => $q,
+    ]);
+    s17sku_assert_eq(
+        true,
+        $r['looks'] ?? null,
+        sprintf('looksLikeExactPartToken("%s")', $q),
+        $errors,
+        $passed
+    );
+}
+
+$r = s17sku_runCaseInChild([
+    'mode' => 'looks',
+    'payload' => [],
+    'keyword' => 'brk-sk-for',
+]);
+s17sku_assert_eq(
+    false,
+    $r['looks'] ?? null,
+    'letter-only model prefix is NOT exact-filtered',
+    $errors,
+    $passed
+);
+
+$r = s17sku_runCaseInChild([
+    'mode' => 'exact',
+    'payload' => ['q' => '4-6340-20'],
+    'keyword' => '4-6340-20',
+]);
+s17sku_assert_eq(
+    '(model:=`4-6340-20` || sku:=`4-6340-20`)',
+    $r['filter_by'] ?? null,
+    '4-6340-20 sets exact model/sku filter',
+    $errors,
+    $passed
+);
+s17sku_assert_eq(
+    true,
+    $r['prioritize_exact_match'] ?? null,
+    '4-6340-20 exact filter sets prioritize_exact_match',
+    $errors,
+    $passed
+);
+s17sku_assert_eq(
+    '4-6340-20',
+    $r['q'] ?? null,
+    '4-6340-20 keeps keyword as q (no rewrite to *)',
+    $errors,
+    $passed
+);
+
+$r = s17sku_runCaseInChild([
+    'mode' => 'exact',
+    'payload' => ['q' => 'brk-sk-for'],
+    'keyword' => 'brk-sk-for',
+]);
+s17sku_assert_eq(
+    false,
+    array_key_exists('filter_by', $r),
+    'letter-only prefix leaves filter_by unset',
     $errors,
     $passed
 );
