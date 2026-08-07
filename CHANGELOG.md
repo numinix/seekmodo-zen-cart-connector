@@ -4,6 +4,16 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.47 - 2026-08-07 (CLI host fallback + suggest/SERP parity)
+
+- **CLI indexer host** - fall back to Zen Cart `HTTPS_SERVER` /
+  `HTTP_SERVER` when `HTTPS_CATALOG_SERVER` is unset so crons can
+  satisfy the locked-domain index gate (Redline watermark stall).
+- **Suggest / SERP parity** - PHP suggest payload now sends
+  `serp_passthrough` + `include_products` (and `complete` for
+  multi-word queries) so SerpPreview matches SERP products unless
+  the SERP is on enhanced-native fallback.
+
 ## v1.3.46 - 2026-08-04 (German suggest labels on DE-primary shops)
 
 - German-primary storefronts (`DEFAULT_LANGUAGE=german`) no longer ship
