@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.48 - 2026-08-09 (Soft-guard live stock warnings on search)
+
+- Soft-guard `zen_get_products_stock()` so missing `products_quantity`
+  no longer floods PHP warnings during advanced search live-stock
+  ranking; demote stale Typesense ids with no products row (NS-26042
+  Cannapot).
+
 ## v1.3.47 - 2026-08-07 (CLI host fallback + suggest/SERP parity)
 
 - **CLI indexer host** - fall back to Zen Cart `HTTPS_SERVER` /
