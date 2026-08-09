@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.49 - 2026-08-09 (SERP listing SQL parity)
+
+- **SERP product grid uses Seekmodo SQL** — rewrite `$GLOBALS['listing_sql']`
+  when swapping search results so `product_listing.php` pagination and
+  the product grid match the Seekmodo count/order (fixes header "N search
+  results" disagreeing with "1 – M of K items" native FULLTEXT listing).
+
 ## v1.3.48 - 2026-08-09 (Soft-guard live stock warnings on search)
 
 - Soft-guard `zen_get_products_stock()` so missing `products_quantity`
