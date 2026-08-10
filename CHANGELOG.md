@@ -4,6 +4,14 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.54 - 2026-08-10 (Enhanced Native SERP when unpaid / unpaired)
+
+- **SERP Enhanced Native without the gateway** — unpaired, mode=off, and
+  sticky unpaid (`trial_expired` / `over_quota` / cancelled) no longer
+  skip the listing rewrite. Multi-field SQL retrieval ranks the SERP
+  locally (same contract as Enhanced Native typeahead). Avoids Zen Cart
+  native LIKE + default name sort dumping thousands of weak matches.
+
 ## v1.3.53 - 2026-08-10 (Suggest branded-theming CSS custom properties)
 
 - **Suggest theming tokens** — rebundled `seekmodo_suggest.bundle.js`
