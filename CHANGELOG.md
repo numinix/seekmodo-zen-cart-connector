@@ -4,6 +4,15 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.50 - 2026-08-09 (SERP default relevance sort)
+
+- **SERP keeps Seekmodo relevance by default** — ignore Zen Cart's
+  injected `PRODUCT_LISTING_DEFAULT_SORT_ORDER` (often name / `2a`)
+  unless the shopper actually requested `sort=` in the URL.
+- Adds a localized **Relevance** option to SERP sort menus
+  (`sort=relevance`) so shoppers can return to Seekmodo ranking after
+  choosing name/price/date (NS-26042 Cannapot).
+
 ## v1.3.49 - 2026-08-09 (SERP listing SQL parity)
 
 - **SERP product grid uses Seekmodo SQL** — rewrite `$GLOBALS['listing_sql']`
