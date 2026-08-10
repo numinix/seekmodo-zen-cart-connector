@@ -4,6 +4,16 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.52 - 2026-08-10 (Admin billing notices)
+
+- **Connect soft banner** while paired + sticky unpaid / quota /
+  trial_expired / paused — Enhanced Native is fine / free; billing
+  link to restore cloud. Soft amber for EN; red for paused.
+- **Admin homepage caution** once per admin until dismissed for this
+  denial episode; dismissals clear when cloud recovers so a future
+  lapse can notify again. No sitewide nag after dismiss while sticky.
+- Unpaired Enhanced Native–only installs are never warned.
+
 ## v1.3.51 - 2026-08-10 (EN local suggest on unpaid / 402)
 
 - **Enhanced Native suggest when unpaid** � browser `/v1/suggest` HTTP
