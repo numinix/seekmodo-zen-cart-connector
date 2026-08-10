@@ -4,6 +4,17 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.53 - 2026-08-10 (Suggest branded-theming CSS custom properties)
+
+- **Suggest theming tokens** — rebundled `seekmodo_suggest.bundle.js`
+  (`@seekmodo/web-components` 0.4.2). Adds `--seekmodo-suggest-accent`,
+  `-header-bg/-color`, `-did-you-mean-bg/-border`, `-badge-bg/-color`,
+  `-meta-bg/-color/-count-color`, `-cta-*`, `-dym-swap-*`,
+  `-row-accent*`, and `-rail-bg` CSS custom properties so a storefront
+  can fully brand the suggest dropdown from its own theme CSS. No
+  defaults changed — zero visual change for installs with no
+  overrides.
+
 ## v1.3.52 - 2026-08-10 (Admin billing notices)
 
 - **Connect soft banner** while paired + sticky unpaid / quota /
