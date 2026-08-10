@@ -4,6 +4,15 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.51 - 2026-08-10 (EN local suggest on unpaid / 402)
+
+- **Enhanced Native suggest when unpaid** � browser `/v1/suggest` HTTP
+  402 (`trial_expired` / `over_quota`) no longer leaves a hung
+  loading dropdown. Vendored `@seekmodo/web-components` 0.3.15 emits
+  `seekmodo-suggest:empty` with `reason=quota`; sticky APCu/session
+  gate skips cloud suggest and serves PHP Enhanced Native typeahead
+  until a successful metered search/suggest clears it (resubscribe).
+  Transient 5xx does not sticky-switch.
 ## v1.3.50 - 2026-08-09 (SERP default relevance sort)
 
 - **SERP keeps Seekmodo relevance by default** — ignore Zen Cart's
