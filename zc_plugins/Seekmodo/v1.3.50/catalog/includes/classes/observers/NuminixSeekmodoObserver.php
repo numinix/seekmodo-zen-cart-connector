@@ -509,7 +509,7 @@ class NuminixSeekmodoObserver extends \base
             _numinix_seekmodo_mark_serp_relevance_sort();
         }
         $total = isset($envelope['total']) ? (int) $envelope['total'] : count($productIds);
-        $this->rewriteSplitPageResults($result, $rewritten, $total);
+        $this->rewriteSplitPageResults($result, $rewritten, $total, $productIds);
         $this->stashPositionMap($productIds);
     }
 
@@ -1017,13 +1017,21 @@ class NuminixSeekmodoObserver extends \base
      * it in the observer cannot update the caller's local. We must
      * rewrite `$GLOBALS['listing_sql']` so the listing grid +
      * "1 – N of M items" pagination use Seekmodo's ORDER BY FIELD SQL.
+     *
+     * Some stores (e.g. Redline) also rebuild that second split with an
+     * ES/Typesense total bag — typically `$es_products_id_2['total']` —
+     * which otherwise keeps the pre-Seekmodo native count (and fights
+     * suggest/gateway totals). Sync that bag when present.
+     *
+     * @param int[] $productIds Ordered gateway ids when available.
      */
-    private function rewriteSplitPageResults($result, string $sql, int $total): void
+    private function rewriteSplitPageResults($result, string $sql, int $total, array $productIds = []): void
     {
         $result->sql_query = $sql;
         $result->number_of_rows = $total;
         // See method docblock — listing module re-splits from this global.
         $GLOBALS['listing_sql'] = $sql;
+        $this->syncLegacyEsSerpTotal($total, $productIds);
         $perPage = 0;
         if (defined('MAX_DISPLAY_PRODUCTS_LISTING')) {
             $perPage = (int) MAX_DISPLAY_PRODUCTS_LISTING;
@@ -1035,6 +1043,33 @@ class NuminixSeekmodoObserver extends \base
         // current_page_number was already initialised by the
         // splitPageResults constructor from the `page` GET param;
         // leave it.
+    }
+
+    /**
+     * Keep legacy Typesense/elasticsearch SERP bags aligned with the
+     * Seekmodo swap so custom product_listing modules that pass
+     * `['total' => $es_products_id_2['total']]` into splitPageResults
+     * do not clobber the gateway count.
+     *
+     * @param int[] $productIds
+     */
+    private function syncLegacyEsSerpTotal(int $total, array $productIds): void
+    {
+        global $es_products_id_2;
+        $bags = [];
+        if (isset($GLOBALS['es_products_id_2']) && is_array($GLOBALS['es_products_id_2'])) {
+            $bags[] =& $GLOBALS['es_products_id_2'];
+        }
+        if (isset($es_products_id_2) && is_array($es_products_id_2)) {
+            $bags[] =& $es_products_id_2;
+        }
+        foreach ($bags as &$bag) {
+            $bag['total'] = $total;
+            if ($productIds !== []) {
+                $bag['products'] = $productIds;
+            }
+        }
+        unset($bag);
     }
 
     /**
