@@ -1321,25 +1321,14 @@ if (!function_exists('_numinix_seekmodo_typesense_tuning_params')) {
         if (defined('NUMINIX_TYPESENSE_DROP_TOKENS_THRESHOLD')) {
             $payload['drop_tokens_threshold'] = (int)NUMINIX_TYPESENSE_DROP_TOKENS_THRESHOLD;
         }
-        if (defined('NUMINIX_TYPESENSE_QUERY_BY') && NUMINIX_TYPESENSE_QUERY_BY !== '') {
-            $qBy = (string)NUMINIX_TYPESENSE_QUERY_BY;
-            $payload['query_by'] = $qBy;
-            $fieldCount = substr_count($qBy, ',') + 1;
-            $perField = [
-                'query_by_weights' => 'NUMINIX_TYPESENSE_QUERY_BY_WEIGHTS',
-                'prefix'           => 'NUMINIX_TYPESENSE_PREFIX',
-                'infix'            => 'NUMINIX_TYPESENSE_INFIX',
-            ];
-            foreach ($perField as $param => $constName) {
-                if (defined($constName)) {
-                    $val = constant($constName);
-                    if (is_string($val) && $val !== ''
-                        && (substr_count($val, ',') + 1) === $fieldCount) {
-                        $payload[$param] = $val;
-                    }
-                }
-            }
-        }
+        // Intentionally do NOT forward storefront NUMINIX_TYPESENSE_QUERY_BY
+        // (or weights/prefix/infix) to the Seekmodo gateway. Those
+        // constants are a narrow legacy Typesense field list
+        // (commonly name,model,description). Suggest / SerpPreview use
+        // gateway-default query_by; forcing the narrow list made SERP
+        // totals diverge (e.g. wheel vise: SERP 50 vs suggest 52).
+        // Sort + typo thresholds still pass through — those do not
+        // change `found`.
         if ($forKeywordSearch && defined('NUMINIX_TYPESENSE_KEYWORD_SORT_BY')
             && NUMINIX_TYPESENSE_KEYWORD_SORT_BY !== '') {
             $payload['sort_by'] = (string)NUMINIX_TYPESENSE_KEYWORD_SORT_BY;
@@ -2306,58 +2295,6 @@ if (!function_exists('_numinix_seekmodo_shadow_log')) {
     }
 }
 
-if (!function_exists('_numinix_seekmodo_query_sort_value')) {
-    /**
-     * Raw `sort=` value from the inbound query string only.
-     *
-     * Zen Cart's advanced_search_result header injects
-     * PRODUCT_LISTING_DEFAULT_SORT_ORDER (often `2a` = name) into
-     * $_GET['sort'] when the shopper did not pick a sort. That must
-     * not be treated as an intentional local re-sort — Seekmodo's
-     * default ranking is gateway relevance (ORDER BY FIELD).
-     *
-     * @return string|null Null when the request had no sort= param.
-     */
-    function _numinix_seekmodo_query_sort_value(): ?string
-    {
-        $qs = (string) ($_SERVER['QUERY_STRING'] ?? '');
-        if ($qs === '' || !preg_match('/(?:^|&)sort=([^&]*)/i', $qs, $m)) {
-            return null;
-        }
-        return rawurldecode(str_replace('+', ' ', $m[1]));
-    }
-}
-
-if (!function_exists('_numinix_seekmodo_is_relevance_sort_value')) {
-    /**
-     * @param string|null $sort
-     */
-    function _numinix_seekmodo_is_relevance_sort_value($sort): bool
-    {
-        if ($sort === null) {
-            return true;
-        }
-        $s = strtolower(trim((string) $sort));
-        return $s === '' || $s === 'relevance' || $s === 'sm' || $s === 'seekmodo';
-    }
-}
-
-if (!function_exists('_numinix_seekmodo_mark_serp_relevance_sort')) {
-    /**
-     * When the SERP is relevance-ranked, expose sort=relevance in $_GET
-     * so theme links built via zen_get_all_get_params keep Relevance
-     * across language / currency / pagination (instead of re-asserting
-     * the store's PRODUCT_LISTING_DEFAULT_SORT_ORDER).
-     */
-    function _numinix_seekmodo_mark_serp_relevance_sort(): void
-    {
-        if (!_numinix_seekmodo_is_relevance_sort_value(_numinix_seekmodo_query_sort_value())) {
-            return;
-        }
-        $_GET['sort'] = 'relevance';
-    }
-}
-
 if (!function_exists('_numinix_seekmodo_listing_order_sql')) {
     /**
      * Shopper-selected ORDER BY for gateway-constrained SERPs.
@@ -2368,22 +2305,11 @@ if (!function_exists('_numinix_seekmodo_listing_order_sql')) {
      * column links). Without this, ORDER BY FIELD(...) locks the
      * gateway ranking and sort/filter controls appear broken.
      *
-     * Default / missing / sort=relevance keeps FIELD(...). Zen Cart's
-     * injected PRODUCT_LISTING_DEFAULT_SORT_ORDER in $_GET is ignored
-     * unless that value also appears in the inbound query string.
-     *
      * @param int[] $productIds Gateway-ranked product IDs (for FIELD fallback).
      */
     function _numinix_seekmodo_listing_order_sql(array $productIds): string
     {
         if (isset($_GET['sortby']) && $_GET['sortby'] !== '') {
-            // KIP-style dropdowns usually include an explicit relevance /
-            // "best match" choice as empty or a dedicated value.
-            $sortbyRaw = strtolower(trim((string) $_GET['sortby']));
-            if ($sortbyRaw === 'relevance' || $sortbyRaw === 'sm' || $sortbyRaw === 'seekmodo') {
-                $idCsv = implode(',', array_map('intval', $productIds));
-                return ' ORDER BY FIELD(p.products_id, ' . $idCsv . ')';
-            }
             switch ((int) $_GET['sortby']) {
                 case 1:
                     return ' ORDER BY p.products_date_added DESC, pd.products_name ASC';
@@ -2399,13 +2325,10 @@ if (!function_exists('_numinix_seekmodo_listing_order_sql')) {
                     return ' ORDER BY p.products_sort_order ASC, pd.products_name ASC';
             }
         }
-
-        $requested = _numinix_seekmodo_query_sort_value();
-        if (!_numinix_seekmodo_is_relevance_sort_value($requested)
-            && is_string($requested)
-            && preg_match('/^(\d)([ad])$/i', $requested, $m)
+        if (isset($_GET['sort']) && is_string($_GET['sort'])
+            && preg_match('/^(\d)([ad])$/', $_GET['sort'], $m)
         ) {
-            $dir = strtolower($m[2]) === 'd' ? 'DESC' : 'ASC';
+            $dir = $m[2] === 'd' ? 'DESC' : 'ASC';
             switch ((int) $m[1]) {
                 case 1:
                     return ' ORDER BY p.products_model ' . $dir . ', pd.products_name ASC';
