@@ -98,6 +98,8 @@ queue pending.
 - Subsequent releases auto-queue updates only when that field is set.
 - Credentials: `NX/secrets/zencart.com.txt`. Drain manually anytime:
   `python numinix.com-local/scripts/publish_zencart_com_release.py --drain-numinix-queue`
+  (submits **only the latest pending version per product**; older
+  pending queue rows are ACK'd `skipped` — never uploaded).
 - Inventory / backfill helpers:
   `inventory-zencart-com-plugins.py`, `backfill-zencart-com-plugin-ids.sql`
 
