@@ -4,6 +4,15 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.55 - 2026-08-11 (EN SERP uncap + legacy suggest URLs)
+
+- **Legacy suggest on `/search/*` SERPs** — absolute catalog-root
+  endpoint injection; no more relative `/search/numinix_seekmodo_suggest.php`
+  404s. Legacy JS cache-bust + raw `&` in product URLs.
+- **Enhanced Native SERP** — full COUNT + WHERE listing (no 48-id
+  cap); multi-word AND typeahead; Reloaded/SBM `sortby` price/name
+  codes honored for vanilla and Reloaded Zen Cart storefronts.
+
 ## v1.3.54 - 2026-08-10 (Enhanced Native SERP when unpaid / unpaired)
 
 - **SERP Enhanced Native without the gateway** — unpaired, mode=off, and
