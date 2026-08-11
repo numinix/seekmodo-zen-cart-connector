@@ -473,10 +473,39 @@ class NuminixSeekmodoObserver extends \base
             $params['skip_merchandising_redirect'] = true;
         }
         $envelope = numinix_seekmodo_run_search($params);
-        // Null = mode=off / shadow / breaker open — try Enhanced Native.
+        // Null = mode=off / shadow / breaker open — Enhanced Native.
+        // Prefer WHERE-based listing SQL (no ID-list / artificial page cap)
+        // so SERP totals and pagination match the full SQL match set.
         if (!is_array($envelope) || empty($envelope['products']) || !is_array($envelope['products'])) {
+            if (
+                function_exists('numinix_seekmodo_build_enhanced_native_listing_sql')
+                && function_exists('numinix_seekmodo_enhanced_native_count')
+            ) {
+                $enTotal = numinix_seekmodo_enhanced_native_count($kw);
+                $enSql = $enTotal > 0 ? numinix_seekmodo_build_enhanced_native_listing_sql($kw) : null;
+                if ($enSql !== null && $enTotal > 0) {
+                    if (function_exists('_numinix_seekmodo_mark_serp_relevance_sort')) {
+                        _numinix_seekmodo_mark_serp_relevance_sort();
+                    }
+                    $this->rewriteSplitPageResults($result, $enSql, $enTotal);
+                    if (function_exists('numinix_seekmodo_run_enhanced_native_search')) {
+                        $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+                        $perPage = defined('MAX_DISPLAY_PRODUCTS_LISTING')
+                            ? (int) constant('MAX_DISPLAY_PRODUCTS_LISTING')
+                            : 20;
+                        if ($perPage <= 0) {
+                            $perPage = 20;
+                        }
+                        $pageHits = numinix_seekmodo_run_enhanced_native_search($kw, $page, $perPage);
+                        if (is_array($pageHits) && !empty($pageHits['product_ids'])) {
+                            $this->stashPositionMap($pageHits['product_ids']);
+                        }
+                    }
+                    return;
+                }
+            }
             if (function_exists('numinix_seekmodo_run_enhanced_native_search')) {
-                $enhanced = numinix_seekmodo_run_enhanced_native_search($kw, 1, 48);
+                $enhanced = numinix_seekmodo_run_enhanced_native_search($kw, 1, 12500);
                 if (is_array($enhanced) && !empty($enhanced['product_ids'])) {
                     $envelope = [
                         'products' => $enhanced['product_ids'],
