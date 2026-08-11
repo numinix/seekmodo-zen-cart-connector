@@ -1,7 +1,7 @@
 {
-  "kid": "dev-ephemeral",
+  "kid": "seekmodo-2026-06-r2",
   "alg": "EdDSA",
   "kty": "OKP",
   "crv": "Ed25519",
-  "x": "gHgbkk2hesDj0EzdK7LXw3y9DiBLCqXkeaHFTlhsP60"
+  "x": "ozNs5QQUhP6YNjE_KffhJqYtDQL8m2mHzWNivlhgoPA"
 }
