@@ -161,6 +161,12 @@ final class NuminixSeekmodoSuggestObserver extends base
                     . $labelsJson
                     . ';</script>' . "\n";
             }
+            $shim = $this->suggestShimUrl();
+            if ($shim !== '') {
+                $out .= '<script>window.SeekmodoSuggestEndpoint='
+                    . json_encode($shim, JSON_UNESCAPED_SLASHES)
+                    . ';</script>' . "\n";
+            }
         }
 
         $this->cachedHeadHtml = $out;
@@ -242,13 +248,12 @@ final class NuminixSeekmodoSuggestObserver extends base
 
         $url = $base . 'zc_plugins/Seekmodo/' . $version
             . '/catalog/includes/templates/template_default/jscript/' . $file;
-        // Bust Cloudflare / browser year-long cache on plugin JS updates.
-        if (!$useLegacy) {
-            $disk = dirname(__DIR__, 4)
-                . '/catalog/includes/templates/template_default/jscript/' . $file;
-            if (is_readable($disk)) {
-                $url .= '?v=' . (string) filemtime($disk);
-            }
+        // Bust Cloudflare / browser year-long cache on plugin JS updates
+        // (legacy + modern).
+        $disk = dirname(__DIR__, 4)
+            . '/catalog/includes/templates/template_default/jscript/' . $file;
+        if (is_readable($disk)) {
+            $url .= '?v=' . (string) filemtime($disk);
         }
 
         return $url;

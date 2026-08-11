@@ -115,31 +115,44 @@
         if (byId) {
             add(byId);
         }
+        var bySearchbox = document.getElementById('input-searchbox');
+        if (bySearchbox) {
+            add(bySearchbox);
+        }
         return inputs;
     }
 
     function endpointBase() {
-        // Resolve relative to the script's loaded directory so a
-        // sub-directory Zen Cart install (e.g. redlinestands.com's
-        // /catalog/) works without a hand-edited path.
+        // Prefer absolute catalog-root URL injected by the observer.
+        // Relative ENDPOINT breaks on rewritten SERPs like
+        // /search/results.html → /search/numinix_seekmodo_suggest.php (404).
+        try {
+            if (typeof window.SeekmodoSuggestEndpoint === 'string'
+                && window.SeekmodoSuggestEndpoint) {
+                return window.SeekmodoSuggestEndpoint;
+            }
+        } catch (e) {}
+
         var scripts = document.getElementsByTagName('script');
         for (var i = 0; i < scripts.length; i++) {
             var src = scripts[i].src || '';
-            if (src.indexOf('jscript_seekmodo_typeahead') === -1) {
+            if (src.indexOf('seekmodo_typeahead') === -1
+                && src.indexOf('jscript_seekmodo_typeahead') === -1) {
                 continue;
             }
-            // .../catalog/includes/templates/<tpl>/jscript/<file>
-            // The endpoint lives at .../catalog/<file>, so walk up
-            // four directories.
-            var match = src.match(/^(.*)\/includes\/templates\/[^/]+\/jscript\/[^/]+$/);
+            if (src.indexOf('/zc_plugins/') !== -1) {
+                continue;
+            }
+            var match = src.match(/^(.*)\/includes\/templates\/[^/]+\/jscript\/[^/?#]+/);
             if (match) {
                 return match[1].replace(/\/$/, '') + '/' + ENDPOINT;
             }
         }
-        // Fallback: assume the connector endpoint is at site root /
-        // current dir. Either way the storefront's own typeahead
-        // picks up when the fetch 404s.
-        return ENDPOINT;
+        try {
+            return new URL('/' + ENDPOINT.replace(/^\//, ''), window.location.origin).pathname;
+        } catch (e2) {
+            return '/' + ENDPOINT.replace(/^\//, '');
+        }
     }
 
     function buildDropdown(input) {
