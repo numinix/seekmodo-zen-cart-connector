@@ -178,6 +178,41 @@ if (!function_exists('numinix_seekmodo_enhanced_native_count')) {
     }
 }
 
+
+if (!function_exists('numinix_seekmodo_enhanced_native_listing_order_sql')) {
+    /**
+     * SERP ORDER BY for Enhanced Native listing SQL.
+     *
+     * Uses the Numinix Reloaded / SBM sortby codes (shared by many ZC
+     * storefronts): 1=newest, 2=popular, 3=price high, 4=price low,
+     * 5=name, 8/default=SBM sort_order. Falls back to EN popularity.
+     */
+    function numinix_seekmodo_enhanced_native_listing_order_sql(): string
+    {
+        if (isset($_GET['sortby']) && (string) $_GET['sortby'] !== '') {
+            switch ((int) $_GET['sortby']) {
+                case 1:
+                    return ' ORDER BY p.products_date_added DESC, pd.products_name ASC';
+                case 2:
+                    return ' ORDER BY p.products_ordered DESC, pd.products_name ASC';
+                case 3:
+                    return ' ORDER BY p.products_price_sorter DESC, pd.products_name ASC';
+                case 4:
+                    return ' ORDER BY p.products_price_sorter ASC, pd.products_name ASC';
+                case 5:
+                    return ' ORDER BY pd.products_name ASC';
+                case 6:
+                    return ' ORDER BY pd.products_name DESC';
+                case 8:
+                case 0:
+                    return ' ORDER BY p.products_sort_order ASC, pd.products_name ASC';
+            }
+        }
+        // No shopper sort (or "best match") — EN popularity ranking.
+        return ' ORDER BY ' . numinix_seekmodo_enhanced_native_order_sql();
+    }
+}
+
 if (!function_exists('numinix_seekmodo_build_enhanced_native_listing_sql')) {
     /**
      * Full listing SQL for EN SERPs — no ID list / no artificial result-count
@@ -212,7 +247,7 @@ if (!function_exists('numinix_seekmodo_build_enhanced_native_listing_sql')) {
             . ' WHERE p.products_status = 1'
             . ' AND pd.language_id = ' . $lang
             . ' AND ' . implode(' AND ', $clauses)
-            . ' ORDER BY ' . numinix_seekmodo_enhanced_native_order_sql();
+            . numinix_seekmodo_enhanced_native_listing_order_sql();
     }
 }
 
