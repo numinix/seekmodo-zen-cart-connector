@@ -75,14 +75,30 @@ if (!function_exists('numinix_seekmodo_run_enhanced_native_search')) {
             return null;
         }
 
-        $like = '%' . zen_db_input($q) . '%';
         $lang = isset($_SESSION['languages_id']) ? (int)$_SESSION['languages_id'] : 1;
         $offset = max(0, ($page - 1) * $perPage);
+        // Multi-word: require each token to match name/description/model/mfr (AND).
+        $tokens = preg_split('/\s+/u', $q, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $tokenClauses = [];
+        foreach ($tokens as $tok) {
+            $tok = trim((string) $tok);
+            if ($tok === '' || mb_strlen($tok) < 1) {
+                continue;
+            }
+            $like = '%' . zen_db_input($tok) . '%';
+            $tokenClauses[] = '(pd.products_name LIKE \'' . $like
+                . '\' OR pd.products_description LIKE \'' . $like
+                . '\' OR p.products_model LIKE \'' . $like
+                . '\' OR m.manufacturers_name LIKE \'' . $like . '\')';
+        }
+        if ($tokenClauses === []) {
+            return null;
+        }
         $sql = 'SELECT p.products_id FROM ' . TABLE_PRODUCTS . ' p '
             . 'LEFT JOIN ' . TABLE_PRODUCTS_DESCRIPTION . ' pd ON p.products_id = pd.products_id AND pd.language_id = ' . $lang
             . ' LEFT JOIN ' . TABLE_MANUFACTURERS . ' m ON p.manufacturers_id = m.manufacturers_id '
             . 'WHERE p.products_status = 1 '
-            . 'AND (pd.products_name LIKE \'' . $like . '\' OR p.products_model LIKE \'' . $like . '\' OR m.manufacturers_name LIKE \'' . $like . '\') '
+            . 'AND ' . implode(' AND ', $tokenClauses) . ' '
             . 'ORDER BY ' . numinix_seekmodo_enhanced_native_order_sql() . ' '
             . 'LIMIT ' . (int)$perPage . ' OFFSET ' . (int)$offset;
 
@@ -115,8 +131,15 @@ if (!function_exists('numinix_seekmodo_run_typeahead_local')) {
             return null;
         }
         $search = numinix_seekmodo_run_enhanced_native_search($q, 1, max(1, min(15, $max)));
-        if ($search === null || $search['product_ids'] === []) {
-            return null;
+        // Empty results are still a successful EN answer (not gateway_null).
+        if ($search === null) {
+            return [
+                'q'          => $q,
+                'items'      => [],
+                'keywords'   => [],
+                'categories' => [],
+                'total'      => 0,
+            ];
         }
         $items = [];
         foreach ($search['product_ids'] as $pid) {
@@ -134,8 +157,11 @@ if (!function_exists('numinix_seekmodo_run_typeahead_local')) {
         }
 
         return [
-            'q'     => $q,
-            'items' => $items,
+            'q'          => $q,
+            'items'      => $items,
+            'keywords'   => [],
+            'categories' => [],
+            'total'      => count($items),
         ];
     }
 }
