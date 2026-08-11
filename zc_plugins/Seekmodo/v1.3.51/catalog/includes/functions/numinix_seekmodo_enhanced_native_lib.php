@@ -3,6 +3,22 @@
  * Enhanced Native search for Zen Cart — connector-owned SQL retrieval.
  */
 
+
+if (!function_exists('numinix_seekmodo_href_link_raw')) {
+    /**
+     * zen_href_link() emits HTML-safe &amp; for template use. JSON / Location
+     * headers need a raw URL with &.
+     */
+    function numinix_seekmodo_href_link_raw(string $page, string $parameters = '', string $connection = 'NONSSL'): string
+    {
+        if (!function_exists('zen_href_link')) {
+            return '';
+        }
+        $url = (string) zen_href_link($page, $parameters, $connection);
+        return htmlspecialchars_decode($url, ENT_QUOTES);
+    }
+}
+
 if (!function_exists('numinix_seekmodo_enhanced_native_enabled')) {
     function numinix_seekmodo_enhanced_native_enabled(): bool
     {
@@ -150,9 +166,11 @@ if (!function_exists('numinix_seekmodo_run_typeahead_local')) {
             $items[] = [
                 'products_id' => (int) $pid,
                 'value'       => $name,
-                'url'         => function_exists('zen_href_link')
-                    ? (string) zen_href_link(FILENAME_PRODUCT_INFO, 'products_id=' . (int) $pid)
-                    : '',
+                'url'         => function_exists('numinix_seekmodo_href_link_raw')
+                    ? numinix_seekmodo_href_link_raw(FILENAME_PRODUCT_INFO, 'products_id=' . (int) $pid)
+                    : (function_exists('zen_href_link')
+                        ? htmlspecialchars_decode((string) zen_href_link(FILENAME_PRODUCT_INFO, 'products_id=' . (int) $pid), ENT_QUOTES)
+                        : ''),
             ];
         }
 

@@ -59,6 +59,22 @@
  * suggestions back to the original search log row).
  */
 
+
+if (!function_exists('numinix_seekmodo_href_link_raw')) {
+    /**
+     * zen_href_link() emits HTML-safe &amp; for template use. JSON / Location
+     * headers need a raw URL with &.
+     */
+    function numinix_seekmodo_href_link_raw(string $page, string $parameters = '', string $connection = 'NONSSL'): string
+    {
+        if (!function_exists('zen_href_link')) {
+            return '';
+        }
+        $url = (string) zen_href_link($page, $parameters, $connection);
+        return htmlspecialchars_decode($url, ENT_QUOTES);
+    }
+}
+
 if (!function_exists('numinix_seekmodo_run_typeahead')) {
     /**
      * Execute a typeahead lookup through the gateway.
@@ -843,7 +859,7 @@ if (!function_exists('_numinix_seekmodo_typeahead_items_from_suggest')) {
             }
             if (function_exists('zen_href_link') && function_exists('zen_get_info_page')) {
                 try {
-                    $item['url'] = (string)zen_href_link(
+                    $item['url'] = numinix_seekmodo_href_link_raw(
                         zen_get_info_page($pid),
                         'products_id=' . $pid
                     );
@@ -921,7 +937,7 @@ if (!function_exists('_numinix_seekmodo_typeahead_items')) {
             }
             if (function_exists('zen_href_link') && function_exists('zen_get_info_page')) {
                 try {
-                    $item['url'] = (string)zen_href_link(
+                    $item['url'] = numinix_seekmodo_href_link_raw(
                         zen_get_info_page($pid),
                         'products_id=' . $pid
                     );
