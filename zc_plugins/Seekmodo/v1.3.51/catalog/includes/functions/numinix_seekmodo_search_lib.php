@@ -2390,11 +2390,16 @@ if (!function_exists('_numinix_seekmodo_listing_order_sql')) {
                 case 2:
                     return ' ORDER BY p.products_ordered DESC, pd.products_name ASC';
                 case 3:
-                    return ' ORDER BY pd.products_name ASC';
-                case 4:
+                    // Numinix Reloaded / SBM: price high → low
                     return ' ORDER BY p.products_price_sorter DESC, pd.products_name ASC';
-                case 5:
+                case 4:
+                    // Numinix Reloaded / SBM: price low → high
                     return ' ORDER BY p.products_price_sorter ASC, pd.products_name ASC';
+                case 5:
+                    return ' ORDER BY pd.products_name ASC';
+                case 6:
+                    return ' ORDER BY pd.products_name DESC';
+                case 8:
                 case 0:
                     return ' ORDER BY p.products_sort_order ASC, pd.products_name ASC';
             }
