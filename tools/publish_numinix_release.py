@@ -8,7 +8,8 @@ and seekmodo.com publish is complete.
 When the product has products.zencart_com_plugin_id set, Releaser queues a
 zen-cart.com update. This script then drains that queue via
 numinix.com-local/scripts/publish_zencart_com_release.py (SeleniumBase UC)
-unless --skip-zencart-com is passed.
+unless --skip-zencart-com is passed. The drain submits **only the latest**
+pending version per product; older pending rows are skipped.
 
 Usage (from connector repo root, after git push origin vX.Y.Z):
 
@@ -130,6 +131,26 @@ def _find_submitter() -> Path | None:
     return None
 
 
+def _fetch_plugin_versions(endpoint: str, bearer: str, products_id: int) -> list[str]:
+    """Exact Version attribute values currently on the product (MCP-required)."""
+    result = _mcp_call(
+        endpoint, bearer, "get_plugin_versions", {"products_id": products_id}
+    )
+    if result.get("error"):
+        raise SystemExit(f"get_plugin_versions failed: {json.dumps(result)}")
+    inner = result.get("result") or {}
+    if inner.get("isError"):
+        raise SystemExit(f"get_plugin_versions error: {json.dumps(inner)}")
+    structured = inner.get("structuredContent") or {}
+    versions = structured.get("current_versions") or structured.get("versions") or []
+    if not isinstance(versions, list) or not versions:
+        raise SystemExit(
+            "get_plugin_versions returned no versions; "
+            f"structured={json.dumps(structured)[:500]}"
+        )
+    return [str(v) for v in versions]
+
+
 def _drain_zencart_com(endpoint: str, tag: str, description: str) -> None:
     submitter = _find_submitter()
     if submitter is None:
@@ -177,6 +198,13 @@ def main() -> int:
     ap.add_argument("--products-id", type=int, default=DEFAULT_PRODUCTS_ID)
     ap.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     ap.add_argument("--description", default=None)
+    ap.add_argument(
+        "--versions",
+        nargs="+",
+        default=None,
+        help='Exact Version attribute values (e.g. 1.5.8 2.0.0). '
+             "Default: fetch via get_plugin_versions MCP.",
+    )
     ap.add_argument("--skip-zencart-com", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
@@ -185,10 +213,16 @@ def main() -> int:
     description = args.description or _default_description(tag)
     bearer = _load_bearer()
 
+    versions = args.versions
+    if not versions:
+        versions = _fetch_plugin_versions(args.endpoint, bearer, args.products_id)
+        print(f"  versions:    {versions}")
+
     arguments = {
         "products_id": args.products_id,
         "tag": tag,
         "description": description,
+        "versions": versions,
     }
 
     print("== Publish to Numinix.com ==")
