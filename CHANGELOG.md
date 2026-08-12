@@ -4,6 +4,14 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.56 - 2026-08-12 (Catalog push OOM fix)
+
+- **Keyset-paginated catalog scan** — `push_catalog` no longer
+  `Execute()`s the full active-product JOIN in one shot. Zen Cart's
+  query factory buffers every row; HTML descriptions pushed mid-size
+  catalogs past the 256MB CLI memory_limit. Pages at the upsert batch
+  size (capped at 500).
+
 ## v1.3.55 - 2026-08-11 (EN SERP uncap + legacy suggest URLs)
 
 - **Legacy suggest on `/search/*` SERPs** â€” absolute catalog-root
