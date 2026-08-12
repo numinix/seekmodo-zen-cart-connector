@@ -4,6 +4,10 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.61 - 2026-08-12 (Nonprod locked_domain may index)
+
+- **can_index allows matched nonprod locked domains** - demo/staging tenants locked to demo.example.com can push catalog. Unlocked nonprod hosts stay blocked.
+
 ## v1.3.60 - 2026-08-12 (Language-pack BOM breaks suggest metas)
 
 - **UTF-8 BOM mid-head closed head early** - including
