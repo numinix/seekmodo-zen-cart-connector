@@ -4,6 +4,12 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.57 - 2026-08-12 (Catalog push duration TypeError)
+
+- **`record_indexer_run()` int cast** — `(int) $ms / 1000` produced a
+  float under PHP operator precedence and fatals the `int $durationS`
+  parameter after a successful full catalog push. Cast after dividing.
+
 ## v1.3.56 - 2026-08-12 (Catalog push OOM fix)
 
 - **Keyset-paginated catalog scan** — `push_catalog` no longer
