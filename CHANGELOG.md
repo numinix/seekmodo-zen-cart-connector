@@ -1,8 +1,17 @@
-﻿# Seekmodo for Zen Cart - top-level changelog
+# Seekmodo for Zen Cart - top-level changelog
 
 This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
+
+## v1.3.60 - 2026-08-12 (Language-pack BOM breaks suggest metas)
+
+- **UTF-8 BOM mid-head closed head early** - including
+  lang.numinix_seekmodo.php during suggest head injection emitted
+  U+FEFF, which is not HTML whitespace. The parser closed head
+  and moved seekmodo:* metas into body, so
+  document.head.querySelector failed with tenant meta required.
+  Language packs are BOM-free; pack includes are output-buffered.
 
 ## v1.3.59 - 2026-08-12 (SERP click beacon category-id poison)
 
