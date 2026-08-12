@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.59 - 2026-08-12 (SERP click beacon category-id poison)
+
+- **`pidFromHref` rejects category URLs** — bare `-N` tails matched
+  Zen Cart `-c-N` category slugs and stamped `categories_id` as
+  `product_id` on Klevu / category-redirect SERPs, poisoning LTR
+  first-click gates. Accept only `products_id=`, `-p-N`, `-N.html`.
+
 ## v1.3.57 - 2026-08-12 (Catalog push duration TypeError)
 
 - **`record_indexer_run()` int cast** — `(int) $ms / 1000` produced a
