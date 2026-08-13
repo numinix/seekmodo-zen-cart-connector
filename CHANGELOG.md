@@ -8,8 +8,9 @@ zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
 - **Klevu QS parity** - split-rail suggest caps keywords/categories at 4
   and adds price-range filters that re-fetch products + categories.
-  View all passes vanilla Zen Cart `pfrom`/`pto`. Vendors
-  `@seekmodo/web-components` 0.3.16.
+  View all passes vanilla Zen Cart `pfrom`/`pto`; enforce SERP applies
+  them as Typesense `price` `filter_by`. Vendors
+  `@seekmodo/web-components` 0.3.17.
 
 ## v1.3.63 - 2026-08-12 (Suggest no_picture helpers)
 

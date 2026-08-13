@@ -71,6 +71,31 @@ if (!function_exists('numinix_seekmodo_log_append')) {
  * `nmn_filters` pattern Redline uses) to either approach.
  */
 
+if (!function_exists('numinix_seekmodo_price_filter_by')) {
+    /**
+     * Typesense filter_by for vanilla Zen Cart pfrom/pto (inclusive).
+     * pfrom=0 is a valid lower bound (first price band).
+     *
+     * @param mixed $pfrom
+     * @param mixed $pto
+     */
+    function numinix_seekmodo_price_filter_by($pfrom, $pto): ?string
+    {
+        $clauses = [];
+        if ($pfrom !== null && $pfrom !== '' && is_numeric($pfrom)) {
+            $clauses[] = 'price:>=' . (float) $pfrom;
+        }
+        if ($pto !== null && $pto !== '' && is_numeric($pto)) {
+            $clauses[] = 'price:<=' . (float) $pto;
+        }
+        if ($clauses === []) {
+            return null;
+        }
+
+        return implode(' && ', $clauses);
+    }
+}
+
 if (!function_exists('numinix_seekmodo_register_filter_mapping')) {
     /**
      * Declare that a storefront URL filter parameter maps to a Typesense
@@ -1417,20 +1442,30 @@ if (!function_exists('_numinix_seekmodo_build_search_payload')) {
             $payload['manufacturers_id'] = (int)$params['manufacturers_id'];
             $structuredFilters['manufacturers_id'] = (int)$params['manufacturers_id'];
         }
-        if (isset($params['pfrom']) && (float)$params['pfrom'] > 0) {
-            $payload['price_from'] = (float)$params['pfrom'];
-            $structuredFilters['price_from'] = ['op' => ':>=', 'value' => [(string)((float)$params['pfrom'])]];
+        $pfromRaw = $params['pfrom'] ?? null;
+        $ptoRaw = $params['pto'] ?? null;
+        if ($pfromRaw !== null && $pfromRaw !== '' && is_numeric($pfromRaw)) {
+            $payload['price_from'] = (float) $pfromRaw;
+            $structuredFilters['price_from'] = ['op' => ':>=', 'value' => [(string) ((float) $pfromRaw)]];
         }
-        if (isset($params['pto']) && (float)$params['pto'] > 0) {
-            $payload['price_to'] = (float)$params['pto'];
-            $structuredFilters['price_to'] = ['op' => ':<=', 'value' => [(string)((float)$params['pto'])]];
+        if ($ptoRaw !== null && $ptoRaw !== '' && is_numeric($ptoRaw)) {
+            $payload['price_to'] = (float) $ptoRaw;
+            $structuredFilters['price_to'] = ['op' => ':<=', 'value' => [(string) ((float) $ptoRaw)]];
         }
+        $priceFilterBy = numinix_seekmodo_price_filter_by($pfromRaw, $ptoRaw);
 
         // Attribute filters → Typesense `filter_by` clause. Built from
         // the runtime registry so each storefront can declare its own
         // filter→field mappings without forking this file. See the
         // header docblock for the integration contract.
         $filterBy = numinix_seekmodo_build_filter_by();
+        if ($priceFilterBy !== null && $priceFilterBy !== '') {
+            if ($filterBy !== null && $filterBy !== '') {
+                $filterBy = '(' . $filterBy . ') && (' . $priceFilterBy . ')';
+            } else {
+                $filterBy = $priceFilterBy;
+            }
+        }
         if ($filterBy !== null && $filterBy !== '') {
             // If the caller passed in their own filter_by (rare — only
             // the typeahead helper does today), AND ours onto the back
