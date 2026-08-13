@@ -1,0 +1,22 @@
+name: php-smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  no-picture-suggest-thumbs:
+    name: no_picture suggest thumbs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: none
+      - name: Run no_picture suggest-thumbs smoke
+        run: php tests/test_no_picture_suggest_thumbs.php
