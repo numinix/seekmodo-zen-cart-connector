@@ -4,6 +4,18 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.63 - 2026-08-12 (Suggest no_picture helpers)
+
+- **Testable no_picture guards** - extract pure helpers used by suggest
+  image URL resolution so CI/smoke can lock the v1.3.62 thumb behavior
+  (catalog original over placeholder; never return `no_picture.*`).
+
+## v1.3.62 - 2026-08-12 (Suggest thumbs ignore no_picture)
+
+- **Ignore Zen no_picture for suggest thumbs** - treat `no_picture.*`
+  from `zen_get_products_image()` as a miss and fall through to catalog
+  `products_image` originals; never promote the placeholder.
+
 ## v1.3.61 - 2026-08-12 (Nonprod locked_domain may index)
 
 - **can_index allows matched nonprod locked domains** - demo/staging tenants locked to demo.example.com can push catalog. Unlocked nonprod hosts stay blocked.

@@ -2,6 +2,10 @@
 
 Rules for AI agents and operators working in this repository.
 
+## Version cuts
+
+Before copying a new `zc_plugins/Seekmodo/vX.Y.Z` tree or tagging a release, follow [docs/version-cut.md](docs/version-cut.md) (includes the `no_picture` suggest-thumb regression smoke).
+
 ## Publishing a release to seekmodo.com
 
 Every connector release that merchants download from
