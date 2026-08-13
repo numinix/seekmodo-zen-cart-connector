@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Seekmodo language definitions (spanish) â€” array form for Zen Cart 1.5.8+.
  */

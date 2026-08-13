@@ -1,4 +1,4 @@
-﻿# Seekmodo for Zen Cart v1.3.56
+# Seekmodo for Zen Cart v1.3.56
 
 ## 2026-08-12 — Catalog push keyset pagination (OOM fix)
 

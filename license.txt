@@ -1,4 +1,4 @@
-﻿Seekmodo for Zen Cart
+Seekmodo for Zen Cart
 Copyright (C) 2026 Numinix Web Development Ltd.
 
 This program is free software; you can redistribute it and/or modify

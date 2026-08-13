@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Seekmodo language definitions (french).
  *

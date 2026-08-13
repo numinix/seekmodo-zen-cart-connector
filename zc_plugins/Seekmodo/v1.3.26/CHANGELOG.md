@@ -1,4 +1,4 @@
-﻿# Seekmodo Zen Cart connector v1.3.26
+# Seekmodo Zen Cart connector v1.3.26
 
 ## Fixed
 
