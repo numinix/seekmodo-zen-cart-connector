@@ -2,12 +2,15 @@
 
 ## 2026-08-13 - Suggest price-range rail (Klevu QS parity)
 
-- Vendored `@seekmodo/web-components` 0.3.16: split-rail left column
+- Vendored `@seekmodo/web-components` 0.3.17: split-rail left column
   caps keywords and categories at 4 each and adds a **Price range**
-  section. Clicking a band re-fetches suggest products/categories with
-  Typesense `filter_by` on `price`; click again to clear.
+  section with clearer separators. Clicking a band re-fetches suggest
+  products/categories with Typesense `filter_by` on `price`; click
+  again to clear.
 - View all substitutes `{price_from}` / `{price_to}` into the SERP URL
   as vanilla Zen Cart `pfrom` / `pto` (core advanced search params).
+- SERP enforce search ANDs those bounds into Typesense `filter_by`
+  (`price:>=` / `price:<=`), including `pfrom=0`.
 - Row-click handler ignores `price_range` so the widget can filter
   in-dropdown without navigating.
 

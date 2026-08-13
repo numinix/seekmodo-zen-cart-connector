@@ -47,6 +47,20 @@ var SeekmodoSuggest=(function(exports){'use strict';var E=class extends Error{st
     padding: 0.5rem 0.35rem; align-self: stretch;
     min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   }
+  .rail .rail-section {
+    padding: 0.15rem 0 0.35rem;
+  }
+  .rail .rail-section + .rail-section {
+    margin-top: 0.4rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--_border);
+  }
+  .rail .rail-section .group-title {
+    padding: 0.1rem 0.55rem 0.35rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
   .rail .row { padding: 0.4rem 0.55rem; font-size: 0.8125rem; }
   .rail .row.is-selected,
   .rail .row[aria-pressed="true"] {

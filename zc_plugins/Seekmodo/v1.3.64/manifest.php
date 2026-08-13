@@ -24,7 +24,7 @@ return [
     'pluginAuthor' => 'Numinix',
     'pluginId' => 2441, // zen-cart.com downloads.php?do=file&id=2441
     'zcVersions' => ['v157', 'v158', 'v200'],
-    'changelog' => 'v1.3.64 (2026-08-13): Suggest split-rail price-range filters (Klevu QS parity); 4 keyword + 4 category rows; View all passes vanilla ZC pfrom/pto. See CHANGELOG.md.',
+    'changelog' => 'v1.3.64 (2026-08-13): Suggest split-rail price-range filters (Klevu QS parity); SERP applies pfrom/pto as Typesense price filter_by; rail section separators. See CHANGELOG.md.',
     'github_repo' => 'https://github.com/numinix/seekmodo-zen-cart-connector',
     'pluginGroups' => [],
 ];
