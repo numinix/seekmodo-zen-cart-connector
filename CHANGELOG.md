@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.64 - 2026-08-13 (Suggest price-range rail)
+
+- **Klevu QS parity** - split-rail suggest caps keywords/categories at 4
+  and adds price-range filters that re-fetch products + categories.
+  View all passes vanilla Zen Cart `pfrom`/`pto`. Vendors
+  `@seekmodo/web-components` 0.3.16.
+
 ## v1.3.63 - 2026-08-12 (Suggest no_picture helpers)
 
 - **Testable no_picture guards** - extract pure helpers used by suggest
