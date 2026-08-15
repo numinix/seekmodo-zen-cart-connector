@@ -4,6 +4,15 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.65 - 2026-08-14 (Daily unpaid-recovery recheck)
+
+- **Self-healing sticky denial** - `shouldPreferLocalSuggest()` now
+  force-pulls `tenant.snapshot` at most once/day when a
+  trial_expired/over_quota/cancelled sticky is set; clears it
+  automatically once the gateway's `billing.status` reports `active`,
+  so a resubscribe or trial extension restores cloud suggest without
+  the merchant needing to click **Refresh snapshot**.
+
 ## v1.3.64 - 2026-08-13 (Suggest price-range rail)
 
 - **Klevu QS parity** - split-rail suggest caps keywords/categories at 4
