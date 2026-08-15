@@ -1320,14 +1320,14 @@ class NuminixSeekmodoObserver extends \base
             . 'var m=href.match(/[?&]products_id=(\\d+)/);if(m)return m[1];'
             . 'm=href.match(/-p-(\\d+)(?:\\.html|[\\/?#]|$)/i);if(m)return m[1];'
             . 'm=href.match(/-(\\d+)\\.html(?:\\?|#|$)/i);if(m)return m[1];'
-            // SEO slug-{id}?cPath=... : cPath is a breadcrumb on a
-            // product URL when the captured id is NOT one of the
-            // cPath segments (Numinix listings). If the captured id
-            // *is* a cPath/categories_id segment, this is a category
-            // landing and must stay unmatched (v1.3.59 Klevu poison).
+            // Numinix listing: /slug-{id}?cPath=breadcrumb. Only use the
+            // slug-{id}? query form when cPath/categories_id is present
+            // AND the captured id is not a cPath segment (category
+            // landings). Bare /slug-{id} without query stays unmatched
+            // so category SEO URLs are not stamped as products.
+            . 'var c=href.match(/[?&](?:cPath|categories_id)=([\\d_]+)/i);if(!c)return null;'
             . 'm=href.match(/-(\\d+)(?:\\?|#|$)/);if(!m)return null;'
-            . 'var c=href.match(/[?&](?:cPath|categories_id)=([\\d_]+)/i);'
-            . 'if(c&&c[1].split("_").indexOf(m[1])!==-1)return null;'
+            . 'if(c[1].split("_").indexOf(m[1])!==-1)return null;'
             . 'return m[1];'
             . '}'
             . 'document.addEventListener("click",function(ev){'

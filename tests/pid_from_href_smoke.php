@@ -60,12 +60,12 @@ function pidFromHref(string $href): ?string
     if (preg_match('/-(\d+)\.html(?:\?|#|$)/i', $href, $m)) {
         return $m[1];
     }
-    if (preg_match('/-(\d+)(?:\?|#|$)/', $href, $m)) {
-        if (preg_match('/[?&](?:cPath|categories_id)=([\d_]+)/i', $href, $c)) {
-            $parts = explode('_', $c[1]);
-            if (in_array($m[1], $parts, true)) {
-                return null;
-            }
+    if (preg_match('/[?&](?:cPath|categories_id)=([\d_]+)/i', $href, $c)
+        && preg_match('/-(\d+)(?:\?|#|$)/', $href, $m)
+    ) {
+        $parts = explode('_', $c[1]);
+        if (in_array($m[1], $parts, true)) {
+            return null;
         }
 
         return $m[1];
@@ -76,7 +76,7 @@ function pidFromHref(string $href): ?string
 
 $cases = [
     ['https://www.numinix.com/tableau-for-woocommerce-1172?cPath=403_407_462', '1172'],
-    ['https://www.numinix.com/tableau-for-woocommerce-1172', '1172'],
+    ['https://www.numinix.com/tableau-for-woocommerce-1172', null],
     ['https://www.numinix.com/foo-p-99.html', '99'],
     ['https://www.numinix.com/index.php?products_id=5', '5'],
     ['https://www.numinix.com/shop-by-ecommerce-platforms-179/', null],
