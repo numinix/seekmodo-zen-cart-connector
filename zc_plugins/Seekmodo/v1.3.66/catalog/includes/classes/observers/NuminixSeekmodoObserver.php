@@ -1320,10 +1320,15 @@ class NuminixSeekmodoObserver extends \base
             . 'var m=href.match(/[?&]products_id=(\\d+)/);if(m)return m[1];'
             . 'm=href.match(/-p-(\\d+)(?:\\.html|[\\/?#]|$)/i);if(m)return m[1];'
             . 'm=href.match(/-(\\d+)\\.html(?:\\?|#|$)/i);if(m)return m[1];'
-            // SEO slug-{id}?query or slug-{id} end. Trailing-slash
-            // /slug-{id}/ is the typical category rewrite and stays
-            // unmatched (so we don't stamp categories_id as product_id).
-            . 'm=href.match(/-(\\d+)(?:\\?|#|$)/);return m?m[1]:null;'
+            // SEO slug-{id}?cPath=... : cPath is a breadcrumb on a
+            // product URL when the captured id is NOT one of the
+            // cPath segments (Numinix listings). If the captured id
+            // *is* a cPath/categories_id segment, this is a category
+            // landing and must stay unmatched (v1.3.59 Klevu poison).
+            . 'm=href.match(/-(\\d+)(?:\\?|#|$)/);if(!m)return null;'
+            . 'var c=href.match(/[?&](?:cPath|categories_id)=([\\d_]+)/i);'
+            . 'if(c&&c[1].split("_").indexOf(m[1])!==-1)return null;'
+            . 'return m[1];'
             . '}'
             . 'document.addEventListener("click",function(ev){'
             . 'var a=ev.target&&ev.target.closest?ev.target.closest("a[href]"):null;'

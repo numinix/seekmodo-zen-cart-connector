@@ -32,10 +32,8 @@ pid_assert(
     'v1.3.66 must not blanket-reject cPath on product listing links'
 );
 pid_assert(
-    strpos($src, 'm=href.match(/-(\\\\d+)(?:\\\\?|#|$)/);return m?m[1]:null;') !== false
-        || strpos($src, "m=href.match(/-(\\\\d+)(?:\\\\?|#|\$)/);return m?m[1]:null;") !== false
-        || strpos($src, 'm=href.match(/-(\\d+)(?:\\?|#|$)/);return m?m[1]:null;') !== false,
-    'v1.3.66 must match SEO slug-{id}?query product URLs'
+    strpos($src, 'split("_").indexOf(m[1])') !== false,
+    'v1.3.66 must match SEO slug-{id}?query product URLs unless id is a cPath segment'
 );
 pid_assert(
     strpos($src, 'if(/-c-\\\\d+/i.test(href))return null;') !== false
@@ -63,6 +61,13 @@ function pidFromHref(string $href): ?string
         return $m[1];
     }
     if (preg_match('/-(\d+)(?:\?|#|$)/', $href, $m)) {
+        if (preg_match('/[?&](?:cPath|categories_id)=([\d_]+)/i', $href, $c)) {
+            $parts = explode('_', $c[1]);
+            if (in_array($m[1], $parts, true)) {
+                return null;
+            }
+        }
+
         return $m[1];
     }
 
@@ -75,6 +80,8 @@ $cases = [
     ['https://www.numinix.com/foo-p-99.html', '99'],
     ['https://www.numinix.com/index.php?products_id=5', '5'],
     ['https://www.numinix.com/shop-by-ecommerce-platforms-179/', null],
+    ['https://www.numinix.com/shop-by-ecommerce-platforms-179?cPath=179', null],
+    ['https://www.numinix.com/shop-179?cPath=1_179', null],
     ['https://www.numinix.com/index.php?cPath=1_2', null],
     ['https://www.numinix.com/category-c-12', null],
     ['https://www.numinix.com/widget-p-77.html?cPath=1', '77'],
