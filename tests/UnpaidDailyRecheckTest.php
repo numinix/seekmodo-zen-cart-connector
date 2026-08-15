@@ -171,6 +171,38 @@ Client::clearCloudSuggestDenial();
 udr_assert(Client::readSubscriptionState() === $subActive, 'subscription state reads active after clear', $errors, $passed);
 udr_assert(Client::shouldPreferLocalSuggest() === false, 'clearing both stickies restores cloud suggest', $errors, $passed);
 
+// -----------------------------------------------------------------
+// 6. Client::applyBillingSnapshot() — the shared helper both the
+//    background daily recheck AND the admin "Refresh snapshot"
+//    button (numinix_seekmodo_connect.php) now call. Pins the exact
+//    bug Bugbot flagged on the first cut of this feature: refresh
+//    used to only mirror mode/FSM fields and never actually cleared
+//    the sticky, so "click Refresh snapshot for immediate restore"
+//    silently did nothing for a resubscribed/extended tenant.
+// -----------------------------------------------------------------
+$reset();
+udr_cache_set($ref, $overQuotaKey, '{"code":"trial_expired"}', 3600);
+udr_assert(
+    Client::applyBillingSnapshot(['billing' => ['status' => 'active']]) === true,
+    'applyBillingSnapshot returns true and clears on active',
+    $errors,
+    $passed
+);
+udr_assert(Client::shouldPreferLocalSuggest() === false, 'applyBillingSnapshot cleared the sticky', $errors, $passed);
+
+$reset();
+udr_cache_set($ref, $overQuotaKey, '{"code":"trial_expired"}', 3600);
+udr_assert(
+    Client::applyBillingSnapshot(['billing' => ['status' => 'trial_expired']]) === false,
+    'applyBillingSnapshot returns false and leaves sticky on non-active status',
+    $errors,
+    $passed
+);
+udr_assert(Client::shouldPreferLocalSuggest() === true, 'sticky still set after non-active applyBillingSnapshot', $errors, $passed);
+
+udr_assert(Client::applyBillingSnapshot(null) === false, 'applyBillingSnapshot(null) is a safe no-op', $errors, $passed);
+udr_assert(Client::applyBillingSnapshot(['mode' => 'enforce']) === false, 'applyBillingSnapshot ignores rows with no billing key', $errors, $passed);
+
 $reset();
 
 echo "\nUnpaidDailyRecheckTest: {$passed} passed, " . count($errors) . " failed\n";

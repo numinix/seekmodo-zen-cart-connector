@@ -21,6 +21,10 @@
   `billing.status` / `billing.trial_ends_at` (2026-08 daily
   unpaid-recovery plan, gateway step). Older gateways simply omit the
   field and the recheck is a no-op, same as today.
+- Admin **Connect to Seekmodo → Refresh snapshot** now applies the same
+  `billing.status` write-through (`Client::applyBillingSnapshot()`) so
+  the documented "click Refresh snapshot for immediate restore" path
+  actually clears the sticky instead of only mirroring mode/FSM fields.
 
 ## 2026-08-13 - Suggest price-range rail (Klevu QS parity)
 

@@ -956,15 +956,35 @@ class Client
         // as of right now, not whatever was cached before the sticky
         // was stamped (possibly hours or days ago).
         $rc->invalidate();
-        $row = $rc->pull();
+        self::applyBillingSnapshot($rc->pull());
+    }
+
+    /**
+     * Shared write-through for both recovery paths: the background
+     * daily recheck above AND the admin "Refresh snapshot" button
+     * (`numinix_seekmodo_connect.php`'s `refresh` action). Both pull a
+     * fresh `tenant.snapshot`; this is the one place that turns
+     * `billing.status === 'active'` into an actual sticky clear so a
+     * merchant who clicks Refresh snapshot right after resubscribing
+     * gets the immediate recovery the billing UI promises, not just an
+     * updated `mode`/FSM row.
+     *
+     * @param array<string, mixed>|null $row
+     * @return bool True when an active billing status cleared the sticky.
+     */
+    public static function applyBillingSnapshot(?array $row): bool
+    {
         if (!is_array($row) || !isset($row['billing']) || !is_array($row['billing'])) {
-            return;
+            return false;
         }
         $billingStatus = (string) ($row['billing']['status'] ?? '');
-        if ($billingStatus === self::SUB_STATE_ACTIVE) {
-            self::cacheSet(self::SUBSCRIPTION_KEY, self::SUB_STATE_ACTIVE, self::SUBSCRIPTION_TTL_S);
-            self::clearCloudSuggestDenial();
+        if ($billingStatus !== self::SUB_STATE_ACTIVE) {
+            return false;
         }
+        self::cacheSet(self::SUBSCRIPTION_KEY, self::SUB_STATE_ACTIVE, self::SUBSCRIPTION_TTL_S);
+        self::clearCloudSuggestDenial();
+
+        return true;
     }
 
     /**

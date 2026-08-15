@@ -24,7 +24,7 @@ return [
     'pluginAuthor' => 'Numinix',
     'pluginId' => 2441, // zen-cart.com downloads.php?do=file&id=2441
     'zcVersions' => ['v157', 'v158', 'v200'],
-    'changelog' => 'v1.3.65 (2026-08-14): Daily unpaid-recovery recheck - shouldPreferLocalSuggest() now self-heals a stuck trial_expired/over_quota/cancelled sticky at most once/day via a forced tenant.snapshot pull, so resubscribe or an operator trial extension restores cloud suggest without the merchant needing to hit Refresh snapshot. See CHANGELOG.md.',
+    'changelog' => 'v1.3.65 (2026-08-14): Daily unpaid-recovery recheck - shouldPreferLocalSuggest() now self-heals a stuck trial_expired/over_quota/cancelled sticky at most once/day via a forced tenant.snapshot pull; admin Refresh snapshot applies the same billing-active clear for immediate restore. See CHANGELOG.md.',
     'github_repo' => 'https://github.com/numinix/seekmodo-zen-cart-connector',
     'pluginGroups' => [],
 ];

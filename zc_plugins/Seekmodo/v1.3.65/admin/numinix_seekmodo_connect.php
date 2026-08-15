@@ -21,6 +21,7 @@
 require 'includes/application_top.php';
 
 use Numinix\Seekmodo\AutoPromoter;
+use Numinix\Seekmodo\Client;
 use Numinix\Seekmodo\EnvProbe;
 use Numinix\Seekmodo\Pairing;
 use Numinix\Seekmodo\RemoteConfig;
@@ -160,14 +161,25 @@ if ($action === 'refresh' && _seekmodo_check_csrf() && $isPaired) {
         $rc = RemoteConfig::fromConfiguration();
         if ($rc !== null) {
             $rc->invalidate();
-            $rc->pull();
+            $row = $rc->pull();
+            // Daily unpaid-recovery plan (2026-08) — this is the
+            // "click Refresh snapshot for immediate restore" path the
+            // billing UI promises after a resubscribe/trial extension,
+            // so apply the same billing.status write-through the
+            // background daily recheck uses rather than only mirroring
+            // mode/FSM fields.
+            $recovered = class_exists(Client::class)
+                ? Client::applyBillingSnapshot($row)
+                : false;
             // Pull only reads gateway state; push fresh env + FSM so
             // admin.seekmodo.com's Connector environment card updates
             // (APCu/OPcache flags were stale when refresh only pulled).
             if (class_exists(AutoPromoter::class)) {
                 (new AutoPromoter())->pushSnapshot('admin_refresh');
             }
-            $messages[] = ['type' => 'success', 'text' => 'Snapshot refreshed from gateway.'];
+            $messages[] = ['type' => 'success', 'text' => $recovered
+                ? 'Snapshot refreshed from gateway. Billing is active again — cloud search/suggest is restored.'
+                : 'Snapshot refreshed from gateway.'];
         }
     }
 }
