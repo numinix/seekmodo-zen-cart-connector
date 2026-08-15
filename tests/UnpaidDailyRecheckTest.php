@@ -223,6 +223,24 @@ udr_assert(Client::shouldPreferLocalSuggest() === true, 'over_quota sticky survi
 
 $reset();
 
+// -----------------------------------------------------------------
+// 8. Client::normalizeDenialCode() — the allowlist backing the
+//    browser-side stamp-cloud-denied shim (numinix_seekmodo_suggest.php)
+//    Bugbot's "Quota guard misses widget stamps" finding: that endpoint
+//    used to hardcode `trial_expired` for every 402, which would let an
+//    active-billing recheck wrongly clear a genuine over_quota denial
+//    once the widget starts sending a real code. Pin the exact allowlist
+//    and its safe default independent of the HTTP router.
+// -----------------------------------------------------------------
+udr_assert(Client::normalizeDenialCode('over_quota') === 'over_quota', 'normalizeDenialCode passes through over_quota', $errors, $passed);
+udr_assert(Client::normalizeDenialCode('trial_expired') === 'trial_expired', 'normalizeDenialCode passes through trial_expired', $errors, $passed);
+udr_assert(Client::normalizeDenialCode('paused') === 'paused', 'normalizeDenialCode passes through paused', $errors, $passed);
+udr_assert(Client::normalizeDenialCode('closed') === 'closed', 'normalizeDenialCode passes through closed', $errors, $passed);
+udr_assert(Client::normalizeDenialCode(null) === 'trial_expired', 'normalizeDenialCode(null) defaults to trial_expired', $errors, $passed);
+udr_assert(Client::normalizeDenialCode('') === 'trial_expired', 'normalizeDenialCode("") defaults to trial_expired', $errors, $passed);
+udr_assert(Client::normalizeDenialCode('bogus') === 'trial_expired', 'normalizeDenialCode rejects unknown codes', $errors, $passed);
+udr_assert(Client::normalizeDenialCode('OVER_QUOTA') === 'trial_expired', 'normalizeDenialCode is case-sensitive (no silent upcast)', $errors, $passed);
+
 echo "\nUnpaidDailyRecheckTest: {$passed} passed, " . count($errors) . " failed\n";
 foreach ($errors as $err) {
     echo "  FAIL {$err}\n";

@@ -204,9 +204,22 @@ if (($_GET['seekmodo_action'] ?? '') === 'browser-token') {
 // HTTP 402 on /v1/suggest so the next page render can skip cloud
 // suggest and serve Enhanced Native only (zero storefront→gateway
 // suggest calls until a successful metered search/suggest clears it).
+//
+// Daily unpaid-recovery plan (2026-08) Bugbot finding ("Quota guard
+// misses widget stamps"): this used to hardcode `code=trial_expired`
+// for every 402, even a genuine metered over_quota denial. Accept an
+// optional `code` (see Client::normalizeDenialCode()) so the browser
+// can pass the real reason through once the bundled web component
+// starts including it on its quota-empty event; until then this
+// resolves to the same `trial_expired` default as before.
 if (($_GET['seekmodo_action'] ?? '') === 'stamp-cloud-denied') {
     if (class_exists('\\Numinix\\Seekmodo\\Client')) {
-        \Numinix\Seekmodo\Client::markCloudSuggestDenied('{"code":"trial_expired"}');
+        $code = \Numinix\Seekmodo\Client::normalizeDenialCode(
+            isset($_GET['code']) ? (string) $_GET['code'] : null
+        );
+        \Numinix\Seekmodo\Client::markCloudSuggestDenied(
+            json_encode(['code' => $code], JSON_UNESCAPED_SLASHES) ?: '{"code":"trial_expired"}'
+        );
     }
     echo json_encode(['ok' => true], JSON_UNESCAPED_SLASHES);
     return;

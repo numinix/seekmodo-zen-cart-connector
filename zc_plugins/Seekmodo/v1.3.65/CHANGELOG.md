@@ -37,6 +37,15 @@
   reads the sticky's own stored `code` and only recovers cancelled /
   trial_expired / tenant-unavailable reasons; `over_quota` still only
   clears via its 1-hour TTL or a real successful metered call.
+- The browser-side `stamp-cloud-denied` shim (fired by the storefront
+  suggest widget after a direct-to-gateway 402) no longer hardcodes
+  `code=trial_expired` for every denial. It now validates an optional
+  `code` query param against the same allowlist `Client` uses
+  internally (`Client::normalizeDenialCode()`), so once the bundled
+  web component starts reporting the real reason on its quota-empty
+  event, a genuine `over_quota` denial from that path is protected by
+  the same guard as the server-side proxy path instead of being
+  silently mislabeled and prematurely cleared.
 
 ## 2026-08-13 - Suggest price-range rail (Klevu QS parity)
 

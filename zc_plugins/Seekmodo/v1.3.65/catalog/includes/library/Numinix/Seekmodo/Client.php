@@ -1053,6 +1053,33 @@ class Client
      * Public so the browser path can stamp the same sticky after a
      * gateway 402 without waiting for the next PHP typeahead hop.
      */
+    /**
+     * Known denial `code` values a 402 envelope (or the browser's
+     * stamp-cloud-denied shim, see numinix_seekmodo_suggest.php) may
+     * carry. Anything else collapses to `trial_expired` — the
+     * historical default before this allowlist existed — rather than
+     * failing the stamp outright.
+     */
+    private const DENIAL_CODES = ['trial_expired', 'over_quota', 'paused', 'closed'];
+
+    /**
+     * Daily unpaid-recovery plan (2026-08) Bugbot finding ("Quota
+     * guard misses widget stamps"): the browser-side stamp-cloud-denied
+     * endpoint used to hardcode `code=trial_expired` for every 402,
+     * including a genuine metered over_quota denial. applyBillingSnapshot()
+     * relies on that code to decide whether an active billing status may
+     * clear the sticky, so a mislabeled code silently defeats that guard.
+     * Centralized here (rather than duplicated in the router) so both the
+     * PHP-proxy path and the browser-stamp path validate against the same
+     * allowlist and share test coverage.
+     */
+    public static function normalizeDenialCode(?string $raw): string
+    {
+        return $raw !== null && in_array($raw, self::DENIAL_CODES, true)
+            ? $raw
+            : 'trial_expired';
+    }
+
     public static function markCloudSuggestDenied(string $rawBody = ''): void
     {
         $payload = $rawBody !== '' ? $rawBody : '{"code":"over_quota"}';

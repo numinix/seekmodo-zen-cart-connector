@@ -887,10 +887,19 @@ final class NuminixSeekmodoSuggestObserver extends base
       inputEl.dataset.seekmodoEnFallback = '1';
       try {
         if (CFG.mark_cloud_denied_url) {
+          // Daily unpaid-recovery plan (2026-08): pass through the widget's
+          // real denial code (over_quota vs trial_expired) when the event
+          // carries one, so the server-side sticky isn't mislabeled and
+          // wrongly cleared by an active-billing recheck while the tenant
+          // is still over its metered quota. Falls back to the PHP
+          // endpoint's own default when the widget doesn't send one yet.
+          var denialCode = detail && typeof detail.code === 'string' ? detail.code : '';
+          var stampUrl = CFG.mark_cloud_denied_url
+            + (denialCode ? '&code=' + encodeURIComponent(denialCode) : '');
           if (navigator.sendBeacon) {
-            navigator.sendBeacon(CFG.mark_cloud_denied_url);
+            navigator.sendBeacon(stampUrl);
           } else {
-            fetch(CFG.mark_cloud_denied_url, { credentials: 'same-origin', keepalive: true }).catch(function () {});
+            fetch(stampUrl, { credentials: 'same-origin', keepalive: true }).catch(function () {});
           }
         }
       } catch (_e) {}
