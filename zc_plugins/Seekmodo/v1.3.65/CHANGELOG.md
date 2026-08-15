@@ -30,6 +30,13 @@
   cloud suggest is instantly restored — an admin request can only ever
   clear its own session, not every shopper's. It now says recovery
   will land as sessions refresh (still within the 24h daily recheck).
+- `Client::applyBillingSnapshot()` no longer clears a genuine
+  `over_quota` sticky just because `billing.status === 'active'` — an
+  actively-paying tenant can still be over this period's metered
+  quota, and `active` was already true when that 402 landed. It now
+  reads the sticky's own stored `code` and only recovers cancelled /
+  trial_expired / tenant-unavailable reasons; `over_quota` still only
+  clears via its 1-hour TTL or a real successful metered call.
 
 ## 2026-08-13 - Suggest price-range rail (Klevu QS parity)
 

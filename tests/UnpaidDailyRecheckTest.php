@@ -203,6 +203,24 @@ udr_assert(Client::shouldPreferLocalSuggest() === true, 'sticky still set after 
 udr_assert(Client::applyBillingSnapshot(null) === false, 'applyBillingSnapshot(null) is a safe no-op', $errors, $passed);
 udr_assert(Client::applyBillingSnapshot(['mode' => 'enforce']) === false, 'applyBillingSnapshot ignores rows with no billing key', $errors, $passed);
 
+// -----------------------------------------------------------------
+// 7. billing.status='active' must NEVER clear a genuine over_quota
+//    sticky (Bugbot's WordPress-connector finding, same bug class
+//    here): billing.status tracks subscription lifecycle, not this
+//    period's metered request quota, and was already 'active' the
+//    moment the 402 landed. Only the sticky's own TTL or a real
+//    successful metered call may clear it.
+// -----------------------------------------------------------------
+$reset();
+udr_cache_set($ref, $overQuotaKey, '{"code":"over_quota"}', 3600);
+udr_assert(
+    Client::applyBillingSnapshot(['billing' => ['status' => 'active']]) === false,
+    'applyBillingSnapshot never claims recovery for a genuine over_quota sticky',
+    $errors,
+    $passed
+);
+udr_assert(Client::shouldPreferLocalSuggest() === true, 'over_quota sticky survives an active billing status', $errors, $passed);
+
 $reset();
 
 echo "\nUnpaidDailyRecheckTest: {$passed} passed, " . count($errors) . " failed\n";

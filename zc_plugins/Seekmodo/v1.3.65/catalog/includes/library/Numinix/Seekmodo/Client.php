@@ -969,6 +969,16 @@ class Client
      * gets the immediate recovery the billing UI promises, not just an
      * updated `mode`/FSM row.
      *
+     * `billing.status` tracks subscription *lifecycle*
+     * (active/trial_expired/paused/closed), not this period's metered
+     * request quota — an actively-paying tenant can still be
+     * `over_quota` right now, and `active` was already true the moment
+     * that 402 landed. So this only clears the cancelled/tenant-
+     * unavailable sticky (and any 402 sticky whose stored `code` isn't
+     * literally `over_quota`, e.g. a trial_expired 402). A genuine
+     * over_quota sticky is left alone — it still only clears via its
+     * own TTL or a real successful metered search/suggest response.
+     *
      * @param array<string, mixed>|null $row
      * @return bool True when an active billing status cleared the sticky.
      */
@@ -982,6 +992,12 @@ class Client
             return false;
         }
         self::cacheSet(self::SUBSCRIPTION_KEY, self::SUB_STATE_ACTIVE, self::SUBSCRIPTION_TTL_S);
+
+        $envelope = self::readOverQuotaEnvelope();
+        $code = is_array($envelope) ? (string) ($envelope['code'] ?? '') : '';
+        if ($code === self::SUB_STATE_OVER_QUOTA) {
+            return false;
+        }
         self::clearCloudSuggestDenial();
 
         return true;
