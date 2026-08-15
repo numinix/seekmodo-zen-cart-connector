@@ -25,6 +25,11 @@
   `billing.status` write-through (`Client::applyBillingSnapshot()`) so
   the documented "click Refresh snapshot for immediate restore" path
   actually clears the sticky instead of only mirroring mode/FSM fields.
+- On hosts without APCu (sticky falls back to each shopper's own
+  `$_SESSION`), the Refresh snapshot success message no longer claims
+  cloud suggest is instantly restored — an admin request can only ever
+  clear its own session, not every shopper's. It now says recovery
+  will land as sessions refresh (still within the 24h daily recheck).
 
 ## 2026-08-13 - Suggest price-range rail (Klevu QS parity)
 

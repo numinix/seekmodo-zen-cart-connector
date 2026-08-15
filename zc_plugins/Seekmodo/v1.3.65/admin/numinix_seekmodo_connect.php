@@ -177,9 +177,21 @@ if ($action === 'refresh' && _seekmodo_check_csrf() && $isPaired) {
             if (class_exists(AutoPromoter::class)) {
                 (new AutoPromoter())->pushSnapshot('admin_refresh');
             }
-            $messages[] = ['type' => 'success', 'text' => $recovered
-                ? 'Snapshot refreshed from gateway. Billing is active again — cloud search/suggest is restored.'
-                : 'Snapshot refreshed from gateway.'];
+            // clearCloudSuggestDenial() deletes the shared APCu sticky
+            // immediately (every shopper hits the same shared-memory
+            // key), but on hosts without APCu the sticky lives in each
+            // shopper's own $_SESSION and this admin request can only
+            // ever touch its own session. Don't overpromise "restored"
+            // there — the background daily recheck still clears each
+            // shopper's session sticky within 24h, it just isn't
+            // instant from this one click.
+            $refreshText = 'Snapshot refreshed from gateway.';
+            if ($recovered) {
+                $refreshText .= $apcuOk
+                    ? ' Billing is active again — cloud search/suggest is restored.'
+                    : ' Billing is active again — cloud search/suggest will resume for shoppers as sessions refresh (this server has no APCu, so recovery isn\'t instant across active sessions).';
+            }
+            $messages[] = ['type' => 'success', 'text' => $refreshText];
         }
     }
 }
