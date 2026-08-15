@@ -4,6 +4,14 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.66 - 2026-08-15 (SERP click beacon slug-{id}?cPath=)
+
+- **`pidFromHref` accepts product links that carry a breadcrumb
+  `?cPath=`**. v1.3.59 rejected any href containing `cPath`, which
+  also dropped Numinix listing URLs (`/slug-{id}?cPath=...`) so the
+  SERP click beacon never fired. Still rejects `-c-N` and
+  trailing-slash category rewrites.
+
 ## v1.3.65 - 2026-08-14 (Daily unpaid-recovery recheck)
 
 - **Self-healing sticky denial** - `shouldPreferLocalSuggest()` now
