@@ -4,6 +4,12 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.71 - 2026-08-17 (Unfiltered SERP no longer clamps price to $0)
+
+- Missing `pfrom`/`pto` are unbound instead of `0`. The previous
+  default emitted `price:<=0` and collapsed "guitar" to a handful of
+  free products while suggest still showed ~10k results.
+
 ## v1.3.70 - 2026-08-17 (Suggest thumbs flash then vanish)
 
 - Hydration no longer paints Zen template spacer `x.gif` over working
