@@ -4,6 +4,12 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.70 - 2026-08-17 (Suggest thumbs flash then vanish)
+
+- Hydration no longer paints Zen template spacer `x.gif` over working
+  gateway thumbs. Catalog originals and the existing no_picture / Image
+  Handler cache-miss path are unchanged.
+
 ## v1.3.69 - 2026-08-17 (Default suggest is the subscribed widget)
 
 - Installer default is the split-rail `<seekmodo-suggest>` widget

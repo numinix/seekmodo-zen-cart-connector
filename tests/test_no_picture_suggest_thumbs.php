@@ -163,6 +163,45 @@ assertEq(
     $passed
 );
 
+$spacerAbs = 'https://dev.example.com/images/includes/templates/SBM2015/images/x.gif';
+assertTruthy(
+    'placeholder_helper_defined',
+    function_exists('numinix_seekmodo_is_placeholder_suggest_image_url'),
+    $errors,
+    $passed
+);
+assertEq('spacer_xgif', true, numinix_seekmodo_is_placeholder_suggest_image_url($spacerAbs), $errors, $passed);
+assertEq('spacer_templates_path', true, numinix_seekmodo_is_placeholder_suggest_image_url('/includes/templates/template_default/images/logo.gif'), $errors, $passed);
+assertEq('spacer_reject_real_photo', false, numinix_seekmodo_is_placeholder_suggest_image_url($catalog), $errors, $passed);
+assertEq(
+    'xgif_yields_catalog',
+    $catalog,
+    numinix_seekmodo_prefer_catalog_over_placeholder_suggest_image($spacerAbs, $catalog),
+    $errors,
+    $passed
+);
+assertEq(
+    'xgif_alone_yields_empty',
+    '',
+    numinix_seekmodo_prefer_catalog_over_placeholder_suggest_image($spacerAbs, ''),
+    $errors,
+    $passed
+);
+assertEq(
+    'cache_miss_still_yields_catalog',
+    $catalog,
+    numinix_seekmodo_prefer_catalog_over_placeholder_suggest_image($cacheAbs, $catalog),
+    $errors,
+    $passed
+);
+assertEq(
+    'good_local_still_wins',
+    $goodLocal,
+    numinix_seekmodo_prefer_catalog_over_placeholder_suggest_image($goodLocal, $catalog),
+    $errors,
+    $passed
+);
+
 // Observer hydrate still treats no_picture as force-upgrade (source lock).
 $observer = $repoRoot . '/zc_plugins/Seekmodo/' . $ver
     . '/catalog/includes/classes/observers/NuminixSeekmodoSuggestObserver.php';
@@ -171,6 +210,14 @@ $obsSrc = is_file($observer) ? (string) file_get_contents($observer) : '';
 assertTruthy(
     'observer_js_no_picture_force',
     preg_match('/no_picture\\\\.\\(\\?:gif\\|png\\|jpe\\?g\\|webp\\)/', $obsSrc) === 1,
+    $errors,
+    $passed
+);
+assertTruthy(
+    'observer_js_skips_template_spacer',
+    strpos($obsSrc, '_isPlaceholderSuggestThumbUrl') !== false
+        && strpos($obsSrc, '/includes/templates/') !== false
+        && strpos($obsSrc, 'x.gif') !== false,
     $errors,
     $passed
 );

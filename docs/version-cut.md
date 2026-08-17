@@ -11,10 +11,10 @@ Short practical gates before copying `zc_plugins/Seekmodo/v1.3.(n)` → `v1.3.(n
 
 When copying a new version tree from the previous one, diff at least:
 
-- `catalog/includes/functions/numinix_seekmodo_typeahead_lib.php` — image helpers (`numinix_seekmodo_is_no_picture_url`, `numinix_seekmodo_prefer_catalog_over_placeholder_suggest_image`, `numinix_seekmodo_suggest_product_image_url*`)
-- `catalog/includes/classes/observers/NuminixSeekmodoSuggestObserver.php` — hydrate / `no_picture` force-upgrade JS
+- `catalog/includes/functions/numinix_seekmodo_typeahead_lib.php` — image helpers (`numinix_seekmodo_is_no_picture_url`, `numinix_seekmodo_is_placeholder_suggest_image_url`, `numinix_seekmodo_prefer_catalog_over_placeholder_suggest_image`, `numinix_seekmodo_suggest_product_image_url*`)
+- `catalog/includes/classes/observers/NuminixSeekmodoSuggestObserver.php` — hydrate / `no_picture` / template-spacer skip JS
 
-Confirm `no_picture.(gif|png|jpg|webp)` is still treated as a miss and never wins over catalog `products_image`.
+Confirm `no_picture.(gif|png|jpg|webp)` is still treated as a miss and never wins over catalog `products_image`. Confirm template spacer `x.gif` / `includes/templates/` is also a miss and does not clobber a working gateway thumb.
 
 ## Run the no_picture regression smoke
 
