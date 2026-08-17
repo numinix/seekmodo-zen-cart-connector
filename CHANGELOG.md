@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.67 - 2026-08-17 (Catalog push QueryCache leak)
+
+- CLI `push_catalog` no longer accumulates Zen Cart `QueryCache`
+  mysqli results across unique keyset pages and per-SKU category
+  lookups. Full catalogs (12k+ SKUs with HTML descriptions) finish
+  without needing a 2GB `memory_limit`.
+
 ## v1.3.66 - 2026-08-15 (SERP click beacon slug-{id}?cPath=)
 
 - **`pidFromHref` accepts product links that carry a breadcrumb
