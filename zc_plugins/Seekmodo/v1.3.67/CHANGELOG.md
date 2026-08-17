@@ -15,6 +15,9 @@
   the page in one `IN()` query, then drop the page array before the
   next keyset fetch. A 12.5k catalog should finish inside a normal
   256–512MB CLI limit.
+- `docs_for_ids()` (SERP live-stock) must not call `reset('ALL')`. The
+  drain helper is now a no-op unless `$queryCache` is the indexer
+  no-op object, so a shared doc builder cannot wipe storefront cache.
 
 ## 2026-08-15 - SERP click beacon accepts product slug-{id}?cPath=
 

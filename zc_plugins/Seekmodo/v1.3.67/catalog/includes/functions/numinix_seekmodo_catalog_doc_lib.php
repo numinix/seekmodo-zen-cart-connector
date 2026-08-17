@@ -770,9 +770,6 @@ if (!function_exists('numinix_seekmodo_catalog_docs_for_ids')) {
         if (function_exists('numinix_seekmodo_catalog_doc_prime_category_ids')) {
             numinix_seekmodo_catalog_doc_prime_category_ids([]);
         }
-        if (function_exists('numinix_seekmodo_release_query_cache')) {
-            numinix_seekmodo_release_query_cache();
-        }
         return $docs;
     }
 }

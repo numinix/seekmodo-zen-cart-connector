@@ -151,12 +151,22 @@ if (!function_exists('numinix_seekmodo_disable_query_cache')) {
 
 if (!function_exists('numinix_seekmodo_release_query_cache')) {
     /**
-     * Drop any QueryCache entries accumulated since the last drain.
+     * Drop indexer QueryCache entries accumulated since the last drain.
+     *
+     * No-op unless the global was swapped to NuminixSeekmodoNullQueryCache.
+     * Shared doc builders also run on the storefront SERP; they must not
+     * flush Zen Cart's live QueryCache mid-request.
      */
     function numinix_seekmodo_release_query_cache(): void
     {
         global $queryCache;
-        if (isset($queryCache) && is_object($queryCache) && method_exists($queryCache, 'reset')) {
+        if (!isset($queryCache) || !is_object($queryCache)) {
+            return;
+        }
+        if (!$queryCache instanceof NuminixSeekmodoNullQueryCache) {
+            return;
+        }
+        if (method_exists($queryCache, 'reset')) {
             $queryCache->reset('ALL');
         }
     }

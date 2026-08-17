@@ -59,14 +59,16 @@ $GLOBALS['queryCache']->cache('SELECT b', 'keep-b');
 qc_assert($GLOBALS['queryCache']->inCache('SELECT a'), 'fake cache stored first query');
 
 numinix_seekmodo_release_query_cache();
-qc_assert($GLOBALS['queryCache'] instanceof FakeSeekmodoQueryCache, 'release leaves the object in place');
-qc_assert($GLOBALS['queryCache']->queries === [], 'reset(ALL) emptied stored results');
+qc_assert($GLOBALS['queryCache'] instanceof FakeSeekmodoQueryCache, 'release leaves a real QueryCache in place');
+qc_assert($GLOBALS['queryCache']->inCache('SELECT a'), 'release does not flush the storefront QueryCache');
 
 $GLOBALS['queryCache']->cache('SELECT c', 'keep-c');
 numinix_seekmodo_disable_query_cache();
 qc_assert($GLOBALS['queryCache'] instanceof NuminixSeekmodoNullQueryCache, 'disable replaces QueryCache');
 qc_assert($GLOBALS['queryCache']->inCache('SELECT c') === false, 'no-op cache never hits');
 qc_assert($GLOBALS['queryCache']->cache('SELECT d', 'x') === false, 'no-op cache() refuses to store');
+numinix_seekmodo_release_query_cache();
+qc_assert($GLOBALS['queryCache'] instanceof NuminixSeekmodoNullQueryCache, 'release after disable stays on the no-op cache');
 
 $fakeResult = new stdClass();
 $fakeResult->result = [['products_id' => 1]];
