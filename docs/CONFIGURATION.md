@@ -78,6 +78,13 @@ into a `/etc/cron.d/numinix-seekmodo-<tenant>` entry on managed-mode
 installs. On unmanaged hosts, you'd write this cron yourself; the
 constant is still surfaced for diagnostic visibility.
 
+## Suggest widget (local, v1.3.69+)
+
+| Constant | Default | Authority | Description |
+|---|---|---|---|
+| `NUMINIX_SEEKMODO_SUGGEST_ENABLED` | `true` | local | Inject the storefront suggest widget. |
+| `NUMINIX_SEEKMODO_SUGGEST_USE_LEGACY` | `false` | local | `false` = subscribed split-rail `<seekmodo-suggest>` widget. `true` = v1.0.20 flat dropdown. Installer/upgrade resets leftover `true`. |
+
 ## Where to look when in doubt
 
 1. **Admin → Configuration → Seekmodo Search** in your Zen Cart admin

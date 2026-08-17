@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.69 - 2026-08-17 (Default suggest is the subscribed widget)
+
+- Installer default is the split-rail `<seekmodo-suggest>` widget
+  (`NUMINIX_SEEKMODO_SUGGEST_USE_LEGACY=false`). Plugin Manager
+  upgrade also resets leftover `true` rows from recovery so paired
+  stores stop shipping the old flat dropdown.
+
 ## v1.3.68 - 2026-08-17 (Typeahead prices show HTML tags)
 
 - Strip Zen Cart `productBasePrice` spans from typeahead / suggest

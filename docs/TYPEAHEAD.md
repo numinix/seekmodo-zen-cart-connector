@@ -6,6 +6,23 @@ has different latency and relevance requirements, and it generates its
 own click signal that must be attributed correctly. The connector
 exposes a dedicated helper for it; this page is the integration guide.
 
+## Default storefront widget (v1.3.69+)
+
+Paired / subscribed stores use the same split-rail
+`<seekmodo-suggest>` web component as other Seekmodo connectors
+(`seekmodo_suggest.bundle.js`). That is the installer default:
+
+| Constant | Default | Effect |
+|---|---|---|
+| `NUMINIX_SEEKMODO_SUGGEST_ENABLED` | `true` | Inject the widget on `input[name=keyword]` (and the other stock selectors). |
+| `NUMINIX_SEEKMODO_SUGGEST_USE_LEGACY` | `false` | `false` = split-rail widget. `true` = the v1.0.20 flat dropdown (`seekmodo_typeahead.legacy.js`). |
+
+Plugin Manager install/upgrade resets leftover `USE_LEGACY=true`
+values that recovery scripts used to stamp. Leave the default unless
+you have CSS that cannot follow the split-rail markup yet. A billing
+denial (402 / cancelled) still forces the same-origin legacy path
+until cloud suggest is healthy again.
+
 ## Why a separate helper?
 
 `numinix_seekmodo_run_search()` is tuned for the full SERP — it pages
