@@ -86,4 +86,10 @@ qc_assert(strpos($push, 'numinix_seekmodo_catalog_doc_prime_category_ids') !== f
 $delta = file_get_contents(__DIR__ . '/../zc_plugins/Seekmodo/v1.3.67/catalog/numinix_seekmodo_index_delta.php');
 qc_assert(is_string($delta) && strpos($delta, 'numinix_seekmodo_disable_query_cache') !== false, 'index_delta disables QueryCache');
 
+$logSrc = file_get_contents($lib);
+qc_assert(
+    is_string($logSrc) && strpos($logSrc, '$canFreeMysqli') !== false,
+    'mysqli_free_result is gated on the indexer no-op QueryCache'
+);
+
 fwrite(STDOUT, "OK query_cache_indexer_smoke\n");

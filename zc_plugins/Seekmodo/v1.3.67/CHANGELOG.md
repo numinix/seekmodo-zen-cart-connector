@@ -18,6 +18,9 @@
 - `docs_for_ids()` (SERP live-stock) must not call `reset('ALL')`. The
   drain helper is now a no-op unless `$queryCache` is the indexer
   no-op object, so a shared doc builder cannot wipe storefront cache.
+- `mysqli_free_result` is likewise indexer-only. Zen Cart QueryCache
+  stores the same `mysqli_result`; freeing it from `docs_for_ids()`
+  would poison a later `getFromCache()` `mysqli_data_seek`.
 
 ## 2026-08-15 - SERP click beacon accepts product slug-{id}?cPath=
 
