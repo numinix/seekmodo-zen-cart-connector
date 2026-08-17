@@ -174,7 +174,13 @@ if (!function_exists('numinix_seekmodo_release_query_cache')) {
 
 if (!function_exists('numinix_seekmodo_release_query_result')) {
     /**
-     * Free a queryFactoryResult's mysqli resource and buffered rows.
+     * Drop PHP-buffered rows on a queryFactoryResult.
+     *
+     * mysqli_free_result is only safe after the indexer replaced
+     * $queryCache with NuminixSeekmodoNullQueryCache. Zen Cart's live
+     * QueryCache stores the same mysqli_result, and storefront helpers
+     * such as docs_for_ids() must not free it (getFromCache then
+     * mysqli_data_seek's a destroyed resource).
      *
      * @param mixed $result
      */
@@ -183,7 +189,11 @@ if (!function_exists('numinix_seekmodo_release_query_result')) {
         if (!is_object($result)) {
             return;
         }
-        if (isset($result->resource) && $result->resource instanceof \mysqli_result) {
+        global $queryCache;
+        $canFreeMysqli = isset($queryCache)
+            && is_object($queryCache)
+            && $queryCache instanceof NuminixSeekmodoNullQueryCache;
+        if ($canFreeMysqli && isset($result->resource) && $result->resource instanceof \mysqli_result) {
             @mysqli_free_result($result->resource);
             $result->resource = null;
         }
