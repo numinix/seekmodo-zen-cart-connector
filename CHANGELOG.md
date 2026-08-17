@@ -4,6 +4,12 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.72 - 2026-08-17 (Broad SERPs no longer OOM on live-stock hydration)
+
+- SERP live-stock ranking no longer hydrates full catalog documents
+  (including HTML descriptions) for every gateway hit. STRIN "guitar"
+  (~10k results) was exhausting 1GB and returning HTTP 500.
+
 ## v1.3.71 - 2026-08-17 (Unfiltered SERP no longer clamps price to $0)
 
 - Missing `pfrom`/`pto` are unbound instead of `0`. The previous
