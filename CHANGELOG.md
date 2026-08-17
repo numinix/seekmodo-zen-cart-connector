@@ -4,6 +4,12 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.68 - 2026-08-17 (Typeahead prices show HTML tags)
+
+- Strip Zen Cart `productBasePrice` spans from typeahead / suggest
+  prices. The dropdown text-escapes the string, so leaving HTML in
+  JSON printed tags like `<span class="productBasePrice">$28.00</span>`.
+
 ## v1.3.67 - 2026-08-17 (Catalog push QueryCache leak)
 
 - CLI `push_catalog` no longer accumulates Zen Cart `QueryCache`
