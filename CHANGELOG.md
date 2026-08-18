@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.74 - 2026-08-18 (seekmodo_nocache write-through)
+
+- `?seekmodo_nocache=1` still bypasses the cache read for a fresh
+  gateway ranking, but now write-throughs the successful SERP /
+  typeahead envelope so View All and later pages do not keep serving a
+  stale TTL entry.
+
 ## v1.3.73 - 2026-08-17 (categories_id=0 no longer empties gateway SERPs)
 
 - Zen Cart advanced search posts `categories_id=0` for "all categories".
