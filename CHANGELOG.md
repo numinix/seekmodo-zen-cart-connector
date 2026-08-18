@@ -4,6 +4,14 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.73 - 2026-08-17 (categories_id=0 no longer empties gateway SERPs)
+
+- Zen Cart advanced search posts `categories_id=0` for "all categories".
+  That was becoming Typesense `category_id:=0`, so `/v1/search` returned
+  zero hits and the SERP fell back to store default sort while suggest still
+  showed relevance-ranked results. Treat `categories_id=0` / `cPath=0` as
+  unbound; search cache bumped to `sm_search_v4`; empty result envelopes are
+  no longer cached.
 ## v1.3.72 - 2026-08-17 (Broad SERPs no longer OOM on live-stock hydration)
 
 - SERP live-stock ranking no longer hydrates full catalog documents
