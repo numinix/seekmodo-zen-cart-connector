@@ -1,5 +1,15 @@
 # Seekmodo for Zen Cart v1.3.74
 
+## 2026-08-18 - SERP ES/Typesense total parity
+
+- **Legacy `$es_products_id_2` total stays in sync with Seekmodo** —
+  custom product_listing modules that pass
+  `['total' => $es_products_id_2['total']]` into splitPageResults no
+  longer clobber the gateway count after a Seekmodo rewrite.
+- **Omit legacy `NUMINIX_TYPESENSE_QUERY_BY` on gateway SERP** so
+  suggest/gateway report the Seekmodo total (avoids Redline-style
+  SERP 50 vs suggest 52 divergence).
+
 ## 2026-08-18 - seekmodo_nocache write-through refreshes SERP cache
 
 - `?seekmodo_nocache=1` still skips the cache **read** so operators get a

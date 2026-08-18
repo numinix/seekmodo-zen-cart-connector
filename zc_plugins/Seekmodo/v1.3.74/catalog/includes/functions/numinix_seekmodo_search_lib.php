@@ -1428,25 +1428,14 @@ if (!function_exists('_numinix_seekmodo_typesense_tuning_params')) {
         if (defined('NUMINIX_TYPESENSE_DROP_TOKENS_THRESHOLD')) {
             $payload['drop_tokens_threshold'] = (int)NUMINIX_TYPESENSE_DROP_TOKENS_THRESHOLD;
         }
-        if (defined('NUMINIX_TYPESENSE_QUERY_BY') && NUMINIX_TYPESENSE_QUERY_BY !== '') {
-            $qBy = (string)NUMINIX_TYPESENSE_QUERY_BY;
-            $payload['query_by'] = $qBy;
-            $fieldCount = substr_count($qBy, ',') + 1;
-            $perField = [
-                'query_by_weights' => 'NUMINIX_TYPESENSE_QUERY_BY_WEIGHTS',
-                'prefix'           => 'NUMINIX_TYPESENSE_PREFIX',
-                'infix'            => 'NUMINIX_TYPESENSE_INFIX',
-            ];
-            foreach ($perField as $param => $constName) {
-                if (defined($constName)) {
-                    $val = constant($constName);
-                    if (is_string($val) && $val !== ''
-                        && (substr_count($val, ',') + 1) === $fieldCount) {
-                        $payload[$param] = $val;
-                    }
-                }
-            }
-        }
+        // Intentionally do NOT forward storefront NUMINIX_TYPESENSE_QUERY_BY
+        // (or weights/prefix/infix) to the Seekmodo gateway. Those
+        // constants are a narrow legacy Typesense field list
+        // (commonly name,model,description). Suggest / SerpPreview use
+        // gateway-default query_by; forcing the narrow list made SERP
+        // totals diverge (e.g. wheel vise: SERP 50 vs suggest 52).
+        // Sort + typo thresholds still pass through — those do not
+        // change `found`.
         if ($forKeywordSearch && defined('NUMINIX_TYPESENSE_KEYWORD_SORT_BY')
             && NUMINIX_TYPESENSE_KEYWORD_SORT_BY !== '') {
             $payload['sort_by'] = (string)NUMINIX_TYPESENSE_KEYWORD_SORT_BY;
