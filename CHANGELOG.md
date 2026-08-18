@@ -4,6 +4,13 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.75 - 2026-08-18 (SERP/suggest count parity)
+
+- Sync legacy $es_products_id_2 total when Seekmodo rewrites SERP
+  results so custom listing modules do not clobber the gateway count.
+- Omit storefront NUMINIX_TYPESENSE_QUERY_BY on gateway SERP so
+  found matches suggest (Redline-style 50 vs 52 divergence).
+
 ## v1.3.74 - 2026-08-18 (seekmodo_nocache write-through)
 
 - `?seekmodo_nocache=1` still bypasses the cache read for a fresh
