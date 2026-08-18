@@ -1,4 +1,14 @@
-# Seekmodo for Zen Cart v1.3.74
+﻿# Seekmodo for Zen Cart v1.3.75
+
+## 2026-08-18 - SERP ES/Typesense total parity
+
+- **Legacy `$es_products_id_2` total stays in sync with Seekmodo** â€”
+  custom product_listing modules that pass
+  `['total' => $es_products_id_2['total']]` into splitPageResults no
+  longer clobber the gateway count after a Seekmodo rewrite.
+- **Omit legacy `NUMINIX_TYPESENSE_QUERY_BY` on gateway SERP** so
+  suggest/gateway report the Seekmodo total (avoids Redline-style
+  SERP 50 vs suggest 52 divergence).
 
 ## 2026-08-18 - seekmodo_nocache write-through refreshes SERP cache
 
@@ -17,7 +27,7 @@
   `category_id:=0`. No products live in category 0, so `/v1/search`
   returned `found=0` and the SERP fell back to Enhanced Native
   (`products_sort_order`) while suggest (no category filter) still
-  showed relevance-ranked hits — STRIN "guitar" mismatch.
+  showed relevance-ranked hits â€” STRIN "guitar" mismatch.
 - Treat `categories_id=0` / `cPath=0` as unbound. Search cache key
   bumped to `sm_search_v4`; empty `products[]` envelopes are no longer
   cached so a zero-hit reply cannot poison later unbound SERPs.
@@ -28,7 +38,7 @@
   `docs_for_ids()` for every hit. That joins `products_description`
   and builds full catalog docs (HTML strip, categories, breadcrumbs,
   per-SKU stock). STRIN "guitar" (~10k hits) exhausted PHP at 1GB
-  inside `query_factory.php` — intermittent HTTP 500s.
+  inside `query_factory.php` â€” intermittent HTTP 500s.
 - Live-stock partition now loads only `products_id` / quantity / NPF
   flags.
 
@@ -47,7 +57,7 @@
 - `zen_get_products_image(240)` on some templates (STRIN SBM2015)
   returns the spacer pixel `includes/templates/.../images/x.gif`.
   That file HTTP 200s, so the hydrator replaced the working gateway
-  photo and `onerror` never restored it — thumbs flashed then
+  photo and `onerror` never restored it â€” thumbs flashed then
   disappeared.
 - Treat template spacers the same as `no_picture.*`: miss, then catalog
   original, else leave the gateway thumb. Existing Image Handler /
@@ -91,7 +101,7 @@
   no-op, free each page's `mysqli_result`, prefetch category links for
   the page in one `IN()` query, then drop the page array before the
   next keyset fetch. A 12.5k catalog should finish inside a normal
-  256–512MB CLI limit.
+  256â€“512MB CLI limit.
 - `docs_for_ids()` (SERP live-stock) must not call `reset('ALL')`. The
   drain helper is now a no-op unless `$queryCache` is the indexer
   no-op object, so a shared doc builder cannot wipe storefront cache.
@@ -114,9 +124,9 @@
 
 ## 2026-08-14 - Daily unpaid-recovery recheck
 
-- `Client::shouldPreferLocalSuggest()` — the single choke point every
+- `Client::shouldPreferLocalSuggest()` â€” the single choke point every
   suggest/typeahead surface calls before `RemoteConfig::pull()` ever
-  runs — no longer trusts a `trial_expired` / `over_quota` / cancelled
+  runs â€” no longer trusts a `trial_expired` / `over_quota` / cancelled
   sticky indefinitely. At most once every 24 hours it force-invalidates
   the cached `tenant.snapshot` and re-pulls it; if the gateway's new
   `billing.status` field reports `active`, it clears both the
@@ -126,24 +136,24 @@
   sticky-local, nothing on that path talked to the gateway again, so a
   merchant who subscribed (or an operator who extended a trial) stayed
   degraded until the sticky's own TTL lapsed or someone manually clicked
-  **Refresh snapshot** in the admin. Full search was never affected —
+  **Refresh snapshot** in the admin. Full search was never affected â€”
   it always retries the gateway and clears the sticky on the next
   success.
 - Requires the gateway's `tenant.snapshot` to expose
   `billing.status` / `billing.trial_ends_at` (2026-08 daily
   unpaid-recovery plan, gateway step). Older gateways simply omit the
   field and the recheck is a no-op, same as today.
-- Admin **Connect to Seekmodo → Refresh snapshot** now applies the same
+- Admin **Connect to Seekmodo â†’ Refresh snapshot** now applies the same
   `billing.status` write-through (`Client::applyBillingSnapshot()`) so
   the documented "click Refresh snapshot for immediate restore" path
   actually clears the sticky instead of only mirroring mode/FSM fields.
 - On hosts without APCu (sticky falls back to each shopper's own
   `$_SESSION`), the Refresh snapshot success message no longer claims
-  cloud suggest is instantly restored — an admin request can only ever
+  cloud suggest is instantly restored â€” an admin request can only ever
   clear its own session, not every shopper's. It now says recovery
   will land as sessions refresh (still within the 24h daily recheck).
 - `Client::applyBillingSnapshot()` no longer clears a genuine
-  `over_quota` sticky just because `billing.status === 'active'` — an
+  `over_quota` sticky just because `billing.status === 'active'` â€” an
   actively-paying tenant can still be over this period's metered
   quota, and `active` was already true when that 402 landed. It now
   reads the sticky's own stored `code` and only recovers cancelled /
@@ -189,3 +199,4 @@
 ## Prior (v1.3.61)
 
 - Allow catalog indexing when `locked_domain` is an intentional nonprod host (demo/staging tenants).
+
