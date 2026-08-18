@@ -11,7 +11,7 @@ zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 - Omit storefront NUMINIX_TYPESENSE_QUERY_BY on gateway SERP so
   found matches suggest (Redline-style 50 vs 52 divergence).
 
-## v1.3.74  - 2026-08-18 (seekmodo_nocache write-through)
+## v1.3.74 - 2026-08-18 (seekmodo_nocache write-through)
 
 - `?seekmodo_nocache=1` still bypasses the cache read for a fresh
   gateway ranking, but now write-throughs the successful SERP /
