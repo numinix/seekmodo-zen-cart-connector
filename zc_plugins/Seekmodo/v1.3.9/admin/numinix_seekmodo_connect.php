@@ -390,6 +390,18 @@ systemctl restart <?= htmlspecialchars($fpmSvcA, ENT_QUOTES, CHARSET) ?></pre>
       <dd><?= $snapshot !== null ? 'gateway snapshot' : 'local cache (gateway unreachable)' ?></dd>
     </dl>
 
+    <h2>Fitment</h2>
+    <p style="font-size:13px;color:#374151;margin:0 0 8px 0;">
+      Product ↔ vehicle assignments live in the central Seekmodo catalog.
+      Import CSV mappings or edit per-product fitment on Seekmodo Admin.
+      The storefront YMM picker shows only vehicles with at least one
+      assigned product for this tenant.
+    </p>
+    <p style="margin:0;">
+      <a href="https://admin.seekmodo.com/tenants/<?= rawurlencode($tenantId) ?>/fitment/import" target="_blank" rel="noopener" class="btn btn-secondary">CSV import on Seekmodo Admin</a>
+      <a href="https://admin.seekmodo.com/reports/fitment?t=<?= rawurlencode($tenantId) ?>" target="_blank" rel="noopener" class="btn btn-secondary" style="margin-left:8px;">Fitment coverage report</a>
+    </p>
+
     <?php if ($lastTransitions !== []): ?>
       <h2>Last 5 transitions</h2>
       <table class="transitions">
