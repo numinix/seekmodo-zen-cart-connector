@@ -4,6 +4,12 @@ This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
 
+## v1.3.76 - 2026-08-26 (typeahead product click PDP fallback)
+
+- Product rows in `<seekmodo-suggest>` without a gateway `url` now
+  navigate to the storefront PDP via `products_id` instead of falling
+  through to a keyword SERP (RED-1880 Redline "upper hose").
+
 ## v1.3.75 - 2026-08-18 (SERP/suggest count parity)
 
 - Sync legacy $es_products_id_2 total when Seekmodo rewrites SERP
