@@ -738,6 +738,12 @@ if (!function_exists('numinix_seekmodo_catalog_doc_from_row')) {
         if (function_exists('numinix_seekmodo_catalog_base_currency')) {
             $doc['currency'] = numinix_seekmodo_catalog_base_currency();
         }
+        if (function_exists('numinix_seekmodo_language_code_for_id')) {
+            $langCode = numinix_seekmodo_language_code_for_id($languageId);
+            if ($langCode !== null && $langCode !== '') {
+                $doc['lang'] = $langCode;
+            }
+        }
         $inStock = numinix_seekmodo_catalog_doc_live_in_stock(
             $pid,
             (int) ($row['products_quantity'] ?? 0)
@@ -907,5 +913,80 @@ if (!function_exists('numinix_seekmodo_catalog_docs_for_ids')) {
             numinix_seekmodo_catalog_doc_prime_category_ids([]);
         }
         return $docs;
+    }
+}
+
+if (!function_exists('numinix_seekmodo_language_code_for_id')) {
+    /**
+     * Map a Zen Cart languages_id to a lowercase ISO 639-1 code for
+     * gateway `lang` filtering (de, en, es, …). Falls back to the
+     * language directory name aliases used by SuggestObserver.
+     */
+    function numinix_seekmodo_language_code_for_id(int $languageId): ?string
+    {
+        if ($languageId <= 0) {
+            return null;
+        }
+        static $cache = [];
+        if (isset($cache[$languageId])) {
+            return $cache[$languageId];
+        }
+        $code = null;
+        $dir = null;
+        if (isset($GLOBALS['db']) && is_object($GLOBALS['db']) && defined('TABLE_LANGUAGES')) {
+            try {
+                $row = $GLOBALS['db']->Execute(
+                    'SELECT code, directory FROM ' . TABLE_LANGUAGES
+                    . ' WHERE languages_id = ' . (int) $languageId . ' LIMIT 1'
+                );
+                if ($row && !$row->EOF) {
+                    $code = isset($row->fields['code']) ? strtolower(trim((string) $row->fields['code'])) : '';
+                    $dir = isset($row->fields['directory']) ? strtolower(trim((string) $row->fields['directory'])) : '';
+                }
+            } catch (\Throwable $e) {
+                // fall through
+            }
+        }
+        $aliases = [
+            'deutsch' => 'de',
+            'german' => 'de',
+            'english' => 'en',
+            'spanish' => 'es',
+            'espanol' => 'es',
+            'french' => 'fr',
+            'francais' => 'fr',
+            'italian' => 'it',
+            'portuguese' => 'pt',
+            'dutch' => 'nl',
+        ];
+        if ($code !== null && $code !== '') {
+            $primary = preg_replace('/[_-].*$/', '', $code);
+            if (is_string($primary) && preg_match('/^[a-z]{2,3}$/', $primary) === 1) {
+                return $cache[$languageId] = $primary;
+            }
+        }
+        if ($dir !== null && $dir !== '' && isset($aliases[$dir])) {
+            return $cache[$languageId] = $aliases[$dir];
+        }
+        if ($dir !== null && $dir !== '' && preg_match('/^[a-z]{2,3}/', $dir, $m) === 1) {
+            return $cache[$languageId] = $m[0];
+        }
+
+        return $cache[$languageId] = null;
+    }
+}
+
+if (!function_exists('numinix_seekmodo_current_language_code')) {
+    /**
+     * Active storefront language as ISO 639-1 for gateway payloads.
+     */
+    function numinix_seekmodo_current_language_code(): ?string
+    {
+        $id = isset($_SESSION['languages_id']) ? (int) $_SESSION['languages_id'] : 0;
+        if ($id <= 0) {
+            return null;
+        }
+
+        return numinix_seekmodo_language_code_for_id($id);
     }
 }

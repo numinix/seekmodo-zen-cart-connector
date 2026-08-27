@@ -1,5 +1,9 @@
 # Seekmodo for Zen Cart - top-level changelog
 
+## v1.3.77 - 2026-08-27 (multilingual lang stamp)
+
+- Stamp ISO 639-1 `lang` on indexed catalog docs and forward storefront language code on search/suggest/shopper_context so the gateway can filter multilingual results.
+
 This file tracks what is in the **latest** released zip. The full
 per-version detail lives next to the source under
 zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.

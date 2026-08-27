@@ -322,6 +322,12 @@ if (!function_exists('_numinix_seekmodo_typeahead_via_suggest')) {
         if (function_exists('numinix_seekmodo_shopper_context')) {
             $payload['shopper_context'] = numinix_seekmodo_shopper_context();
         }
+        if (function_exists('numinix_seekmodo_current_language_code')) {
+            $lang = numinix_seekmodo_current_language_code();
+            if ($lang !== null && $lang !== '') {
+                $payload['lang'] = $lang;
+            }
+        }
 
         $startMs = (int)(microtime(true) * 1000);
         $resp = numinix_seekmodo_suggest($payload);

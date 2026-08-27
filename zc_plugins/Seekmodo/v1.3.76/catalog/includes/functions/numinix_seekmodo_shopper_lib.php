@@ -239,6 +239,12 @@ if (!function_exists('numinix_seekmodo_shopper_context')) {
         if ($pid !== null && $pid !== '') {
             $ctx['shopper_pid'] = $pid;
         }
+        if (function_exists('numinix_seekmodo_current_language_code')) {
+            $lang = numinix_seekmodo_current_language_code();
+            if ($lang !== null && $lang !== '') {
+                $ctx['lang'] = $lang;
+            }
+        }
         return $ctx;
     }
 }
