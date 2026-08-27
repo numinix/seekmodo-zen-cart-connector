@@ -552,6 +552,18 @@ final class NuminixSeekmodoSuggestObserver extends base
             $existingShopper['currency'] = $shopperCurrency;
             $serpPassthrough['shopper_context'] = $existingShopper;
         }
+        if (function_exists('numinix_seekmodo_current_language_code')) {
+            $langCode = numinix_seekmodo_current_language_code();
+            if ($langCode !== null && $langCode !== '') {
+                $existingShopper = isset($serpPassthrough['shopper_context'])
+                    && is_array($serpPassthrough['shopper_context'])
+                    ? $serpPassthrough['shopper_context']
+                    : [];
+                $existingShopper['lang'] = $langCode;
+                $serpPassthrough['shopper_context'] = $existingShopper;
+                $serpPassthrough['lang'] = $langCode;
+            }
+        }
         $shimUrl = $this->suggestShimUrl();
         $cfg = [
             'selectors'     => [
