@@ -289,7 +289,10 @@ if (($_GET['seekmodo_action'] ?? '') === 'images') {
     echo json_encode([
         'ok' => true,
         'images' => numinix_seekmodo_suggest_product_images($ids),
-    ], JSON_UNESCAPED_SLASHES);
+        'names' => function_exists('numinix_seekmodo_suggest_product_names')
+            ? numinix_seekmodo_suggest_product_names($ids)
+            : [],
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     return;
 }
 

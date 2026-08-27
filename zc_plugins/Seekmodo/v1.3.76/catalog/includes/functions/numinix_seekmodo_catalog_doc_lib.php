@@ -774,7 +774,71 @@ if (!function_exists('numinix_seekmodo_catalog_doc_from_row')) {
                 $doc['occasion_peak_month'] = $peakMonth;
             }
         }
+        $langCode = numinix_seekmodo_catalog_doc_lang_code($languageId);
+        if ($langCode !== null) {
+            $doc['lang'] = $langCode;
+        }
         return $doc;
+    }
+}
+
+if (!function_exists('numinix_seekmodo_catalog_doc_lang_code')) {
+    /**
+     * Map a Zen Cart languages_id to an ISO 639-1 code for Typesense `lang`.
+     */
+    function numinix_seekmodo_catalog_doc_lang_code(int $languageId): ?string
+    {
+        if ($languageId <= 0) {
+            return null;
+        }
+        static $cache = [];
+        if (isset($cache[$languageId])) {
+            return $cache[$languageId];
+        }
+        $aliases = [
+            'english' => 'en',
+            'german'  => 'de',
+            'deutsch' => 'de',
+            'spanish' => 'es',
+            'espanol' => 'es',
+            'french'  => 'fr',
+            'francais'=> 'fr',
+            'italian' => 'it',
+            'portuguese' => 'pt',
+            'dutch'   => 'nl',
+        ];
+        $dir = '';
+        if (isset($GLOBALS['db']) && is_object($GLOBALS['db']) && defined('TABLE_LANGUAGES')) {
+            try {
+                $row = $GLOBALS['db']->Execute(
+                    'SELECT directory, code FROM ' . TABLE_LANGUAGES
+                    . ' WHERE languages_id = ' . (int) $languageId . ' LIMIT 1'
+                );
+                if ($row && !$row->EOF) {
+                    $dir = strtolower(trim((string) ($row->fields['directory'] ?? '')));
+                    $code = strtolower(trim((string) ($row->fields['code'] ?? '')));
+                    if ($code !== '') {
+                        $primary = preg_replace('/[_-].*$/', '', $code);
+                        if (is_string($primary) && preg_match('/^[a-z]{2,3}$/', $primary) === 1) {
+                            return $cache[$languageId] = $primary;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // fall through to session / aliases
+            }
+        }
+        if ($dir === '' && isset($_SESSION['language']) && is_string($_SESSION['language'])) {
+            $dir = strtolower(trim($_SESSION['language']));
+        }
+        if ($dir !== '' && isset($aliases[$dir])) {
+            return $cache[$languageId] = $aliases[$dir];
+        }
+        if ($dir !== '' && preg_match('/^[a-z]{2,3}/', $dir, $m) === 1) {
+            return $cache[$languageId] = $m[0];
+        }
+
+        return $cache[$languageId] = null;
     }
 }
 
