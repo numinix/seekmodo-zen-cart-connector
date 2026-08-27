@@ -1992,6 +1992,16 @@ if (!function_exists('_numinix_seekmodo_build_suggest_payload')) {
             'limit'            => $limit,
             'include_products' => true,
         ];
+        // ISO / directory language hint for gateway LanguageFilter.
+        if (function_exists('numinix_seekmodo_catalog_doc_lang_code')) {
+            $langId = isset($_SESSION['languages_id']) ? (int) $_SESSION['languages_id'] : 0;
+            $lang = numinix_seekmodo_catalog_doc_lang_code($langId > 0 ? $langId : 1);
+            if ($lang !== null) {
+                $payload['lang'] = $lang;
+            }
+        } elseif (isset($_SESSION['language']) && is_string($_SESSION['language'])) {
+            $payload['lang'] = strtolower(trim($_SESSION['language']));
+        }
         // Always attach (even when empty) so SerpPreview engages the
         // same way as the browser serp-passthrough attribute.
         if (function_exists('_numinix_seekmodo_build_serp_passthrough')) {

@@ -801,6 +801,42 @@ if (!function_exists('numinix_seekmodo_suggest_product_images')) {
     }
 }
 
+if (!function_exists('numinix_seekmodo_suggest_product_names')) {
+    /**
+     * Session-language product names for suggest title hydration.
+     *
+     * Browser `<seekmodo-suggest>` reads gateway document `name` (indexed
+     * in a single catalog language). Re-resolve via zen_get_products_name
+     * so DE/ES storefronts show the active language title.
+     *
+     * @param list<int> $productIds
+     * @return array<string, string> map of products_id string => name
+     */
+    function numinix_seekmodo_suggest_product_names(array $productIds): array
+    {
+        $out = [];
+        foreach ($productIds as $pid) {
+            $pid = (int) $pid;
+            if ($pid <= 0) {
+                continue;
+            }
+            $name = '';
+            if (function_exists('zen_get_products_name')) {
+                try {
+                    $name = trim((string) @zen_get_products_name($pid));
+                } catch (\Throwable $e) {
+                    $name = '';
+                }
+            }
+            if ($name !== '') {
+                $out[(string) $pid] = $name;
+            }
+        }
+
+        return $out;
+    }
+}
+
 if (!function_exists('numinix_seekmodo_plain_price_text')) {
     /**
      * Strip Zen Cart price HTML (e.g. productBasePrice spans) down to
@@ -1014,6 +1050,16 @@ if (!function_exists('_numinix_seekmodo_typeahead_items_from_suggest')) {
                 'value' => (string)($doc['name'] ?? ''),
                 'model' => (string)($doc['model'] ?? ''),
             ];
+            if (function_exists('zen_get_products_name')) {
+                try {
+                    $localName = trim((string) @zen_get_products_name($pid));
+                    if ($localName !== '') {
+                        $item['value'] = $localName;
+                    }
+                } catch (\Throwable $e) {
+                    // keep gateway name
+                }
+            }
             if (function_exists('numinix_seekmodo_plain_display_price')) {
                 $item['price'] = numinix_seekmodo_plain_display_price($pid);
             } elseif (isset($doc['price'])) {
@@ -1089,6 +1135,16 @@ if (!function_exists('_numinix_seekmodo_typeahead_items')) {
                 'value' => (string)($doc['name'] ?? ''),
                 'model' => (string)($doc['model'] ?? ''),
             ];
+            if (function_exists('zen_get_products_name')) {
+                try {
+                    $localName = trim((string) @zen_get_products_name($pid));
+                    if ($localName !== '') {
+                        $item['value'] = $localName;
+                    }
+                } catch (\Throwable $e) {
+                    // keep gateway name
+                }
+            }
             // Price + URL + image come from Zen Cart helpers when this
             // is running inside the storefront request. Skip when they
             // aren't available (unit-test harness).

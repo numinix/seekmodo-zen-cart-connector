@@ -1357,13 +1357,43 @@ final class NuminixSeekmodoSuggestObserver extends base
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
         _thumbHydrateInflight = null;
-        if (!data || !data.ok || !data.images || typeof data.images !== 'object') return;
-        var keys = Object.keys(data.images);
-        if (keys.length === 0) return;
-        _thumbHydrateCache[cacheKey] = data.images;
-        _paintSuggestThumbs(data.images);
+        if (!data || !data.ok) return;
+        if (data.images && typeof data.images === 'object') {
+          var keys = Object.keys(data.images);
+          if (keys.length > 0) {
+            _thumbHydrateCache[cacheKey] = data.images;
+            _paintSuggestThumbs(data.images);
+          }
+        }
+        if (data.names && typeof data.names === 'object') {
+          _paintSuggestNames(data.names);
+        }
       })
       .catch(function () { _thumbHydrateInflight = null; });
+  }
+  function _paintSuggestNames(map) {
+    if (!map || typeof map !== 'object') return;
+    var hosts = document.querySelectorAll('seekmodo-suggest');
+    for (var h = 0; h < hosts.length; h++) {
+      var root = hosts[h].shadowRoot;
+      if (!root) continue;
+      var rows = root.querySelectorAll('[data-seekmodo-id]');
+      for (var r = 0; r < rows.length; r++) {
+        var id = rows[r].getAttribute('data-seekmodo-id');
+        var name = id && map[id];
+        if (!name || typeof name !== 'string') continue;
+        name = name.trim();
+        if (!name) continue;
+        var title = rows[r].querySelector('.title, [part="title"], .name, [part="name"]');
+        if (title && title.textContent !== name) {
+          title.textContent = name;
+        }
+        var link = rows[r].querySelector('a');
+        if (link && link.getAttribute('title') !== name) {
+          link.setAttribute('title', name);
+        }
+      }
+    }
   }
   function _hydrateSuggestThumbs(q) {
     q = String(q || '').trim();
