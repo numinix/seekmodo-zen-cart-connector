@@ -30,7 +30,7 @@ if (!defined('TEXT_SEEKMODO_SUGGEST_VIEW_ALL')) {
     define('TEXT_SEEKMODO_SUGGEST_VIEW_ALL', 'View all {total} results');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_VIEW_ALL_SHORT')) {
-    define('TEXT_SEEKMODO_SUGGEST_VIEW_ALL_SHORT', 'View all â†’');
+    define('TEXT_SEEKMODO_SUGGEST_VIEW_ALL_SHORT', 'View all →');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_RESULTS_FOR')) {
     define('TEXT_SEEKMODO_SUGGEST_RESULTS_FOR', '{total} results for ');
@@ -38,17 +38,29 @@ if (!defined('TEXT_SEEKMODO_SUGGEST_RESULTS_FOR')) {
 if (!defined('TEXT_SEEKMODO_SUGGEST_SHOWING_RESULTS_FOR')) {
     define('TEXT_SEEKMODO_SUGGEST_SHOWING_RESULTS_FOR', 'Showing results for "{query}". Search instead for ');
 }
+if (!defined('TEXT_SEEKMODO_SUGGEST_PRICE_RANGE')) {
+    define('TEXT_SEEKMODO_SUGGEST_PRICE_RANGE', 'Price range');
+}
 if (!defined('TEXT_SEEKMODO_SUGGEST_PRODUCTS_COUNT')) {
     define('TEXT_SEEKMODO_SUGGEST_PRODUCTS_COUNT', '{count} products');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_PRODUCTS_PENDING')) {
-    define('TEXT_SEEKMODO_SUGGEST_PRODUCTS_PENDING', 'Matching products appear when you pause typingâ€¦');
+    define('TEXT_SEEKMODO_SUGGEST_PRODUCTS_PENDING', 'Matching products appear when you pause typing…');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_EMPTY')) {
-    define('TEXT_SEEKMODO_SUGGEST_EMPTY', 'No matches yet â€” keep typing.');
+    define('TEXT_SEEKMODO_SUGGEST_EMPTY', 'No matches yet — keep typing.');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_POWERED_BY')) {
     define('TEXT_SEEKMODO_SUGGEST_POWERED_BY', 'Powered by ');
+}
+if (!defined('TEXT_SEEKMODO_SUGGEST_BEST_MATCHES')) {
+    define('TEXT_SEEKMODO_SUGGEST_BEST_MATCHES', 'Best matches');
+}
+if (!defined('TEXT_SEEKMODO_SUGGEST_MORE_RESULTS')) {
+    define('TEXT_SEEKMODO_SUGGEST_MORE_RESULTS', 'More results');
+}
+if (!defined('TEXT_SEEKMODO_SUGGEST_TOP_MATCH')) {
+    define('TEXT_SEEKMODO_SUGGEST_TOP_MATCH', 'Top match');
 }
 if (!defined('TEXT_SEEKMODO_CORS_BLOCKED')) {
     define('TEXT_SEEKMODO_CORS_BLOCKED', 'Search suggestions couldn\'t load because this site is blocked from reaching Seekmodo (CORS). Ask your store administrator to allowlist this domain on the Seekmodo gateway, or enable the connector\'s same-origin suggest proxy.');
@@ -83,4 +95,3 @@ if (!defined('TEXT_SEEKMODO_RECO_POPULAR')) {
 if (!defined('TEXT_SEEKMODO_SORT_RELEVANCE')) {
     define('TEXT_SEEKMODO_SORT_RELEVANCE', 'Relevance');
 }
-

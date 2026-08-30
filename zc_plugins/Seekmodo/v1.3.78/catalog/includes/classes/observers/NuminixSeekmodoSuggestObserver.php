@@ -1798,6 +1798,7 @@ JS;
             'products'             => 'Products',
             'categories'           => 'Categories',
             'redirects'            => 'Redirects',
+            'price_range'          => 'Price range',
             'did_you_mean'         => 'Did you mean',
             'view_all'             => 'View all {total} results',
             'view_all_short'       => 'View all →',
@@ -1807,6 +1808,9 @@ JS;
             'products_pending'     => 'Matching products appear when you pause typing…',
             'empty'                => 'No matches yet — keep typing.',
             'powered_by'           => 'Powered by ',
+            'best_matches'         => 'Best matches',
+            'more_results'         => 'More results',
+            'top_match'            => 'Top match',
             'cors_blocked'         => "Search suggestions couldn't load because this site is blocked from reaching Seekmodo (CORS). Ask your store administrator to allowlist this domain on the Seekmodo gateway, or enable the connector's same-origin suggest proxy.",
         ];
         $map = [
@@ -1816,6 +1820,7 @@ JS;
             'products'             => 'TEXT_SEEKMODO_SUGGEST_PRODUCTS',
             'categories'           => 'TEXT_SEEKMODO_SUGGEST_CATEGORIES',
             'redirects'            => 'TEXT_SEEKMODO_SUGGEST_REDIRECTS',
+            'price_range'          => 'TEXT_SEEKMODO_SUGGEST_PRICE_RANGE',
             'did_you_mean'         => 'TEXT_SEEKMODO_SUGGEST_DID_YOU_MEAN',
             'view_all'             => 'TEXT_SEEKMODO_SUGGEST_VIEW_ALL',
             'view_all_short'       => 'TEXT_SEEKMODO_SUGGEST_VIEW_ALL_SHORT',
@@ -1825,6 +1830,9 @@ JS;
             'products_pending'     => 'TEXT_SEEKMODO_SUGGEST_PRODUCTS_PENDING',
             'empty'                => 'TEXT_SEEKMODO_SUGGEST_EMPTY',
             'powered_by'           => 'TEXT_SEEKMODO_SUGGEST_POWERED_BY',
+            'best_matches'         => 'TEXT_SEEKMODO_SUGGEST_BEST_MATCHES',
+            'more_results'         => 'TEXT_SEEKMODO_SUGGEST_MORE_RESULTS',
+            'top_match'            => 'TEXT_SEEKMODO_SUGGEST_TOP_MATCH',
             'cors_blocked'         => 'TEXT_SEEKMODO_CORS_BLOCKED',
         ];
 

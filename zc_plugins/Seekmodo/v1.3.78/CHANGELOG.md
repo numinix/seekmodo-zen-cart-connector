@@ -1,5 +1,17 @@
 # Seekmodo for Zen Cart v1.3.78
 
+## 2026-08-30 - Suggest UI follows storefront language
+
+- **Suggest chrome is no longer stuck in English** — the vendored
+  `@seekmodo/web-components` 0.4.4 widget now reads the connector
+  `labels` attribute / `window.SeekmodoSuggestLabels` pack (Cannapot
+  ticket #615048).
+- **`results_for` / magazine labels** use language packs instead of
+  hardcoded English.
+- Restored proper UTF-8 for DE/FR/ES/deutsch packs.
+- **Regression guards:** `tests/test_suggest_i18n_labels_v178.php` (+ CI).
+
+
 ## 2026-08-29 - Enhanced Native + live stock demote OOS
 
 - **Enhanced Native SERP ORDER BY demotes out-of-stock first** —
