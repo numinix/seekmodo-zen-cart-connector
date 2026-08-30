@@ -1,5 +1,12 @@
 # Seekmodo for Zen Cart - top-level changelog
 
+## v1.3.78 - 2026-08-29 (EN + live stock demote OOS)
+
+- Enhanced Native default/popularity ORDER BY demotes out-of-stock
+  first; gateway-sized live stock flags refine with
+  `zen_get_products_stock` so attribute/master SKUs match storefront
+  SOLD OUT (Cannapot indica SERP).
+
 ## v1.3.77 - 2026-08-27 (multilingual lang stamp)
 
 - Stamp ISO 639-1 `lang` on indexed catalog docs and forward storefront language code on search/suggest/shopper_context so the gateway can filter multilingual results.
