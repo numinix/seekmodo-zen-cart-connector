@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Seekmodo Search connector â€” manifest.
  *
