@@ -12,7 +12,7 @@ if (!defined('TEXT_SEEKMODO_SUGGEST_TRENDING')) {
     define('TEXT_SEEKMODO_SUGGEST_TRENDING', 'Trends');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_KEYWORDS')) {
-    define('TEXT_SEEKMODO_SUGGEST_KEYWORDS', 'VorschlÃ¤ge');
+    define('TEXT_SEEKMODO_SUGGEST_KEYWORDS', 'Vorschläge');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_PRODUCTS')) {
     define('TEXT_SEEKMODO_SUGGEST_PRODUCTS', 'Produkte');
@@ -30,28 +30,40 @@ if (!defined('TEXT_SEEKMODO_SUGGEST_VIEW_ALL')) {
     define('TEXT_SEEKMODO_SUGGEST_VIEW_ALL', 'Alle {total} Ergebnisse anzeigen');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_VIEW_ALL_SHORT')) {
-    define('TEXT_SEEKMODO_SUGGEST_VIEW_ALL_SHORT', 'Alle anzeigen â†’');
+    define('TEXT_SEEKMODO_SUGGEST_VIEW_ALL_SHORT', 'Alle anzeigen →');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_RESULTS_FOR')) {
-    define('TEXT_SEEKMODO_SUGGEST_RESULTS_FOR', '{total} Ergebnisse fÃ¼r ');
+    define('TEXT_SEEKMODO_SUGGEST_RESULTS_FOR', '{total} Ergebnisse für ');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_SHOWING_RESULTS_FOR')) {
-    define('TEXT_SEEKMODO_SUGGEST_SHOWING_RESULTS_FOR', 'Ergebnisse fÃ¼r â€ž{query}â€œ. Stattdessen suchen nach ');
+    define('TEXT_SEEKMODO_SUGGEST_SHOWING_RESULTS_FOR', 'Ergebnisse für „{query}“. Stattdessen suchen nach ');
+}
+if (!defined('TEXT_SEEKMODO_SUGGEST_PRICE_RANGE')) {
+    define('TEXT_SEEKMODO_SUGGEST_PRICE_RANGE', 'Preisbereich');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_PRODUCTS_COUNT')) {
     define('TEXT_SEEKMODO_SUGGEST_PRODUCTS_COUNT', '{count} Produkte');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_PRODUCTS_PENDING')) {
-    define('TEXT_SEEKMODO_SUGGEST_PRODUCTS_PENDING', 'Passende Produkte erscheinen, wenn Sie mit dem Tippen pausierenâ€¦');
+    define('TEXT_SEEKMODO_SUGGEST_PRODUCTS_PENDING', 'Passende Produkte erscheinen, wenn Sie mit dem Tippen pausieren…');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_EMPTY')) {
-    define('TEXT_SEEKMODO_SUGGEST_EMPTY', 'Noch keine Treffer â€” weiter tippen.');
+    define('TEXT_SEEKMODO_SUGGEST_EMPTY', 'Noch keine Treffer — weiter tippen.');
 }
 if (!defined('TEXT_SEEKMODO_SUGGEST_POWERED_BY')) {
-    define('TEXT_SEEKMODO_SUGGEST_POWERED_BY', 'UnterstÃ¼tzt von ');
+    define('TEXT_SEEKMODO_SUGGEST_POWERED_BY', 'Unterstützt von ');
+}
+if (!defined('TEXT_SEEKMODO_SUGGEST_BEST_MATCHES')) {
+    define('TEXT_SEEKMODO_SUGGEST_BEST_MATCHES', 'Beste Treffer');
+}
+if (!defined('TEXT_SEEKMODO_SUGGEST_MORE_RESULTS')) {
+    define('TEXT_SEEKMODO_SUGGEST_MORE_RESULTS', 'Weitere Ergebnisse');
+}
+if (!defined('TEXT_SEEKMODO_SUGGEST_TOP_MATCH')) {
+    define('TEXT_SEEKMODO_SUGGEST_TOP_MATCH', 'Top-Treffer');
 }
 if (!defined('TEXT_SEEKMODO_CORS_BLOCKED')) {
-    define('TEXT_SEEKMODO_CORS_BLOCKED', 'SuchvorschlÃ¤ge konnten nicht geladen werden, weil diese Website Seekmodo nicht erreichen darf (CORS). Bitten Sie Ihren Shop-Administrator, diese Domain am Seekmodo-Gateway freizugeben oder den Same-Origin-Suggest-Proxy des Connectors zu aktivieren.');
+    define('TEXT_SEEKMODO_CORS_BLOCKED', 'Suchvorschläge konnten nicht geladen werden, weil diese Website Seekmodo nicht erreichen darf (CORS). Bitten Sie Ihren Shop-Administrator, diese Domain am Seekmodo-Gateway freizugeben oder den Same-Origin-Suggest-Proxy des Connectors zu aktivieren.');
 }
 if (!defined('TEXT_SEEKMODO_RECO_PDP_RELATED')) {
     define('TEXT_SEEKMODO_RECO_PDP_RELATED', 'Verwandte Produkte');
@@ -63,13 +75,13 @@ if (!defined('TEXT_SEEKMODO_RECO_PDP_ALSO_VIEWED')) {
     define('TEXT_SEEKMODO_RECO_PDP_ALSO_VIEWED', 'Kunden sahen auch an');
 }
 if (!defined('TEXT_SEEKMODO_RECO_PDP_BUNDLE')) {
-    define('TEXT_SEEKMODO_RECO_PDP_BUNDLE', 'Wird hÃ¤ufig zusammen gekauft');
+    define('TEXT_SEEKMODO_RECO_PDP_BUNDLE', 'Wird häufig zusammen gekauft');
 }
 if (!defined('TEXT_SEEKMODO_RECO_CART')) {
     define('TEXT_SEEKMODO_RECO_CART', 'In den Warenkorb legen');
 }
 if (!defined('TEXT_SEEKMODO_RECO_CART_BUNDLE')) {
-    define('TEXT_SEEKMODO_RECO_CART_BUNDLE', 'Bundle vervollstÃ¤ndigen');
+    define('TEXT_SEEKMODO_RECO_CART_BUNDLE', 'Bundle vervollständigen');
 }
 if (!defined('TEXT_SEEKMODO_RECO_HOME_TRENDING')) {
     define('TEXT_SEEKMODO_RECO_HOME_TRENDING', 'Jetzt im Trend');
@@ -83,4 +95,3 @@ if (!defined('TEXT_SEEKMODO_RECO_POPULAR')) {
 if (!defined('TEXT_SEEKMODO_SORT_RELEVANCE')) {
     define('TEXT_SEEKMODO_SORT_RELEVANCE', 'Relevanz');
 }
-
