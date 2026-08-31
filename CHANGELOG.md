@@ -1,8 +1,10 @@
-## Unreleased
-
-- Suggest chrome i18n fix + UTF-8 language packs + CI guards (ticket #615048; preview zip only until customer confirms).
-
 # Seekmodo for Zen Cart - top-level changelog
+
+## v1.3.79 - 2026-08-31 (suggest chrome i18n + WC bundle)
+
+- Refresh vendored suggest web-components bundle; extend Suggest chrome
+  i18n packs (`category_filter`, `related`, `try`, `page`, `article`,
+  `tool`, `tools`) for EN/DE/ES/FR.
 
 ## v1.3.78 - 2026-08-29 (EN + live stock demote OOS)
 
