@@ -56,8 +56,8 @@ function si18n_load_pack(string $path): array
 si18n_assert(is_string($best) && is_dir($best), 'found a v1.3.x tree');
 $ver = basename((string) $best);
 si18n_assert(
-    version_compare(ltrim($ver, 'v'), '1.3.79', '>='),
-    'latest tree is v1.3.79+, got ' . $ver
+    version_compare(ltrim($ver, 'v'), '1.3.80', '>='),
+    'latest tree is v1.3.80+, got ' . $ver
 );
 
 $langsRoot = $best . '/catalog/includes/languages';
