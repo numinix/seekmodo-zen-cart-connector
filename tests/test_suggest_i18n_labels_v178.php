@@ -56,8 +56,8 @@ function si18n_load_pack(string $path): array
 si18n_assert(is_string($best) && is_dir($best), 'found a v1.3.x tree');
 $ver = basename((string) $best);
 si18n_assert(
-    version_compare(ltrim($ver, 'v'), '1.3.78', '>='),
-    'latest tree is v1.3.78+, got ' . $ver
+    version_compare(ltrim($ver, 'v'), '1.3.79', '>='),
+    'latest tree is v1.3.79+, got ' . $ver
 );
 
 $langsRoot = $best . '/catalog/includes/languages';
@@ -71,6 +71,16 @@ $requiredKeys = [
     'TEXT_SEEKMODO_SUGGEST_PRODUCTS_PENDING',
     'TEXT_SEEKMODO_SUGGEST_POWERED_BY',
     'TEXT_SEEKMODO_SUGGEST_DID_YOU_MEAN',
+    'TEXT_SEEKMODO_SUGGEST_BEST_MATCHES',
+    'TEXT_SEEKMODO_SUGGEST_MORE_RESULTS',
+    'TEXT_SEEKMODO_SUGGEST_TOP_MATCH',
+    'TEXT_SEEKMODO_SUGGEST_CATEGORY_FILTER',
+    'TEXT_SEEKMODO_SUGGEST_RELATED',
+    'TEXT_SEEKMODO_SUGGEST_TRY',
+    'TEXT_SEEKMODO_SUGGEST_PAGE',
+    'TEXT_SEEKMODO_SUGGEST_ARTICLE',
+    'TEXT_SEEKMODO_SUGGEST_TOOL',
+    'TEXT_SEEKMODO_SUGGEST_TOOLS',
 ];
 
 $en = si18n_load_pack($langsRoot . '/english/extra_definitions/lang.numinix_seekmodo.php');
