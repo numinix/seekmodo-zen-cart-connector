@@ -1,3 +1,7 @@
+## v1.3.81 - 2026-09-02 (keep Suggest chrome on unpaid fallback)
+
+- Unpaid / over-quota Suggest keeps the Seekmodo-styled box: do not
+  destroy `<seekmodo-suggest>` on empty; merge typeahead-fallback on 402.
 # Seekmodo for Zen Cart - top-level changelog
 
 ## v1.3.80 - 2026-08-31 (language-aware Suggest View all)
