@@ -1,13 +1,16 @@
 # Seekmodo for Zen Cart - top-level changelog
 
+## v1.3.81 - 2026-09-02 (SERP pagination total clamp)
+
+- Raise SERP pagination total to `count($productIds)` when Typesense
+  `found` understates the listing IN-list (avoids "40 of 34" last-page
+  overflow with infinite-scroll themes).
+
 ## v1.3.80 - 2026-08-31 (language-aware Suggest View all)
 
 - Prefer `numinix_seekmodo_href_link_raw` for Suggest View all SERP URLs;
   detect /french, /fr, etc. path prefixes when catalog root is "/".
 - Fix JS View all fallbacks that hardcoded unprefixed /index.php?....
-- Raise SERP pagination total to `count($productIds)` when Typesense
-  `found` understates the listing IN-list (avoids "40 of 34" last-page
-  overflow with infinite-scroll themes).
 
 ## v1.3.79 - 2026-08-31 (suggest chrome i18n + WC bundle)
 
