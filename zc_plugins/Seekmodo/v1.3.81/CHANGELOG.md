@@ -1,5 +1,16 @@
 # Seekmodo for Zen Cart v1.3.81
 
+## 2026-09-02 - Suggest unpaid chrome + SERP pagination total clamp
+
+- Unpaid / over-quota Suggest keeps the Seekmodo-styled box: do not
+  destroy `<seekmodo-suggest>` on empty; merge typeahead-fallback on 402.
+- Raise SERP pagination total to `count($productIds)` when Typesense
+  `found` (or a legacy total bag) understates the listing IN-list
+  length. Prevents last-page overflow that infinite-scroll themes
+  surface as "40 of 34 results".
+
+# Seekmodo for Zen Cart v1.3.80
+
 ## 2026-08-31 - Language-aware Suggest View all SERP URLs
 
 - Prefer `numinix_seekmodo_href_link_raw` when building Suggest `view_all_href`
