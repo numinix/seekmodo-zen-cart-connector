@@ -24,7 +24,7 @@ return [
     'pluginAuthor' => 'Numinix',
     'pluginId' => 2441, // zen-cart.com downloads.php?do=file&id=2441
     'zcVersions' => ['v157', 'v158', 'v200'],
-    'changelog' => 'v1.3.81 (2026-09-02): Keep Seekmodo Suggest chrome on unpaid/over-quota fallback. See CHANGELOG.md.',
+    'changelog' => 'v1.3.81 (2026-09-02): Suggest unpaid chrome + SERP pagination total clamp. See CHANGELOG.md.',
     'github_repo' => 'https://github.com/numinix/seekmodo-zen-cart-connector',
     'pluginGroups' => [],
 ];

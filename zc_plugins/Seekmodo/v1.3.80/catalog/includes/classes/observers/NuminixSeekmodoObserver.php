@@ -567,17 +567,7 @@ class NuminixSeekmodoObserver extends \base
         if (function_exists('_numinix_seekmodo_mark_serp_relevance_sort')) {
             _numinix_seekmodo_mark_serp_relevance_sort();
         }
-        // Pagination SQL is built from $productIds. Prefer the ID-list
-        // length over Typesense `found` when they disagree — a lower
-        // forced total (legacy es_products bag / narrow query_by) with a
-        // longer IN-list makes the last page return a full page of rows
-        // while display_count says "21–34 of 34", and infinite-scroll
-        // themes then show "40 of 34".
-        $idCount = count($productIds);
-        $total = isset($envelope['total']) ? (int) $envelope['total'] : $idCount;
-        if ($idCount > $total) {
-            $total = $idCount;
-        }
+        $total = isset($envelope['total']) ? (int) $envelope['total'] : count($productIds);
         $this->rewriteSplitPageResults($result, $rewritten, $total, $productIds);
         $this->stashPositionMap($productIds);
     }
