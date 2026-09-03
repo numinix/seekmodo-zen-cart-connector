@@ -1,5 +1,12 @@
 # Seekmodo for Zen Cart - top-level changelog
 
+## v1.3.83 - 2026-09-03 (add-to-cart telemetry caps)
+
+- Mirror add-to-cart only on likely shopper cart actions (skip passive
+  GET document views); 15-minute session+product dedupe, 30 ATC/session/day,
+  120 ATC/IP/hour so cart-restore loops and scrapers cannot flood gateway
+  conversion funnels.
+
 ## v1.3.82 - 2026-09-03 (Unified Suggest UI on EN / over-quota)
 
 - Stop forcing legacy typeahead when unpaid/over_quota sticky.
