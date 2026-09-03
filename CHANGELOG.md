@@ -1,5 +1,12 @@
 # Seekmodo for Zen Cart - top-level changelog
 
+## v1.3.84 - 2026-09-03 (multilingual Suggest locale filter)
+
+- WordPress parity for multilingual storefronts: stamp `filter_by:
+  lang:=<iso>` on suggest/search passthrough when more than one language
+  is installed; wire client-side `i18n_filter` fetch hook so locale
+  switches update suggest results and labels (ticket #615048).
+
 ## v1.3.83 - 2026-09-03 (add-to-cart telemetry caps)
 
 - Mirror add-to-cart only on likely shopper cart actions (skip passive
