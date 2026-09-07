@@ -457,6 +457,29 @@ final class RemoteConfig
         } catch (\Throwable $e) {
             $this->log('warn', 'cron_reconcile_failed', ['err' => $e->getMessage()]);
         }
+
+        // Broken-image recache queue from gateway image_broken events.
+        $pendingImages = $row['pending_image_refresh_ids'] ?? null;
+        if (is_array($pendingImages) && $pendingImages !== []
+            && function_exists('numinix_seekmodo_queue_catalog_dirty')
+        ) {
+            $acked = [];
+            foreach ($pendingImages as $rawId) {
+                $pid = (int) $rawId;
+                if ($pid <= 0) {
+                    continue;
+                }
+                numinix_seekmodo_queue_catalog_dirty($pid);
+                $acked[] = (string) $pid;
+            }
+            if ($acked !== []) {
+                try {
+                    $this->push(['ack_image_refresh_ids' => $acked]);
+                } catch (\Throwable $e) {
+                    $this->log('warn', 'image_refresh_ack_failed', ['err' => $e->getMessage()]);
+                }
+            }
+        }
     }
 
     private function cacheKey(): string

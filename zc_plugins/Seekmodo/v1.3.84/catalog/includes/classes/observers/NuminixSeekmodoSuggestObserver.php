@@ -322,7 +322,7 @@ final class NuminixSeekmodoSuggestObserver extends base
             return $version;
         }
 
-        return 'v1.3.82';
+        return 'v1.3.84';
     }
 
     /**
@@ -775,6 +775,7 @@ final class NuminixSeekmodoSuggestObserver extends base
       el.setAttribute('serp-passthrough', JSON.stringify(CFG.serp_passthrough));
     }
     if (CFG.img_ver) el.setAttribute('img-ver', String(CFG.img_ver));
+    if (CFG.suggest_hydrate_url) el.setAttribute('images-hydrate-url', String(CFG.suggest_hydrate_url));
     if (CFG.lang) el.setAttribute('lang', String(CFG.lang));
     if (CFG.labels && typeof CFG.labels === 'object') {
       try { window.SeekmodoSuggestLabels = CFG.labels; } catch (e) {}

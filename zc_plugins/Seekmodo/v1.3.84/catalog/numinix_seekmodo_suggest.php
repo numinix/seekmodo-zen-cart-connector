@@ -286,9 +286,20 @@ if (($_GET['seekmodo_action'] ?? '') === 'images') {
         echo json_encode(['ok' => false, 'error' => 'unavailable']);
         return;
     }
+    $images = numinix_seekmodo_suggest_product_images($ids);
+    $markDirty = isset($_GET['mark_dirty']) && (
+        $_GET['mark_dirty'] === '1'
+        || $_GET['mark_dirty'] === 'true'
+        || $_GET['mark_dirty'] === 'yes'
+    );
+    if ($markDirty && function_exists('numinix_seekmodo_queue_catalog_dirty')) {
+        foreach ($ids as $pid) {
+            numinix_seekmodo_queue_catalog_dirty((int) $pid);
+        }
+    }
     echo json_encode([
         'ok' => true,
-        'images' => numinix_seekmodo_suggest_product_images($ids),
+        'images' => $images,
         'names' => function_exists('numinix_seekmodo_suggest_product_names')
             ? numinix_seekmodo_suggest_product_names($ids)
             : [],
