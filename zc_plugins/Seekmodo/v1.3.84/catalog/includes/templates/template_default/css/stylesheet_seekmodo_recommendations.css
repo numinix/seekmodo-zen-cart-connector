@@ -1,9 +1,11 @@
 /**
  * Seekmodo recommendations widgets - strip layout + hover stacking.
  *
- * Horizontal scroll must not clip vertical hover expansions (theme
- * product cards, add-to-cart overlays). Raise z-index while hovered so
- * following page sections (reviews, etc.) do not paint over cards.
+ * Horizontal scrolling lives on __viewport. The __row itself stays
+ * overflow:visible so theme hover expansions can paint outside the
+ * card box. (CSS forbids pairing overflow-x:auto with overflow-y:visible
+ * on the same element — the visible axis computes to auto and clips.)
+ * Viewport uses bottom padding as reserved room inside the scrollport.
  */
 .seekmodo-recommendations,
 .numinix-seekmodo-recommendations,
@@ -35,6 +37,15 @@
   margin: 1.25rem 0;
 }
 
+.seekmodo-recommendations__viewport,
+.numinix-seekmodo-recommendations__viewport {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 9rem;
+  margin-bottom: -6rem;
+  -webkit-overflow-scrolling: touch;
+}
+
 .seekmodo-recommendations__row,
 .numinix-seekmodo-recommendations__row {
   display: flex;
@@ -43,9 +54,7 @@
   list-style: none;
   margin: 0;
   padding: 0.25rem 0 0.75rem;
-  overflow-x: auto;
-  overflow-y: visible;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
 }
 
 .seekmodo-recommendations__item,
