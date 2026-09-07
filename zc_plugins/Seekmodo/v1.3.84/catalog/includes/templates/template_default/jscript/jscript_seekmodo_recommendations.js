@@ -19,6 +19,16 @@
     var ITEM_CLASS = 'numinix-seekmodo-recommendations__item';
     var SECTION_CLASS = 'numinix-seekmodo-recommendations__section';
 
+    function ensureStyles() {
+        if (document.getElementById('seekmodo-recommendations-css')) {
+            return;
+        }
+        var style = document.createElement('style');
+        style.id = 'seekmodo-recommendations-css';
+        style.textContent = "/**\n * Seekmodo recommendations widgets - strip layout + hover stacking.\n *\n * Horizontal scroll must not clip vertical hover expansions (theme\n * product cards, add-to-cart overlays). Raise z-index while hovered so\n * following page sections (reviews, etc.) do not paint over cards.\n */\n.seekmodo-recommendations,\n.numinix-seekmodo-recommendations,\n.seekmodo-cart-reco {\n  position: relative;\n  z-index: 2;\n  margin: 1.5rem 0;\n}\n\n.seekmodo-recommendations:has(.seekmodo-recommendations__item:hover),\n.seekmodo-recommendations:has(.seekmodo-recommendations__item:focus-within),\n.numinix-seekmodo-recommendations:has(.numinix-seekmodo-recommendations__item:hover),\n.numinix-seekmodo-recommendations:has(.numinix-seekmodo-recommendations__item:focus-within),\n.seekmodo-cart-reco:has(:hover),\n.seekmodo-cart-reco:has(:focus-within) {\n  z-index: 30;\n}\n\n.seekmodo-recommendations__heading,\n.numinix-seekmodo-recommendations__heading {\n  font-size: 1.25rem;\n  margin: 0 0 0.75rem;\n}\n\n.seekmodo-recommendations__section,\n.numinix-seekmodo-recommendations__section {\n  position: relative;\n  overflow: visible;\n  margin: 1.25rem 0;\n}\n\n.seekmodo-recommendations__row,\n.numinix-seekmodo-recommendations__row {\n  display: flex;\n  flex-wrap: nowrap;\n  gap: 0.75rem;\n  list-style: none;\n  margin: 0;\n  padding: 0.25rem 0 0.75rem;\n  overflow-x: auto;\n  overflow-y: visible;\n  -webkit-overflow-scrolling: touch;\n}\n\n.seekmodo-recommendations__item,\n.numinix-seekmodo-recommendations__item {\n  position: relative;\n  z-index: 1;\n  flex: 0 0 10rem;\n}\n\n.seekmodo-recommendations__item:hover,\n.seekmodo-recommendations__item:focus-within,\n.numinix-seekmodo-recommendations__item:hover,\n.numinix-seekmodo-recommendations__item:focus-within {\n  z-index: 5;\n}\n\n.seekmodo-recommendations__item__link,\n.numinix-seekmodo-recommendations__item__link {\n  display: block;\n  text-decoration: none;\n  color: inherit;\n}\n\n.seekmodo-recommendations__item__image img,\n.numinix-seekmodo-recommendations__item__image img {\n  width: 100%;\n  aspect-ratio: 1 / 1;\n  object-fit: cover;\n}\n\n.seekmodo-recommendations__item__name,\n.numinix-seekmodo-recommendations__item__name {\n  display: block;\n  margin-top: 0.35rem;\n  font-size: 0.9rem;\n}\n\n.seekmodo-recommendations__item__price,\n.numinix-seekmodo-recommendations__item__price {\n  display: block;\n  font-weight: 600;\n  margin-top: 0.2rem;\n}\n";
+        (document.head || document.documentElement).appendChild(style);
+    }
+
     var FALLBACK_HEADINGS = {
         'pdp-related':        'Related products',
         'pdp-also-bought':    'Customers also bought',
@@ -291,6 +301,7 @@
     }
 
     ready(function () {
+        ensureStyles();
         var els = selectPlaceholders();
         for (var i = 0; i < els.length; i++) {
             loadOne(els[i]);
