@@ -1,10 +1,17 @@
 # Seekmodo for Zen Cart - top-level changelog
 
-## v1.3.84 - 2026-09-07 (broken suggest image recache)
+## v1.3.86 - 2026-09-07 (broken suggest image recache)
 
 - Images hydrate with `mark_dirty=1` queues catalog dirty ids for Typesense
   `image_url` re-push; set `images-hydrate-url` on suggest; drain gateway
   `pending_image_refresh_ids` on snapshot pull.
+
+## v1.3.85 - 2026-09-07 (recommendation hover stacking)
+
+### Fixed
+- Recommendations strip CSS/JS: horizontal scroll on a viewport wrapper with
+  reserved bottom padding so theme product-card hover expansions are not
+  clipped by following page sections (reviews, etc.).
 
 ## v1.3.84 - 2026-09-03 (multilingual Suggest locale filter)
 
