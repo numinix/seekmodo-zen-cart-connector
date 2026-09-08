@@ -322,7 +322,7 @@ final class NuminixSeekmodoSuggestObserver extends base
             return $version;
         }
 
-        return 'v1.3.84';
+        return 'v1.3.86';
     }
 
     /**
