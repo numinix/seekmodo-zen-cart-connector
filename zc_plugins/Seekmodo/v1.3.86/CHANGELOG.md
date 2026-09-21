@@ -7,6 +7,8 @@
 - Suggest CFG sets `images-hydrate-url` for shared web-components heal.
 - `tenant.snapshot` `pending_image_refresh_ids` drains into the dirty
   queue and acks the gateway.
+- Fix: run pending-image drain after cron reconcile (not inside its
+  catch), so successful snapshot pulls still recache broken images.
 
 ## 2026-09-07 - Recommendation hover stacking (from v1.3.85)
 
