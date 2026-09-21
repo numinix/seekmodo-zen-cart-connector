@@ -456,6 +456,7 @@ final class RemoteConfig
             }
         } catch (\Throwable $e) {
             $this->log('warn', 'cron_reconcile_failed', ['err' => $e->getMessage()]);
+        }
 
         // Broken-image recache queue from gateway image_broken events.
         $pendingImages = $row['pending_image_refresh_ids'] ?? null;
@@ -478,7 +479,6 @@ final class RemoteConfig
                     $this->log('warn', 'image_refresh_ack_failed', ['err' => $e->getMessage()]);
                 }
             }
-        }
         }
     }
 

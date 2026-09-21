@@ -5,6 +5,8 @@
 - Images hydrate with `mark_dirty=1` queues catalog dirty ids for Typesense
   `image_url` re-push; set `images-hydrate-url` on suggest; drain gateway
   `pending_image_refresh_ids` on snapshot pull.
+- Fix pending-image drain so it runs after cron reconcile (not only when
+  reconcile throws).
 
 ## v1.3.85 - 2026-09-07 (recommendation hover stacking)
 
