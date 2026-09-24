@@ -1,6 +1,6 @@
 # Seekmodo for Zen Cart - top-level changelog
 
-## Unreleased
+## v1.3.87 - 2026-09-24 (over-quota PreferLocal after period reset)
 
 ### Fixed
 - **Over-quota PreferLocal after period reset** — Zen Cart no longer
@@ -9,8 +9,8 @@
   stored `resets_at` is already past; `applyBillingSnapshot()` soft-
   probes `/v1/suggest` for an active `over_quota` sticky (WordPress
   ConfigPullCron parity) instead of refusing to clear; over_quota
-  unpaid rechecks run every 5 minutes instead of daily. (Cannapot
-  links-c3ca80 / Essential renewal 2026-09-24.)
+  unpaid rechecks run every 5 minutes instead of daily. Do not stamp
+  PreferLocal from a 402 envelope whose `resets_at` is already past.
 
 ## v1.3.86 - 2026-09-07 (broken suggest image recache)
 
