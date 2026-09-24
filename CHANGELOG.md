@@ -1,5 +1,17 @@
 # Seekmodo for Zen Cart - top-level changelog
 
+## Unreleased
+
+### Fixed
+- **Over-quota PreferLocal after period reset** — Zen Cart no longer
+  leaves cloud Suggest stuck on Enhanced Native after the billing
+  period rolls. `shouldPreferLocalSuggest()` clears a sticky whose
+  stored `resets_at` is already past; `applyBillingSnapshot()` soft-
+  probes `/v1/suggest` for an active `over_quota` sticky (WordPress
+  ConfigPullCron parity) instead of refusing to clear; over_quota
+  unpaid rechecks run every 5 minutes instead of daily. (Cannapot
+  links-c3ca80 / Essential renewal 2026-09-24.)
+
 ## v1.3.86 - 2026-09-07 (broken suggest image recache)
 
 - Images hydrate with `mark_dirty=1` queues catalog dirty ids for Typesense
