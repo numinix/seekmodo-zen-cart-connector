@@ -92,17 +92,20 @@ class Client
     private const OVER_QUOTA_KEY = 'numinix.seekmodo.over_quota';
     private const OVER_QUOTA_TTL_S = 3600;
 
-    // v1.3.65 — daily unpaid-recovery plan. shouldPreferLocalSuggest()
+    // v1.3.65 — unpaid-recovery plan. shouldPreferLocalSuggest()
     // short-circuits BEFORE fromConfiguration()/RemoteConfig::pull()
     // ever runs (see numinix_seekmodo_typeahead_lib.php), so once the
     // sticky above is stamped, the periodic tenant.snapshot pull that
     // would otherwise notice a resubscribe/trial-extend never fires
     // again — the sticky is self-perpetuating until an operator (or
     // the merchant, via the admin "Refresh snapshot" button) forces a
-    // pull. This key rate-limits a background force-pull to at most
-    // once per day so a stuck tenant self-heals without either.
+    // pull. Cancelled / trial_expired rechecks stay daily; over_quota
+    // rechecks every 5 minutes (WordPress ConfigPullCron parity) so a
+    // billing-period reset resumes cloud Suggest without waiting out
+    // the sticky TTL or a merchant finding Refresh snapshot.
     private const UNPAID_RECHECK_KEY = 'numinix.seekmodo.unpaid_recheck_at';
     private const UNPAID_RECHECK_INTERVAL_S = 86400;
+    private const OVER_QUOTA_RECHECK_INTERVAL_S = 300;
 
     // v1.0.17 — gateway 4xx error codes that mean "this tenant is
     // unavailable, but the request itself is well-formed". When the
@@ -898,6 +901,12 @@ class Client
      */
     public static function shouldPreferLocalSuggest(): bool
     {
+        // Period roll: drop a sticky whose stored resets_at is already
+        // past even if APCu/session TTL still has a few minutes left
+        // (Cannapot 2026-09 — quota renewed, cloud ready, PreferLocal
+        // still skipping the gateway).
+        self::maybeClearExpiredOverQuotaSticky();
+
         $state = self::readSubscriptionState();
 
         if ($state === self::SUB_STATE_OVER_QUOTA || $state === self::SUB_STATE_CANCELLED) {
@@ -935,15 +944,16 @@ class Client
      */
     private static function maybeRecheckUnpaidState(): void
     {
+        $interval = self::unpaidRecheckIntervalSeconds();
         $last = self::cacheGet(self::UNPAID_RECHECK_KEY);
-        if (is_int($last) && (time() - $last) < self::UNPAID_RECHECK_INTERVAL_S) {
+        if (is_int($last) && (time() - $last) < $interval) {
             return;
         }
         // Stamp the gate before doing any network work — even when
         // RemoteConfig can't be built or the pull fails outright, we
         // don't want to retry on every single storefront request
         // until the interval elapses again.
-        self::cacheSet(self::UNPAID_RECHECK_KEY, time(), self::UNPAID_RECHECK_INTERVAL_S);
+        self::cacheSet(self::UNPAID_RECHECK_KEY, time(), $interval);
 
         if (!class_exists(RemoteConfig::class)) {
             return;
@@ -960,8 +970,49 @@ class Client
     }
 
     /**
+     * Cancelled / trial_expired: once per day. over_quota: every 5
+     * minutes so a period reset heals without a full sticky TTL wait.
+     */
+    private static function unpaidRecheckIntervalSeconds(): int
+    {
+        $envelope = self::readOverQuotaEnvelope();
+        $code = is_array($envelope) ? (string) ($envelope['code'] ?? '') : '';
+        if ($code === self::SUB_STATE_OVER_QUOTA
+            || $code === 'over_quota_no_credits'
+            || $code === 'quota'
+        ) {
+            return self::OVER_QUOTA_RECHECK_INTERVAL_S;
+        }
+
+        return self::UNPAID_RECHECK_INTERVAL_S;
+    }
+
+    /**
+     * Drop PreferLocal when the 402 envelope's resets_at is already
+     * past. markCloudSuggestDenied() normally caps TTL to that
+     * instant, but session mirrors / hosts without APCu / a stamp
+     * missing resets_at can leave PreferLocal warm after the period
+     * has already rolled on the gateway.
+     */
+    private static function maybeClearExpiredOverQuotaSticky(): void
+    {
+        $envelope = self::readOverQuotaEnvelope();
+        if (!is_array($envelope)) {
+            return;
+        }
+        $resetsAt = $envelope['resets_at'] ?? null;
+        if (!is_string($resetsAt) || $resetsAt === '') {
+            return;
+        }
+        $resetTs = strtotime($resetsAt);
+        if ($resetTs !== false && $resetTs <= time()) {
+            self::clearCloudSuggestDenial();
+        }
+    }
+
+    /**
      * Shared write-through for both recovery paths: the background
-     * daily recheck above AND the admin "Refresh snapshot" button
+     * unpaid recheck above AND the admin "Refresh snapshot" button
      * (`numinix_seekmodo_connect.php`'s `refresh` action). Both pull a
      * fresh `tenant.snapshot`; this is the one place that turns
      * `billing.status === 'active'` into an actual sticky clear so a
@@ -973,11 +1024,12 @@ class Client
      * (active/trial_expired/paused/closed), not this period's metered
      * request quota — an actively-paying tenant can still be
      * `over_quota` right now, and `active` was already true the moment
-     * that 402 landed. So this only clears the cancelled/tenant-
-     * unavailable sticky (and any 402 sticky whose stored `code` isn't
-     * literally `over_quota`, e.g. a trial_expired 402). A genuine
-     * over_quota sticky is left alone — it still only clears via its
-     * own TTL or a real successful metered search/suggest response.
+     * that 402 landed. So this clears cancelled/tenant-unavailable
+     * stickies immediately, and for a genuine `over_quota` sticky it
+     * soft-probes `/v1/suggest` (WordPress RemoteConfig parity): a 2xx
+     * clears via {@see pathClearsCloudSuggestDenial()}; a 402 refreshes
+     * the sticky TTL. Cost is at most one search token per recheck
+     * interval while denied.
      *
      * @param array<string, mixed>|null $row
      * @return bool True when an active billing status cleared the sticky.
@@ -995,12 +1047,44 @@ class Client
 
         $envelope = self::readOverQuotaEnvelope();
         $code = is_array($envelope) ? (string) ($envelope['code'] ?? '') : '';
-        if ($code === self::SUB_STATE_OVER_QUOTA) {
-            return false;
+        if ($code === self::SUB_STATE_OVER_QUOTA
+            || $code === 'over_quota_no_credits'
+            || $code === 'quota'
+        ) {
+            self::maybeClearExpiredOverQuotaSticky();
+            if (self::readOverQuotaEnvelope() === null) {
+                return true;
+            }
+            self::probeMeteredSuggestClear();
+
+            return self::readOverQuotaEnvelope() === null;
         }
         self::clearCloudSuggestDenial();
 
         return true;
+    }
+
+    /**
+     * One cheap suggest round-trip while sticky-denied. Client 2xx on
+     * /v1/suggest clears the gate; 402 re-marks. Failures are
+     * swallowed — the next recheck interval retries.
+     */
+    private static function probeMeteredSuggestClear(): void
+    {
+        try {
+            $client = self::fromConfiguration();
+            if ($client === null) {
+                return;
+            }
+            $client->suggest([
+                'q' => '__seekmodo_probe__',
+                'limit' => 1,
+                'include_products' => false,
+                'include_keywords' => false,
+            ]);
+        } catch (\Throwable $e) {
+            // ignore — next recheck retries
+        }
     }
 
     /**
@@ -1087,7 +1171,12 @@ class Client
         $ttl = self::OVER_QUOTA_TTL_S;
         if (is_array($decoded) && !empty($decoded['resets_at'])) {
             $resetTs = strtotime((string) $decoded['resets_at']);
-            if ($resetTs !== false && $resetTs > time()) {
+            if ($resetTs !== false) {
+                if ($resetTs <= time()) {
+                    // Period already rolled — never PreferLocal on a
+                    // stale envelope (session stamp after renewal).
+                    return;
+                }
                 $ttl = max(60, min(self::OVER_QUOTA_TTL_S, $resetTs - time()));
             }
         }
