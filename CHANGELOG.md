@@ -1,5 +1,11 @@
 # Seekmodo for Zen Cart - top-level changelog
 
+## v1.3.88 - 2026-09-25 (pair opens in a new tab)
+
+### Changed
+- **Connect / Re-pair opens seekmodo.com in a new tab** (`formtarget=_blank`)
+  so Zen Cart admin stays available. Close the Seekmodo tab when pairing
+  finishes (same pattern as BigCommerce and Shopify).
 ## v1.3.87 - 2026-09-24 (over-quota PreferLocal after period reset)
 
 ### Fixed
