@@ -1,5 +1,16 @@
 # Seekmodo for Zen Cart - top-level changelog
 
+## v1.3.87 - 2026-09-23 (restock intelligence sync)
+
+- Add an independent exact-inventory snapshot CLI and complete order-line
+  backfill for the gateway's `restock.*` tools.
+- Replace complete order line sets through the scheduled sync, independently
+  of search attribution and without adding latency to checkout.
+- Send a tenant-scoped hash of logged-in customer IDs so the gateway can
+  distinguish concentrated bulk purchases from broader demand increases
+  without receiving names, email addresses, or raw customer IDs.
+- Keep stock quantities out of the shopper-facing search index.
+
 ## v1.3.86 - 2026-09-07 (broken suggest image recache)
 
 - Images hydrate with `mark_dirty=1` queues catalog dirty ids for Typesense
