@@ -1,5 +1,11 @@
 ﻿# Seekmodo for Zen Cart v1.3.89
 
+## Unreleased
+
+### Fixed
+- **CSP drop-in is idempotent** — `INSTALL/csp_seekmodo.php` only
+  appends Seekmodo origins when missing (see top-level CHANGELOG).
+
 ## v1.3.89 - 2026-09-28 (SERP shopper sort)
 
 ### Fixed
