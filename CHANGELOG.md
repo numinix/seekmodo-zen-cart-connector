@@ -1,5 +1,14 @@
 # Seekmodo for Zen Cart - top-level changelog
 
+## Unreleased
+
+### Fixed
+- **CSP drop-in is idempotent** — `INSTALL/csp_seekmodo.php` only
+  appends `mcp.seekmodo.com` / `*.seekmodo.com` when missing, so
+  re-including the file (or stacking copies under
+  `extra_csp_policies/`) cannot bloat the CSP header. Does not affect
+  stores that use a custom DB-backed CSP (e.g. Keep It Personal).
+
 ## v1.3.89 - 2026-09-28 (SERP shopper sort)
 
 ### Fixed

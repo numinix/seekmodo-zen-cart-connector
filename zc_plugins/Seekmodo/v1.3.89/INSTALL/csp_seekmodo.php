@@ -49,8 +49,29 @@
  *
  * The wildcard `*.seekmodo.com` on connect-src covers any future
  * regional shards (`eu.seekmodo.com`, etc.) without another drop-in.
+ *
+ * Idempotent: origins are appended only when missing, so re-including
+ * this drop-in (or stacking multiple copies under extra_csp_policies/)
+ * cannot inflate the CSP header with duplicate Seekmodo hosts.
  */
 
-$csp_policy['script-src'][]  = 'mcp.seekmodo.com';
-$csp_policy['connect-src'][] = 'mcp.seekmodo.com';
-$csp_policy['connect-src'][] = '*.seekmodo.com';
+if (!isset($csp_policy) || !is_array($csp_policy)) {
+    return;
+}
+
+$seekmodoCspAppend = static function (array &$bucket, $origin) {
+    if (!in_array($origin, $bucket, true)) {
+        $bucket[] = $origin;
+    }
+};
+
+if (!isset($csp_policy['script-src']) || !is_array($csp_policy['script-src'])) {
+    $csp_policy['script-src'] = [];
+}
+if (!isset($csp_policy['connect-src']) || !is_array($csp_policy['connect-src'])) {
+    $csp_policy['connect-src'] = [];
+}
+
+$seekmodoCspAppend($csp_policy['script-src'], 'mcp.seekmodo.com');
+$seekmodoCspAppend($csp_policy['connect-src'], 'mcp.seekmodo.com');
+$seekmodoCspAppend($csp_policy['connect-src'], '*.seekmodo.com');
