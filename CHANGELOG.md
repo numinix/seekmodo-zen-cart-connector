@@ -1,5 +1,16 @@
 # Seekmodo for Zen Cart - top-level changelog
 
+## v1.3.89 - 2026-09-28 (SERP shopper sort)
+
+### Fixed
+- **SERP sorting with Seekmodo enabled** — shopper `sort=` choices
+  (name / price / model / date and asc/desc) re-order the Seekmodo
+  result set instead of staying locked to relevance. Captures sort at
+  advanced-search header start (before Zen Cart injects the store
+  default) and reuses the theme's native `ORDER BY` so custom column
+  mappings stay correct. Enhanced Native SERPs honor the same codes.
+  Ticket #615985 (Cannapot).
+
 ## v1.3.88 - 2026-09-25 (pair opens in a new tab)
 
 ### Changed
