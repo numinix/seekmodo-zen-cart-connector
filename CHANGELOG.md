@@ -9,6 +9,15 @@
   `extra_csp_policies/`) cannot bloat the CSP header. Does not affect
   stores that use a custom DB-backed CSP (e.g. Keep It Personal).
 
+## v1.3.90 - 2026-09-28 (cloud Inbox publish)
+
+### Added
+- **Cloud Inbox discovery** — when Seekmodo AI Chatbot is installed,
+  `tenant.snapshot` push includes an `inbox` block (`api_url`,
+  optional `mcp_url`, `plugin_version`, `capabilities`) so
+  admin.seekmodo.com can HMAC-proxy the Chat Inbox. Transcripts,
+  email, and BYOK stay on the store.
+
 ## v1.3.89 - 2026-09-28 (SERP shopper sort)
 
 ### Fixed
