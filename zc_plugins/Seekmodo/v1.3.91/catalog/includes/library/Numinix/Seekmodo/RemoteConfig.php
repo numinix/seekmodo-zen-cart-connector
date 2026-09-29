@@ -420,6 +420,16 @@ final class RemoteConfig
             'SEEKMODO_AI_CHATBOT_ESCALATION_WAIT_SECONDS' => isset($row['inbox_escalation_wait_seconds'])
                 ? (string) max(15, min(300, (int) $row['inbox_escalation_wait_seconds']))
                 : null,
+            // Shopper-chat Store Context — only write when the gateway
+            // has a non-empty draft so a local catalog seed is not wiped
+            // before Seekmodo's one-time onboard runs.
+            'SEEKMODO_AI_CHATBOT_STORE_CONTEXT' => (
+                isset($row['chat_store_context'])
+                && is_string($row['chat_store_context'])
+                && trim($row['chat_store_context']) !== ''
+            )
+                ? (string) $row['chat_store_context']
+                : null,
         ];
         foreach ($writes as $key => $value) {
             if ($value === null) {

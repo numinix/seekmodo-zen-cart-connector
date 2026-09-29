@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+- **Publish shopper Store Context** — when `tenant.snapshot` includes a
+  non-empty `chat_store_context`, write it through to
+  `SEEKMODO_AI_CHATBOT_STORE_CONTEXT` so Seekmodo AI Chatbot picks up
+  the one-time Seekmodo LLM draft (and later merchant edits) without
+  wiping a local catalog seed while the gateway field is still empty.
+
 ### Fixed
 - **CSP drop-in is idempotent** — `INSTALL/csp_seekmodo.php` only
   appends `mcp.seekmodo.com` / `*.seekmodo.com` when missing, so

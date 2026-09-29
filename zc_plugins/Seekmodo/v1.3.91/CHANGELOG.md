@@ -1,5 +1,11 @@
 ﻿# Seekmodo for Zen Cart v1.3.91
 
+## Unreleased
+
+### Added
+- **Publish shopper Store Context** — non-empty `chat_store_context` from
+  `tenant.snapshot` writes through to `SEEKMODO_AI_CHATBOT_STORE_CONTEXT`.
+
 ## v1.3.91 - 2026-09-29 (SERP sort header label)
 
 ### Fixed
