@@ -13,6 +13,7 @@ final class InboxProbe
     private const CAPABILITIES = [
         'list', 'get', 'poll', 'reply', 'claim', 'note',
         'resume_ai', 'resolve', 'reopen', 'archive', 'unarchive', 'presence',
+        'assign', 'assignees', 'list_assignees',
     ];
 
     /**
