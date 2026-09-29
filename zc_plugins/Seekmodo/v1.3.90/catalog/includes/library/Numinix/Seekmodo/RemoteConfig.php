@@ -416,6 +416,12 @@ final class RemoteConfig
             // keep the historical behaviour.
             'NUMINIX_SEEKMODO_CATEGORY_REDIRECT_ENABLED' => array_key_exists('category_redirect_enabled', $row)
                 ? (!empty($row['category_redirect_enabled']) ? 'true' : 'false') : null,
+            // Chat Inbox live-escalation wait (Seekmodo AI Chatbot). Published
+            // from tenant.config / tenant.snapshot so the store enforces the
+            // same timeout as admin.seekmodo.com.
+            'SEEKMODO_AI_CHATBOT_ESCALATION_WAIT_SECONDS' => isset($row['inbox_escalation_wait_seconds'])
+                ? (string) max(15, min(300, (int) $row['inbox_escalation_wait_seconds']))
+                : null,
         ];
         foreach ($writes as $key => $value) {
             if ($value === null) {
