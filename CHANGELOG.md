@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Shoppers no longer see the yellow suggest CORS notice.** A failed suggest request closes the dropdown. Store admin and the Seekmodo tenant admin opt in with `show-cors-notice="admin"` on the widget, or `<meta name="seekmodo:show-cors-notice" content="admin">`.
+
 ## v1.3.92 - 2026-09-29 (Suggest proxy-first default)
 
 ### Changed

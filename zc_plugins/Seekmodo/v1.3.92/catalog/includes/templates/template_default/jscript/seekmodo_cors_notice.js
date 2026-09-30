@@ -1,12 +1,22 @@
 /*!
  * Seekmodo — CORS-block notice helper (load before suggest bundle).
- * When mcp.seekmodo.com scripts or gateway fetches are blocked, show
- * an inline message where suggestions would appear.
+ * Shoppers do not see the notice. Admin pages opt in with
+ * <meta name="seekmodo:show-cors-notice" content="admin">.
  */
 (function (w) {
   "use strict";
   var FALLBACK =
     "Search suggestions couldn't load because this site is blocked from reaching Seekmodo (CORS). Ask your store administrator to allowlist this domain on the Seekmodo gateway, or enable the connector's same-origin suggest proxy.";
+
+  function noticeEnabled() {
+    var meta = document.querySelector('meta[name="seekmodo:show-cors-notice"]');
+    var flag = meta ? (meta.getAttribute("content") || "") : "";
+    if (!flag) {
+      flag = document.documentElement.getAttribute("data-seekmodo-show-cors-notice") || "";
+    }
+    flag = String(flag).trim().toLowerCase();
+    return flag === "1" || flag === "true" || flag === "admin";
+  }
 
   function resolveMsg(customMsg) {
     if (customMsg) return customMsg;
@@ -20,7 +30,7 @@
   }
 
   function showNotice(input, customMsg) {
-    if (!input) return;
+    if (!input || !noticeEnabled()) return;
     var host = input.closest ? input.closest(".search-form") : null;
     if (!host) host = input.parentNode;
     if (!host) return;
