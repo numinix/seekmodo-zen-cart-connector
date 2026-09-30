@@ -79,8 +79,24 @@ After the connector tag is on GitHub (`git push origin vX.Y.Z`) and
 seekmodo.com publish (steps 1–4 above) are complete:
 
 ```bash
+python tools/publish_numinix_release.py --tag vX.Y.Z --dry-run
 python tools/publish_numinix_release.py --tag vX.Y.Z
 ```
+
+Dry-run first. `description` in that payload is the Numinix download
+blurb **and** the zen-cart.com changelog. It must be the full
+`CHANGELOG.md` section for that version (every Changed / Added / Fixed
+bullet), not `Release X.Y.Z`.
+
+The script builds that text itself. It refuses a missing heading, an
+empty section, and an explicit `--description "Release X.Y.Z"`.
+Subsection headings stay `###` (for example `### Changed`). An older
+parser treated the first `###` as the end of the section, sent nothing,
+and Numinix stored `Release X.Y.Z` — that is what 1.3.92 published.
+Do not pass a one-line placeholder to get past the check.
+
+The one-paragraph summary in seekmodo.com `VERSION_HISTORY` (step 3)
+is a different page. It does not fill the Numinix or zen-cart.com notes.
 
 This calls `release_plugin` on `https://www.numinix.com/mcp/`, which
 clones `numinix/seekmodo-zen-cart-connector`, creates the git tag,
