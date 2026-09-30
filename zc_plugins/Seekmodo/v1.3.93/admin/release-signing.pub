@@ -1,0 +1,7 @@
+{
+  "kid": "seekmodo-2026-06-r2",
+  "alg": "EdDSA",
+  "kty": "OKP",
+  "crv": "Ed25519",
+  "x": "ozNs5QQUhP6YNjE_KffhJqYtDQL8m2mHzWNivlhgoPA"
+}
