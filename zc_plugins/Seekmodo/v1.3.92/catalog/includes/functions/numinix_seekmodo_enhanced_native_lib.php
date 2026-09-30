@@ -123,18 +123,39 @@ if (!function_exists('numinix_seekmodo_enhanced_native_token_clauses')) {
         if ($q === '' || mb_strlen($q) < 2) {
             return null;
         }
-        $tokens = preg_split('/\s+/u', $q, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        $tokenClauses = [];
-        foreach ($tokens as $tok) {
-            $tok = trim((string) $tok);
-            if ($tok === '') {
-                continue;
+        if (!class_exists(\Numinix\SeekmodoSdk\Search\MeasurementNormalizer::class)) {
+            $normalizer = __DIR__ . '/../library/Numinix/SeekmodoSdk/Search/MeasurementNormalizer.php';
+            if (is_file($normalizer)) {
+                require_once $normalizer;
             }
-            $like = '%' . zen_db_input($tok) . '%';
-            $tokenClauses[] = '(pd.products_name LIKE \'' . $like
-                . '\' OR pd.products_description LIKE \'' . $like
-                . '\' OR p.products_model LIKE \'' . $like
-                . '\' OR IFNULL(m.manufacturers_name, \'\') LIKE \'' . $like . '\')';
+        }
+        $groups = class_exists(\Numinix\SeekmodoSdk\Search\MeasurementNormalizer::class)
+            ? \Numinix\SeekmodoSdk\Search\MeasurementNormalizer::andGroups($q)
+            : null;
+        if ($groups === null) {
+            $tokens = preg_split('/\s+/u', $q, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $groups = [];
+            foreach ($tokens as $tok) {
+                $groups[] = [trim((string) $tok)];
+            }
+        }
+        $tokenClauses = [];
+        foreach ($groups as $forms) {
+            $formClauses = [];
+            foreach ($forms as $tok) {
+                $tok = trim((string) $tok);
+                if ($tok === '') {
+                    continue;
+                }
+                $like = '%' . zen_db_input($tok) . '%';
+                $formClauses[] = '(pd.products_name LIKE \'' . $like
+                    . '\' OR pd.products_description LIKE \'' . $like
+                    . '\' OR p.products_model LIKE \'' . $like
+                    . '\' OR IFNULL(m.manufacturers_name, \'\') LIKE \'' . $like . '\')';
+            }
+            if ($formClauses !== []) {
+                $tokenClauses[] = '(' . implode(' OR ', $formClauses) . ')';
+            }
         }
 
         return $tokenClauses === [] ? null : $tokenClauses;
