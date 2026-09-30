@@ -60,4 +60,23 @@ foreach ($shims as $file) {
     fwrite(STDOUT, "synced {$file} from {$version}\n");
 }
 
+// Proxy-first: /v1/suggest/index.php (SDK {gateway}/v1/suggest)
+$v1Rel = 'v1/suggest/index.php';
+$v1Src = $srcDir . '/' . $v1Rel;
+$v1Dst = $catalogRoot . '/' . $v1Rel;
+if (is_file($v1Src)) {
+    $v1DstDir = dirname($v1Dst);
+    if (!is_dir($v1DstDir) && !@mkdir($v1DstDir, 0755, true)) {
+        fwrite(STDERR, "ERROR: failed to mkdir {$v1DstDir}\n");
+        $ok = false;
+    } elseif (!copy($v1Src, $v1Dst)) {
+        fwrite(STDERR, "ERROR: failed to copy {$v1Rel}\n");
+        $ok = false;
+    } else {
+        fwrite(STDOUT, "synced {$v1Rel} from {$version}\n");
+    }
+} else {
+    fwrite(STDERR, "WARN: missing source {$v1Src}\n");
+}
+
 exit($ok ? 0 : 2);
