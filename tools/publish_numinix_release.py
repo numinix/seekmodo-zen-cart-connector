@@ -22,7 +22,8 @@ Environment:
 Optional:
     --products-id 2044   (Seekmodo for Zen Cart on www.numinix.com)
     --endpoint https://www.numinix.com/mcp/
-    --description "..."  Release notes for the FDM row (default: top CHANGELOG entry)
+    --description "..."  Full CHANGELOG.md section for this version (default).
+                         A bare "Release X.Y.Z" is refused.
     --skip-zencart-com   Do not drain the zen-cart.com marketplace queue
     --dry-run            Print payload without calling MCP
 """
@@ -81,20 +82,91 @@ def _normalize_tag(raw: str) -> str:
     return raw
 
 
+def _version_heading(line: str, tag: str) -> bool:
+    """True for `## v1.2.3 …` or `## [1.2.3] …`, not a longer version."""
+    return re.match(
+        rf"^## (?:\[)?v?{re.escape(tag)}(?:\])?(?:\s|$)",
+        line,
+    ) is not None
+
+
+def changelog_release_notes(text: str, tag: str) -> str:
+    """Merchant notes for one version: every bullet under that h2.
+
+    Stops at the next `## ` heading. `### Changed` stays inside the
+    section. The previous splitter used str.split('##'), which treated
+    `###` as the end and then published the placeholder `Release X.Y.Z`.
+    """
+    lines = text.splitlines()
+    start = None
+    for i, line in enumerate(lines):
+        if _version_heading(line, tag):
+            start = i + 1
+            break
+    if start is None:
+        raise SystemExit(
+            f"CHANGELOG.md has no ## heading for {tag}. "
+            "Add that version section before publishing. "
+            f"Refusing placeholder 'Release {tag}'."
+        )
+    body: list[str] = []
+    bullet: str | None = None
+
+    def flush() -> None:
+        nonlocal bullet
+        if bullet:
+            body.append(re.sub(r"\s+", " ", bullet).strip())
+            bullet = None
+
+    for line in lines[start:]:
+        if re.match(r"^## (?!#)", line):
+            break
+        stripped = line.strip()
+        if not stripped:
+            flush()
+            continue
+        heading = re.match(r"^###\s+(.+)$", stripped)
+        if heading:
+            flush()
+            body.append(heading.group(1).strip())
+            continue
+        if stripped.startswith("- "):
+            flush()
+            bullet = stripped[2:].replace("**", "")
+            continue
+        if bullet is not None:
+            bullet += " " + stripped.replace("**", "")
+            continue
+    flush()
+    notes = "\n".join(body).strip()
+    if not notes:
+        raise SystemExit(
+            f"CHANGELOG.md section for {tag} has no release notes. "
+            f"Refusing placeholder 'Release {tag}'."
+        )
+    return notes
+
+
+def _reject_placeholder(description: str, tag: str) -> str:
+    if re.fullmatch(rf"Release {re.escape(tag)}", description.strip()):
+        raise SystemExit(
+            f"Refusing placeholder description 'Release {tag}'. "
+            "Pass the CHANGELOG notes, or omit --description to use them."
+        )
+    return description
+
+
 def _default_description(tag: str) -> str:
     changelog = REPO_ROOT / "CHANGELOG.md"
     if not changelog.is_file():
-        return f"Release {tag}"
-    text = changelog.read_text(encoding="utf-8")
-    bare = f"v{tag}"
-    for line in text.splitlines():
-        if line.startswith(f"## {bare}") or line.startswith(f"## v{tag}"):
-            rest = text.split(line, 1)[1].split("##", 1)[0].strip()
-            for chunk in rest.splitlines():
-                chunk = chunk.strip()
-                if chunk and not chunk.startswith("#"):
-                    return chunk.lstrip("- ").strip()
-    return f"Release {tag}"
+        raise SystemExit(
+            "CHANGELOG.md is missing. "
+            f"Refusing placeholder 'Release {tag}'."
+        )
+    return changelog_release_notes(
+        changelog.read_text(encoding="utf-8"),
+        tag,
+    )
 
 
 def _mcp_call(endpoint: str, bearer: str, tool: str, arguments: dict) -> dict:
@@ -210,7 +282,10 @@ def main() -> int:
     args = ap.parse_args()
 
     tag = _normalize_tag(args.tag)
-    description = args.description or _default_description(tag)
+    description = _reject_placeholder(
+        args.description or _default_description(tag),
+        tag,
+    )
     bearer = _load_bearer()
 
     versions = args.versions
@@ -229,7 +304,8 @@ def main() -> int:
     print(f"  endpoint:    {args.endpoint}")
     print(f"  products_id: {args.products_id}")
     print(f"  tag:         {tag}")
-    print(f"  description: {description[:120]}{'...' if len(description) > 120 else ''}")
+    print("  description:")
+    print(description)
 
     if args.dry_run:
         print(json.dumps(arguments, indent=2))
