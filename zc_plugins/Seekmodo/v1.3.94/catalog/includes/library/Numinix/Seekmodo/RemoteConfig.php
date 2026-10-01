@@ -420,6 +420,11 @@ final class RemoteConfig
             'SEEKMODO_AI_CHATBOT_ESCALATION_WAIT_SECONDS' => isset($row['inbox_escalation_wait_seconds'])
                 ? (string) max(15, min(300, (int) $row['inbox_escalation_wait_seconds']))
                 : null,
+            // Whether unmatched inbound mail opens a new ticket. Mailbox
+            // passwords stay on the store; this is the tenant-admin policy.
+            'SEEKMODO_AI_CHATBOT_MAIL_CREATE_UNMATCHED' => array_key_exists('inbox_create_unmatched', $row)
+                ? (!empty($row['inbox_create_unmatched']) ? 'true' : 'false')
+                : null,
             // Shopper-chat Store Context — only write when the gateway
             // has a non-empty draft so a local catalog seed is not wiped
             // before Seekmodo's one-time onboard runs.
