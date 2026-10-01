@@ -14,6 +14,8 @@ final class InboxProbe
         'list', 'get', 'poll', 'reply', 'claim', 'note',
         'resume_ai', 'resolve', 'reopen', 'archive', 'unarchive', 'presence',
         'assign', 'assignees', 'list_assignees',
+        'create', 'mail_status',
+        'shopper_list', 'shopper_get', 'shopper_reply',
     ];
 
     /**

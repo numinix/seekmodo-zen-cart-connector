@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+- **Email-to-ticket policy mirror** — `tenant.snapshot` `inbox_create_unmatched` writes `SEEKMODO_AI_CHATBOT_MAIL_CREATE_UNMATCHED`. Mailbox passwords stay on the chatbot mail page.
+- **Inbox capabilities** published for create, mail status, and shopper list/get/reply so later connectors can share the same contract.
+
 ## v1.3.94 - 2026-09-30 (Spaced inch form)
 
 ### Fixed
