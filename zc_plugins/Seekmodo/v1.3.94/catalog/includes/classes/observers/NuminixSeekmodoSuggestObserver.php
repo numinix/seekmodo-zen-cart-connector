@@ -189,6 +189,9 @@ final class NuminixSeekmodoSuggestObserver extends base
         if (PHP_SAPI === 'cli') {
             return false;
         }
+        if (!empty($GLOBALS['_numinix_seekmodo_suppress_suggest_ui'])) {
+            return false;
+        }
         // Enhanced Native (MODE=off / unpaired): still emit local suggest UI.
         $gatewayOn = function_exists('numinix_seekmodo_enabled') && numinix_seekmodo_enabled();
         $enOn = function_exists('numinix_seekmodo_enhanced_native_enabled')
