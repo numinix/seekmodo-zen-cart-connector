@@ -104,14 +104,42 @@ if (!function_exists('_numinix_seekmodo_promoter')) {
     }
 }
 
+if (!function_exists('numinix_seekmodo_set_request_mode')) {
+    /**
+     * Force off|shadow|enforce for this request only. Beats the
+     * AutoPromoter. Pass null to clear. Unknown values are ignored.
+     */
+    function numinix_seekmodo_set_request_mode(?string $mode): void
+    {
+        if ($mode === null || trim($mode) === '') {
+            unset($GLOBALS['_numinix_seekmodo_request_mode']);
+            return;
+        }
+        $mode = strtolower(trim($mode));
+        if ($mode === 'off' || $mode === 'shadow' || $mode === 'enforce') {
+            $GLOBALS['_numinix_seekmodo_request_mode'] = $mode;
+        }
+    }
+}
+
 if (!function_exists('numinix_seekmodo_effective_mode')) {
     /**
      * Resolve the runtime mode the storefront should obey. Identical
      * to numinix_seekmodo_mode() except `active` is collapsed via the
      * AutoPromoter's state machine into one of `off|shadow|enforce`.
+     *
+     * A request override from numinix_seekmodo_set_request_mode() wins
+     * before the AutoPromoter runs.
      */
     function numinix_seekmodo_effective_mode(): string
     {
+        $override = $GLOBALS['_numinix_seekmodo_request_mode'] ?? null;
+        if (is_string($override)) {
+            $override = strtolower(trim($override));
+            if ($override === 'off' || $override === 'shadow' || $override === 'enforce') {
+                return $override;
+            }
+        }
         $configured = numinix_seekmodo_mode();
         try {
             return _numinix_seekmodo_promoter()->resolveMode($configured);
