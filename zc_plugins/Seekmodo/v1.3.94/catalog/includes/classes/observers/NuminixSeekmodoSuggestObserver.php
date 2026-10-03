@@ -199,7 +199,7 @@ final class NuminixSeekmodoSuggestObserver extends base
         if (!$gatewayOn && !$enOn) {
             return false;
         }
-        if (defined('NUMINIX_SEEKMODO_SUGGEST_ENABLED')) {
+        if (empty($GLOBALS['_numinix_seekmodo_force_suggest_ui']) && defined('NUMINIX_SEEKMODO_SUGGEST_ENABLED')) {
             $v = (string) constant('NUMINIX_SEEKMODO_SUGGEST_ENABLED');
             if (in_array(strtolower($v), ['0', 'false', 'no', 'off'], true)) {
                 return false;

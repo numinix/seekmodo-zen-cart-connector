@@ -142,6 +142,20 @@ if (!function_exists('numinix_seekmodo_is_locked_out')) {
                 return false;
             }
         }
+        if (function_exists('numinix_seekmodo_looks_like_nonprod') && numinix_seekmodo_looks_like_nonprod($current)) {
+            $apex = static function (string $host): string {
+                $host = strtolower($host);
+                foreach (['www.', 'dev.', 'staging.', 'stage.', 'demo.', 'test.', 'testing.', 'qa.'] as $prefix) {
+                    if (strpos($host, $prefix) === 0) {
+                        return substr($host, strlen($prefix));
+                    }
+                }
+                return $host;
+            };
+            if ($apex($current) !== '' && strcasecmp($apex($current), $apex($locked)) === 0) {
+                return false;
+            }
+        }
         if (
             defined('NUMINIX_SEEKMODO_DEBUG')
             && strtolower((string) NUMINIX_SEEKMODO_DEBUG) === 'true'
