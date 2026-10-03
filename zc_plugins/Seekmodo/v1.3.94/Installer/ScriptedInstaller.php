@@ -235,7 +235,7 @@ class ScriptedInstaller extends ScriptedInstallBase
         $this->addConfigurationKey('NUMINIX_SEEKMODO_SUGGEST_USE_LEGACY', [
             'configuration_title' => 'Seekmodo: Use Legacy Suggest Dropdown',
             'configuration_value' => 'false',
-            'configuration_description' => 'When <b>false</b> (default), the storefront uses the same split-rail <code>&lt;seekmodo-suggest&gt;</code> widget subscribed Seekmodo stores get. When <b>true</b>, falls back to the v1.0.20 flat-row dropdown (<code>seekmodo_typeahead.legacy.js</code>). Leave this <b>false</b> unless you have bespoke CSS that cannot follow the default widget yet. Billing denials keep the modern widget and fill via same-origin Enhanced Native (prefer-local).',
+            'configuration_description' => 'Ignored. Suggestions always use the Seekmodo widget selected by Suggest Layout (default split-rail). Enhanced Native fills that same widget from the store.',
             'configuration_group_id' => $groupId,
             'sort_order' => 1112,
             'set_function' => 'zen_cfg_select_option(array(\'true\', \'false\'),',
