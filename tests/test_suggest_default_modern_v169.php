@@ -85,10 +85,10 @@ sdm_assert(
 );
 sdm_assert(
     preg_match(
-        '/if \\(!defined\\(\'NUMINIX_SEEKMODO_SUGGEST_USE_LEGACY\'\\)\\) \\{\\s*return false;/s',
+        '/private function useLegacy\\(\\): bool\\s*\\{\\s*return false;\\s*\\}/s',
         $observer
     ) === 1,
-    'useLegacy() returns false when the constant is missing'
+    'useLegacy() always returns false'
 );
 
 fwrite(STDOUT, "OK suggest_default_modern {$ver}\n");

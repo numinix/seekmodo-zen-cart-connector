@@ -53,14 +53,11 @@ declare(strict_types=1);
  *     Operators set this to false in a tenant overrides file to
  *     suppress the suggest UI site-wide regardless of pairing.
  *     v1.3.69 also installs this as a configuration row (true).
- *   - `NUMINIX_SEEKMODO_SUGGEST_USE_LEGACY` constant — default false
- *     (the subscribed `<seekmodo-suggest>` split-rail widget). When
- *     true, emits the legacy v1.0.20 flat-row vanilla-JS dropdown
- *     (`seekmodo_typeahead.legacy.js`) instead of the new bundle.
- *     Both files are shipped; the choice is mutually exclusive.
- *     v1.3.69 installs the row as false and resets leftover true
- *     values from recovery stamps. Billing 402/cancelled keep the
- *     modern widget and set prefer-local + typeahead-fallback-url.
+ *   - `NUMINIX_SEEKMODO_SUGGEST_USE_LEGACY` is ignored. Suggestions
+ *     always use `<seekmodo-suggest>`. Layout is
+ *     `NUMINIX_SEEKMODO_SUGGEST_LAYOUT` (default split-rail).
+ *     Enhanced Native and a missing browser tenant fill that same
+ *     widget from the storefront suggest endpoint.
  *
  * Failure semantics:
  *
@@ -211,16 +208,10 @@ final class NuminixSeekmodoSuggestObserver extends base
 
     private function useLegacy(): bool
     {
-        // Operator opt-in only. Unpaid / over_quota must keep the
-        // subscribed <seekmodo-suggest> chrome and fill via
-        // typeahead-fallback-url + prefer-local (same-origin EN) —
-        // never demote to seekmodo_typeahead.legacy.js.
-        if (!defined('NUMINIX_SEEKMODO_SUGGEST_USE_LEGACY')) {
-            return false;
-        }
-        $v = (string) constant('NUMINIX_SEEKMODO_SUGGEST_USE_LEGACY');
-
-        return in_array(strtolower($v), ['1', 'true', 'yes', 'on'], true);
+        // Suggestions are always a Seekmodo widget. Layout comes from
+        // NUMINIX_SEEKMODO_SUGGEST_LAYOUT (default split-rail). Enhanced
+        // Native fills that same widget from the storefront shim.
+        return false;
     }
 
     /**
@@ -244,9 +235,8 @@ final class NuminixSeekmodoSuggestObserver extends base
         }
         $base = (string) constant('DIR_WS_CATALOG');
         $version = $this->pluginVersion();
-        $file = $useLegacy
-            ? 'seekmodo_typeahead.legacy.js'
-            : 'seekmodo_suggest.bundle.js';
+        unset($useLegacy);
+        $file = 'seekmodo_suggest.bundle.js';
 
         $url = $base . 'zc_plugins/Seekmodo/' . $version
             . '/catalog/includes/templates/template_default/jscript/' . $file;
@@ -399,6 +389,19 @@ final class NuminixSeekmodoSuggestObserver extends base
         return defined('NUMINIX_SEEKMODO_TENANT_ID')
             ? trim((string) constant('NUMINIX_SEEKMODO_TENANT_ID'))
             : '';
+    }
+
+    /**
+     * Same widget, local results, when the browser cannot call the gateway.
+     */
+    private function preferLocalSuggest(): bool
+    {
+        if ($this->tenantId() === '') {
+            return true;
+        }
+
+        return class_exists('\Numinix\Seekmodo\Client')
+            && \Numinix\Seekmodo\Client::shouldPreferLocalSuggest();
     }
 
     private function gatewayBase(): string
@@ -607,13 +610,12 @@ final class NuminixSeekmodoSuggestObserver extends base
             'mark_cloud_denied_url' => $shimUrl !== ''
                 ? $shimUrl . '?seekmodo_action=stamp-cloud-denied'
                 : '',
-            'legacy_typeahead_src' => $this->bundleSrc(true),
+            'legacy_typeahead_src' => '',
             'serp_parity_submit' => function_exists('numinix_seekmodo_mode')
                 && numinix_seekmodo_mode() === 'enforce',
             'serp_passthrough' => $serpPassthrough,
             'img_ver'          => $this->bundleImageVer(),
-            'prefer_local'    => class_exists('\Numinix\Seekmodo\Client')
-                && \Numinix\Seekmodo\Client::shouldPreferLocalSuggest(),
+            'prefer_local'    => $this->preferLocalSuggest(),
             // Multi-language storefront labels (EN/DE/ES/FR packs under
             // catalog/includes/languages/{lang}/extra_definitions/).
             'lang'             => $this->suggestLangCode(),
@@ -641,10 +643,7 @@ final class NuminixSeekmodoSuggestObserver extends base
                 'typeahead-fallback-url' => $this->suggestShimUrl(),
                 // Skip metered /v1/suggest while unpaid/over_quota sticky;
                 // widget fills from the same-origin shim (Enhanced Native).
-                'prefer-local' => (
-                    class_exists('\Numinix\Seekmodo\Client')
-                    && \Numinix\Seekmodo\Client::shouldPreferLocalSuggest()
-                ) ? 'true' : 'false',
+                'prefer-local' => $this->preferLocalSuggest() ? 'true' : 'false',
                 // SM-606 follow-up: the bundle's `suppress-legacy`
                 // attribute tears down sibling typeahead widgets bound
                 // to the same input on first focus. Zen Cart catalogs
