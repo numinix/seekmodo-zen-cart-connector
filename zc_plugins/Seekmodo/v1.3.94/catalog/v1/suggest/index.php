@@ -109,6 +109,12 @@ foreach (['session_id', 'ua', 'ip', 'referer', 'filter_by', 'lang', 'language', 
         $body[$key] = $params[$key];
     }
 }
+if (!isset($body['ua']) || $body['ua'] === '') {
+    $ua = isset($_SERVER['HTTP_USER_AGENT']) ? trim((string) $_SERVER['HTTP_USER_AGENT']) : '';
+    if ($ua !== '') {
+        $body['ua'] = $ua;
+    }
+}
 
 $envelope = numinix_seekmodo_suggest($body);
 if (!is_array($envelope)) {
