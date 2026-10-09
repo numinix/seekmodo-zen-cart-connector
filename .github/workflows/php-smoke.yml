@@ -9,7 +9,7 @@ on:
 jobs:
   no-picture-suggest-thumbs:
     name: no_picture suggest thumbs
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, numinix-mini]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +23,7 @@ jobs:
 
   suggest-i18n-labels:
     name: suggest i18n labels
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, numinix-mini]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
