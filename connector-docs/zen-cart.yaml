@@ -271,6 +271,17 @@ sections:
         text: Full troubleshooting guide
         url: https://seekmodo.com/docs/zen-cart/troubleshooting
 
+  chat:
+    title: Shopper chat
+    nav_label: Chat
+    blocks:
+      - type: paragraph
+        text: "The Seekmodo AI Chatbot plugin owns the storefront widget, mailbox, and Chats console. This connector copies chat_launcher from the tenant snapshot into SEEKMODO_AI_CHATBOT_LAUNCHER_JSON. An empty color keeps the plugin's local button colors."
+      - type: list
+        items:
+          - "Rebuild Knowledge Base in the chatbot settings compiles define pages and visible EZ-pages into the markdown cache that kb_search reads."
+          - "Inbound mail, daily auto-archive, and nightly improvement drafts run from the chatbot plugin crons. Mail passwords stay in the plugin configuration."
+          - "admin.seekmodo.com/inbox uses the existing HMAC endpoint. The plugin admin Chats page is the same two-pane layout."
   support:
     title: Support
     nav_label: Support
