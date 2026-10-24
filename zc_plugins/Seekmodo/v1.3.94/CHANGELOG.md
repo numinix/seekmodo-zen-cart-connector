@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixed
+- **Add-to-cart quantity on Numinix product URLs.** Cart telemetry no longer stores the products_id as the quantity when `NOTIFIER_CART_ADD_CART_END` leads with an empty argument and the SEO URL already carries `products_id`.
+
 ### Added
 - **Email-to-ticket policy mirror** — `tenant.snapshot` `inbox_create_unmatched` writes `SEEKMODO_AI_CHATBOT_MAIL_CREATE_UNMATCHED`. Mailbox passwords stay on the chatbot mail page.
 - **Inbox capabilities** published for create, mail status, and shopper list/get/reply so later connectors can share the same contract.
