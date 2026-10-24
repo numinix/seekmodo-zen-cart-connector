@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Suggestion price chips match the products on screen.** A band such as $0–$20 is not offered when every suggestion is more expensive. Choosing a chip already stayed in the panel; the chips now follow the prices that were returned.
+
 - **Add-to-cart quantity on Numinix product URLs.** Cart telemetry no longer stores the products_id as the quantity when `NOTIFIER_CART_ADD_CART_END` leads with an empty argument and the SEO URL already carries `products_id`.
 - **Email-to-ticket policy** — snapshot `inbox_create_unmatched` writes the chatbot config flag. Inbox discovery publishes create, mail status, and shopper actions. Mailbox passwords stay on the store.
 - **Shoppers no longer see the yellow suggest CORS notice.** A failed suggest request closes the dropdown. Store admin and the Seekmodo tenant admin opt in with `show-cors-notice="admin"` on the widget, or `<meta name="seekmodo:show-cors-notice" content="admin">`.
