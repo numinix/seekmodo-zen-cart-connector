@@ -537,7 +537,7 @@ def _load_or_generate_signing_key() -> tuple[Any, Any, str, str]:
     signature.  ``public_bytes_raw`` is the 32-byte raw ed25519 public
     key (suitable for vendoring into the plugin or publishing as a
     JWK ``x`` field).  ``key_source_label`` is one of
-    ``"file:<path>"`` or ``"dev-ephemeral"`` so the manifest can flag
+    the key id or ``"dev-ephemeral"`` so the manifest can flag
     unverifiable builds.
 
     Backend selection:
@@ -583,7 +583,7 @@ def _load_or_generate_signing_key() -> tuple[Any, Any, str, str]:
         return (
             _CryptographySigner(),
             pub,
-            f"file:{key_path}",
+            _RELEASE_SIGNING_KID,
             _RELEASE_SIGNING_KID,
         )
 
@@ -607,7 +607,7 @@ def _load_or_generate_signing_key() -> tuple[Any, Any, str, str]:
             def sign(self, data: bytes) -> bytes:
                 return signing.sign(data).signature  # type: ignore[no-any-return]
 
-        return _NaclSigner(), pub, f"file:{key_path}", _RELEASE_SIGNING_KID
+        return _NaclSigner(), pub, _RELEASE_SIGNING_KID, _RELEASE_SIGNING_KID
 
     # Dev-ephemeral fallback.  Surface this loudly — production CI
     # MUST NOT land here, and the manifest entry will carry a
@@ -710,7 +710,7 @@ def update_manifest_json(
               "sig": "<base64url-nopad ed25519 signature of the zip's bytes>",
               "sig_kid": "marketing-2026-05",
               "signed_at": "2026-...",
-              "signed_with": "file:/etc/numinix/release-signing.key"
+              "signed_with": "seekmodo-2026-06-r2"
             }
           }
         }
@@ -721,8 +721,8 @@ def update_manifest_json(
     (vendored under `admin/release-signing.pub`) and / or the JWKS
     surface, and only then offer the upgrade.
 
-    `signed_with` is informational — production builds set it to a
-    file path, dev-ephemeral builds set it to ``"dev-ephemeral"`` so
+    `signed_with` is informational — production builds set it to the
+    key id, dev-ephemeral builds set it to ``"dev-ephemeral"`` so
     the plugin verifier can refuse them outright.
     """
     if manifest_path.is_file():
