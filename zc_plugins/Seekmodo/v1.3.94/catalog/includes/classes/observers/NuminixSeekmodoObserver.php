@@ -823,10 +823,16 @@ class NuminixSeekmodoObserver extends \base
      */
     private function resolveCartNotifierPayload($param1, $param2, $param3): array
     {
-        if ($this->resolveCartProductsId($param1) > 0) {
+        // Use only the notifier arguments. resolveCartProductsId() also
+        // reads $_GET/$_POST products_id, which Numinix SEO product URLs
+        // always set. A null $param1 then looked like the product id, and
+        // $param2 (the real products_id on NOTIFIER_CART_ADD_CART_END)
+        // was stored as the quantity. numinix.ca recorded add_to_cart
+        // qty 1231 for products_id 1231 with no search behind it.
+        if ($this->normalizeProductsId($param1) > 0) {
             return [$param1, $param2];
         }
-        if ($param2 !== null && $this->resolveCartProductsId($param2) > 0) {
+        if ($param2 !== null && $this->normalizeProductsId($param2) > 0) {
             return [$param2, $param3];
         }
         return [$param1, $param2];
