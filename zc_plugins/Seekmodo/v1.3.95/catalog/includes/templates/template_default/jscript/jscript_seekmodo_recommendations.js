@@ -1,0 +1,325 @@
+/**
+ * Seekmodo recommendations client — single-algo + PDP/cart cascades.
+ *
+ * Placeholders: <div data-seekmodo-placement="..."> filled via
+ * numinix_seekmodo_recommend.php. Cascades: pdp-cascade, cart.
+ *
+ * @see seekmodo.com/docs/connectors/recommendations-pdp-cart.md
+ */
+(function () {
+    'use strict';
+
+    if (typeof window === 'undefined' || typeof window.fetch !== 'function') {
+        return;
+    }
+
+    var ENDPOINT = 'numinix_seekmodo_recommend.php';
+    var ROOT_CLASS = 'numinix-seekmodo-recommendations';
+    var ROW_CLASS = 'numinix-seekmodo-recommendations__row';
+    var ITEM_CLASS = 'numinix-seekmodo-recommendations__item';
+    var SECTION_CLASS = 'numinix-seekmodo-recommendations__section';
+    var VIEWPORT_CLASS = 'numinix-seekmodo-recommendations__viewport';
+
+    function ensureStyles() {
+        if (document.getElementById('seekmodo-recommendations-css')) {
+            return;
+        }
+        var style = document.createElement('style');
+        style.id = 'seekmodo-recommendations-css';
+        style.textContent = "/**\n * Seekmodo recommendations widgets - strip layout + hover stacking.\n *\n * Horizontal scrolling lives on __viewport. The __row itself stays\n * overflow:visible so theme hover expansions can paint outside the\n * card box. (CSS forbids pairing overflow-x:auto with overflow-y:visible\n * on the same element \u2014 the visible axis computes to auto and clips.)\n * Viewport uses bottom padding as reserved room inside the scrollport.\n */\n.seekmodo-recommendations,\n.numinix-seekmodo-recommendations,\n.seekmodo-cart-reco {\n  position: relative;\n  z-index: 2;\n  margin: 1.5rem 0;\n}\n\n.seekmodo-recommendations:has(.seekmodo-recommendations__item:hover),\n.seekmodo-recommendations:has(.seekmodo-recommendations__item:focus-within),\n.numinix-seekmodo-recommendations:has(.numinix-seekmodo-recommendations__item:hover),\n.numinix-seekmodo-recommendations:has(.numinix-seekmodo-recommendations__item:focus-within),\n.seekmodo-cart-reco:has(:hover),\n.seekmodo-cart-reco:has(:focus-within) {\n  z-index: 30;\n}\n\n.seekmodo-recommendations__heading,\n.numinix-seekmodo-recommendations__heading {\n  font-size: 1.25rem;\n  margin: 0 0 0.75rem;\n}\n\n.seekmodo-recommendations__section,\n.numinix-seekmodo-recommendations__section {\n  position: relative;\n  overflow: visible;\n  margin: 1.25rem 0;\n}\n\n.seekmodo-recommendations__viewport,\n.numinix-seekmodo-recommendations__viewport {\n  overflow-x: auto;\n  overflow-y: hidden;\n  padding-bottom: 9rem;\n  margin-bottom: -6rem;\n  -webkit-overflow-scrolling: touch;\n}\n\n.seekmodo-recommendations__row,\n.numinix-seekmodo-recommendations__row {\n  display: flex;\n  flex-wrap: nowrap;\n  gap: 0.75rem;\n  list-style: none;\n  margin: 0;\n  padding: 0.25rem 0 0.75rem;\n  overflow: visible;\n}\n\n.seekmodo-recommendations__item,\n.numinix-seekmodo-recommendations__item {\n  position: relative;\n  z-index: 1;\n  flex: 0 0 10rem;\n}\n\n.seekmodo-recommendations__item:hover,\n.seekmodo-recommendations__item:focus-within,\n.numinix-seekmodo-recommendations__item:hover,\n.numinix-seekmodo-recommendations__item:focus-within {\n  z-index: 5;\n}\n\n.seekmodo-recommendations__item__link,\n.numinix-seekmodo-recommendations__item__link {\n  display: block;\n  text-decoration: none;\n  color: inherit;\n}\n\n.seekmodo-recommendations__item__image img,\n.numinix-seekmodo-recommendations__item__image img {\n  width: 100%;\n  aspect-ratio: 1 / 1;\n  object-fit: cover;\n}\n\n.seekmodo-recommendations__item__name,\n.numinix-seekmodo-recommendations__item__name {\n  display: block;\n  margin-top: 0.35rem;\n  font-size: 0.9rem;\n}\n\n.seekmodo-recommendations__item__price,\n.numinix-seekmodo-recommendations__item__price {\n  display: block;\n  font-weight: 600;\n  margin-top: 0.2rem;\n}\n";
+        (document.head || document.documentElement).appendChild(style);
+    }
+
+    var FALLBACK_HEADINGS = {
+        'pdp-related':        'Related products',
+        'pdp-also-bought':    'Customers also bought',
+        'pdp-also-viewed':    'Customers also viewed',
+        'pdp-bundle':         'Frequently bought together',
+        'pdp-cascade':        '',
+        'cart':               'Add to your cart',
+        'cart_below':         'Add to your cart',
+        'cart-also-bought':   'Add to your cart',
+        'cart-bundle':        'Complete your bundle',
+        'home-trending':      'Trending now',
+        'category-trending':  'Trending in this category'
+    };
+
+    var FALLBACK_CASCADE = {
+        bought:  'Customers also bought',
+        related: 'Related products',
+        popular: 'Popular in this category'
+    };
+
+    function recoLabels() {
+        try {
+            return (window.SeekmodoRecoLabels && typeof window.SeekmodoRecoLabels === 'object')
+                ? window.SeekmodoRecoLabels
+                : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function DEFAULT_HEADINGS() {
+        var L = recoLabels();
+        return {
+            'pdp-related':        L['pdp-related'] || FALLBACK_HEADINGS['pdp-related'],
+            'pdp-also-bought':    L['pdp-also-bought'] || FALLBACK_HEADINGS['pdp-also-bought'],
+            'pdp-also-viewed':    L['pdp-also-viewed'] || FALLBACK_HEADINGS['pdp-also-viewed'],
+            'pdp-bundle':         L['pdp-bundle'] || FALLBACK_HEADINGS['pdp-bundle'],
+            'pdp-cascade':        '',
+            'cart':               L.cart || FALLBACK_HEADINGS.cart,
+            'cart_below':         L.cart_below || L.cart || FALLBACK_HEADINGS.cart_below,
+            'cart-also-bought':   L['cart-also-bought'] || L.cart || FALLBACK_HEADINGS['cart-also-bought'],
+            'cart-bundle':        L['cart-bundle'] || FALLBACK_HEADINGS['cart-bundle'],
+            'home-trending':      L['home-trending'] || FALLBACK_HEADINGS['home-trending'],
+            'category-trending':  L['category-trending'] || FALLBACK_HEADINGS['category-trending']
+        };
+    }
+
+    function CASCADE_SECTION_HEADINGS() {
+        var L = recoLabels();
+        return {
+            bought:  L.bought || FALLBACK_CASCADE.bought,
+            related: L.related || FALLBACK_CASCADE.related,
+            popular: L.popular || FALLBACK_CASCADE.popular
+        };
+    }
+
+    function ready(fn) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fn, { once: true });
+        } else {
+            fn();
+        }
+    }
+
+    function escapeHtml(s) {
+        if (s === null || s === undefined) {
+            return '';
+        }
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function selectPlaceholders() {
+        return Array.prototype.slice.call(
+            document.querySelectorAll('[data-seekmodo-placement]')
+        );
+    }
+
+    function collectCartDocIdsFromDom() {
+        var ids = [];
+        // Zen Cart cart forms often expose products_id on qty/update inputs.
+        var nodes = document.querySelectorAll(
+            'form[name="cart_quantity"] input[name^="products_id"], #cartContentsDisplay input[name^="products_id"], .cartItem input[name^="products_id"], [data-seekmodo-cart-product-id]'
+        );
+        for (var i = 0; i < nodes.length; i++) {
+            var pid = String(nodes[i].value || nodes[i].getAttribute('data-seekmodo-cart-product-id') || '').trim();
+            if (pid !== '' && /^\d+$/.test(pid) && ids.indexOf(pid) === -1) {
+                ids.push(pid);
+            }
+        }
+        return ids;
+    }
+
+    function buildEndpoint(el) {
+        var placement = el.getAttribute('data-seekmodo-placement') || '';
+        if (placement === '') {
+            return null;
+        }
+        var params = new URLSearchParams();
+        params.set('placement', placement);
+
+        var docId = el.getAttribute('data-seekmodo-doc-id') || '';
+        if (docId !== '') {
+            params.set('doc_id', docId);
+        }
+
+        var docIds = el.getAttribute('data-seekmodo-doc-ids') || '';
+        var exclude = el.getAttribute('data-seekmodo-exclude-doc-ids') || '';
+        if (placement === 'cart' || placement === 'cart_below' || placement.indexOf('cart-') === 0) {
+            var live = collectCartDocIdsFromDom();
+            if (live.length) {
+                docIds = live.join(',');
+                exclude = docIds;
+                el.setAttribute('data-seekmodo-doc-ids', docIds);
+                el.setAttribute('data-seekmodo-exclude-doc-ids', exclude);
+            }
+        }
+        if (docIds !== '') {
+            params.set('doc_ids', docIds);
+        }
+        if (exclude !== '') {
+            params.set('exclude_doc_ids', exclude);
+        }
+
+        var limit = parseInt(el.getAttribute('data-seekmodo-limit') || '8', 10);
+        if (!isNaN(limit) && limit > 0) {
+            params.set('limit', String(Math.min(50, limit)));
+        }
+
+        var bundleSize = parseInt(el.getAttribute('data-seekmodo-bundle-size') || '0', 10);
+        if (!isNaN(bundleSize) && bundleSize >= 2 && bundleSize <= 5) {
+            params.set('bundle_size', String(bundleSize));
+        }
+
+        return ENDPOINT + '?' + params.toString();
+    }
+
+    function renderItems(items) {
+        if (!items || items.length === 0) {
+            return '';
+        }
+        var rows = items.map(function (it) {
+            var url = it.url || '#';
+            var name = it.name || it.value || '';
+            var imageHtml = it.image_html || '';
+            if (imageHtml === '' && it.image) {
+                imageHtml = '<img src="' + escapeHtml(it.image)
+                    + '" alt="' + escapeHtml(name) + '" loading="lazy">';
+            }
+            var price = it.price_formatted || '';
+            if (price === '' && typeof it.price === 'number') {
+                price = '$' + it.price.toFixed(2);
+            }
+            if (price) {
+                price = String(price).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            }
+            return ''
+                + '<li class="' + ITEM_CLASS + '">'
+                + '<a href="' + escapeHtml(url) + '" class="'
+                + ITEM_CLASS + '__link" data-seekmodo-doc-id="'
+                + escapeHtml(it.doc_id || '') + '">'
+                + (imageHtml ? '<span class="' + ITEM_CLASS + '__image">'
+                    + imageHtml + '</span>' : '')
+                + '<span class="' + ITEM_CLASS + '__name">'
+                + escapeHtml(name) + '</span>'
+                + (price ? '<span class="' + ITEM_CLASS + '__price">'
+                    + escapeHtml(price) + '</span>' : '')
+                + '</a>'
+                + '</li>';
+        }).join('');
+        return '<div class="' + VIEWPORT_CLASS + '"><ul class="' + ROW_CLASS + '">' + rows + '</ul></div>';
+    }
+
+    function resolveHeading(el, placementKey) {
+        var headingAttr = el.getAttribute('data-seekmodo-heading');
+        if (headingAttr !== null) {
+            return headingAttr === '' ? '' : headingAttr;
+        }
+        return DEFAULT_HEADINGS()[placementKey] || '';
+    }
+
+    function renderCascade(el, envelope) {
+        var placements = envelope.placements || {};
+        var sections = [
+            { key: 'bought', items: placements.bought || [] },
+            { key: 'related', items: placements.related || [] },
+            { key: 'popular', items: placements.popular || [] }
+        ];
+        var html = '';
+        for (var i = 0; i < sections.length; i++) {
+            var sec = sections[i];
+            if (!sec.items.length) {
+                continue;
+            }
+            var title = CASCADE_SECTION_HEADINGS()[sec.key] || '';
+            html += '<div class="' + SECTION_CLASS + '" data-seekmodo-section="'
+                + escapeHtml(sec.key) + '">';
+            if (title !== '') {
+                html += '<h2 class="' + ROOT_CLASS + '__heading">'
+                    + escapeHtml(title) + '</h2>';
+            }
+            html += renderItems(sec.items) + '</div>';
+        }
+        if (html === '') {
+            return;
+        }
+        el.classList.add(ROOT_CLASS);
+        el.setAttribute('data-seekmodo-rendered', '1');
+        el.innerHTML = html;
+    }
+
+    function renderEnvelope(el, envelope) {
+        if (!envelope || envelope.ok !== true) {
+            return;
+        }
+        var placement = envelope.placement || el.getAttribute('data-seekmodo-placement') || '';
+        if (placement === 'pdp-cascade' && envelope.placements) {
+            renderCascade(el, envelope);
+            return;
+        }
+        var items = envelope.recommendations || [];
+        if (items.length === 0) {
+            return;
+        }
+        var heading = resolveHeading(el, placement);
+        var headingHtml = heading === ''
+            ? ''
+            : '<h2 class="' + ROOT_CLASS + '__heading">'
+                + escapeHtml(heading) + '</h2>';
+        el.classList.add(ROOT_CLASS);
+        el.setAttribute('data-seekmodo-rendered', '1');
+        el.innerHTML = headingHtml + renderItems(items);
+    }
+
+    function loadOne(el) {
+        if (el.getAttribute('data-seekmodo-rendered') === '1') {
+            return;
+        }
+        var url = buildEndpoint(el);
+        if (url === null) {
+            return;
+        }
+        window.fetch(url, {
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
+        }).then(function (resp) {
+            if (!resp.ok) {
+                return null;
+            }
+            return resp.json();
+        }).then(function (envelope) {
+            renderEnvelope(el, envelope);
+        }).catch(function () {
+            // Swallow — placeholder stays empty.
+        });
+    }
+
+    function refreshAll() {
+        var els = selectPlaceholders();
+        for (var i = 0; i < els.length; i++) {
+            els[i].removeAttribute('data-seekmodo-rendered');
+            els[i].innerHTML = '';
+            els[i].classList.remove(ROOT_CLASS);
+            loadOne(els[i]);
+        }
+    }
+
+    ready(function () {
+        ensureStyles();
+        var els = selectPlaceholders();
+        for (var i = 0; i < els.length; i++) {
+            loadOne(els[i]);
+        }
+    });
+
+    // Soft refresh after cart mutations when the host page fires a
+    // custom event (or after add-to-cart forms on shopping_cart).
+    document.addEventListener('seekmodo:cart-updated', refreshAll);
+    if (typeof window.jQuery === 'function') {
+        window.jQuery(document).on('ajaxComplete', function (_e, xhr, settings) {
+            var url = (settings && settings.url) ? String(settings.url) : '';
+            if (url.indexOf('shopping_cart') !== -1 || url.indexOf('cart') !== -1) {
+                refreshAll();
+            }
+        });
+    }
+
+    window.SeekmodoRecommendations = { refresh: refreshAll };
+}());
