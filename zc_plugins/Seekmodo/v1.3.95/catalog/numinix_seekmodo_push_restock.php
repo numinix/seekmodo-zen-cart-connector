@@ -184,6 +184,11 @@ while (true) {
             $lastProductId = $pid;
         }
         $qty = is_numeric($row['products_quantity'] ?? null) ? (int) $row['products_quantity'] : 0;
+        if ($qty > 1000000000) {
+            $qty = 1000000000;
+        } elseif ($qty < -1000000000) {
+            $qty = -1000000000;
+        }
         $rows[] = [
             'product_id' => (string) $pid,
             'sku' => restock_clip(isset($row['products_model']) ? (string) $row['products_model'] : null, 128),
