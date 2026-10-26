@@ -612,6 +612,24 @@ class Client
         return $this->call('/v1/tenants/token', $body, $this->searchTimeoutMs);
     }
 
+    /**
+     * POST /v1/{tool} for a connector HMAC tool such as restock.inventory.upsert.
+     *
+     * Slashes in the name are dots on the wire. Uses the index timeout
+     * because these calls carry batches, not a shopper keystroke.
+     *
+     * @param array<string,mixed> $body
+     * @return array<string,mixed>|null
+     */
+    public function tool(string $name, array $body, ?int $timeoutMs = null): ?array
+    {
+        $name = str_replace('/', '.', trim($name, " \t\n\r\0\x0B/"));
+        if ($name === '' || preg_match('/^[A-Za-z0-9_.]+$/', $name) !== 1) {
+            return null;
+        }
+        return $this->call('/v1/' . $name, $body, $timeoutMs ?? $this->indexTimeoutMs);
+    }
+
     private function call(string $path, array $body, int $timeoutMs, ?string $indexIntentOverride = null): ?array
     {
         if (!$this->isEnabled()) {
