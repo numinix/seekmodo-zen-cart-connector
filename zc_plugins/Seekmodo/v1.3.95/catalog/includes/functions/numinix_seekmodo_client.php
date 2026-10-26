@@ -389,6 +389,27 @@ if (!function_exists('numinix_seekmodo_recommend')) {
     }
 }
 
+if (!function_exists('numinix_seekmodo_tool')) {
+    /**
+     * POST /v1/{tool} with the connector HMAC.
+     *
+     * @param array<string,mixed> $body
+     * @return array<string,mixed>|null
+     */
+    function numinix_seekmodo_tool(string $name, array $body, ?int $timeoutMs = null): ?array
+    {
+        if (function_exists('numinix_seekmodo_is_locked_out')
+            && numinix_seekmodo_is_locked_out()) {
+            return null;
+        }
+        $client = _numinix_seekmodo_client();
+        if ($client === null || !method_exists($client, 'tool')) {
+            return null;
+        }
+        return $client->tool($name, $body, $timeoutMs);
+    }
+}
+
 if (!function_exists('numinix_seekmodo_index_chunked')) {
     /**
      * Push a batch of documents through /v1/index, chunking at
