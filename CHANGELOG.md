@@ -2,15 +2,36 @@
 
 ## Unreleased
 
-- **Suggestions recover after a browser token expires (gateway-direct mode).** On a 401 the bundled SDK asked for a new token, but the page-level cache returned the same one while the shopper's clock still trusted it, so every keystroke stayed on 401s. The retry now bypasses that cache and calls `seekmodo:refresh`. The default proxy mode has no browser token and is unaffected.
-- **Restock sync.** `numinix_seekmodo_push_restock.php` sends on-hand quantities and recent order lines to Seekmodo so the admin Restock page can suggest a reorder quantity. Customer ids are hashed. Cancelled and voided orders are left out. Quantities above one billion, the usual unlimited-stock sentinel, are capped so the snapshot still uploads.
-- **Add-to-cart quantity on Numinix product URLs.** Cart telemetry no longer stores the products_id as the quantity when `NOTIFIER_CART_ADD_CART_END` leads with an empty argument and the SEO URL already carries `products_id`.
+## v1.3.96 - 2026-11-02 (AI Chatbot bundled)
+
+### Added
+- **Seekmodo AI Chatbot ships in the same zip** as Seekmodo search (`zc_plugins/SeekmodoAiChatbot`). One marketplace download; install both rows in Plugin Manager.
+- **Chat launcher sync** — `tenant.snapshot` `chat_launcher` writes `SEEKMODO_AI_CHATBOT_LAUNCHER_JSON` (color, flair, one-time auto-open).
 - **Email-to-ticket policy** — snapshot `inbox_create_unmatched` writes the chatbot config flag. Inbox discovery publishes create, mail status, and shopper actions. Mailbox passwords stay on the store.
+- **Restock sync.** `numinix_seekmodo_push_restock.php` sends on-hand quantities and recent order lines to Seekmodo so the admin Restock page can suggest a reorder quantity. Customer ids are hashed. Cancelled and voided orders are left out. Quantities above one billion, the usual unlimited-stock sentinel, are capped so the snapshot still uploads.
+
+### Fixed
+- **Suggestions recover after a browser token expires (gateway-direct mode).** On a 401 the bundled SDK asked for a new token, but the page-level cache returned the same one while the shopper's clock still trusted it, so every keystroke stayed on 401s. The retry now bypasses that cache and calls `seekmodo:refresh`. The default proxy mode has no browser token and is unaffected.
+- **Add-to-cart quantity on Numinix product URLs.** Cart telemetry no longer stores the products_id as the quantity when `NOTIFIER_CART_ADD_CART_END` leads with an empty argument and the SEO URL already carries `products_id`.
 - **Shoppers no longer see the yellow suggest CORS notice.** A failed suggest request closes the dropdown. Store admin and the Seekmodo tenant admin opt in with `show-cors-notice="admin"` on the widget, or `<meta name="seekmodo:show-cors-notice" content="admin">`.
+
+### Changed
+- **Listing / Plugin Manager copy** names AI chatbot, live chat, and ticketing alongside search.
 
 ## v1.3.95 - 2026-10-24 (Suggestion price chips)
 
+### Changed
 - **Suggestion price chips match the products on screen.** A band such as $0–$20 is not offered when every suggestion is more expensive. Choosing a chip stays in the panel, and the chips follow the prices that were returned.
+
+## v1.3.94 - 2026-09-30 (Spaced inch form)
+
+### Fixed
+- **Spaced `in` is searched with the other inch forms.** A six-inch query also matches catalog text written as `6 in`.
+
+## v1.3.93 - 2026-09-30 (Unit abbreviations)
+
+### Changed
+- **Enhanced Native treats a number plus a unit abbreviation as the same measurement.** `6"`, `6 in`, `6-inch`, and `6 inches` match each other. Feet, yards, and metric units work the same way. A six-inch item does not match a six-foot query.
 
 ## v1.3.92 - 2026-09-29 (Suggest proxy-first default)
 

@@ -2,8 +2,8 @@ platform:
   id: zen-cart
   name: Zen Cart
   title: Seekmodo for Zen Cart
-  subtitle: AI-powered search, typeahead, and catalog indexing for Zen Cart 1.5.8+
-  page_description: Installation and usage guide for the Seekmodo Zen Cart connector.
+  subtitle: AI search, typeahead, AI chatbot, live chat, and ticketing for Zen Cart 1.5.8+
+  page_description: Installation and usage guide for the Seekmodo Zen Cart connector (search + AI chatbot / inbox).
 
 support_links:
   - label: Product site
@@ -34,7 +34,7 @@ sections:
     nav_label: Overview
     blocks:
       - type: paragraph
-        text: "The Seekmodo connector routes your Zen Cart storefront's product search, indexer cron, click beacon, and type-ahead autocomplete through the Seekmodo platform at <code>mcp.seekmodo.com</code>, while keeping native Zen Cart search permanently armed as a graceful fallback."
+        text: "The Seekmodo connector routes your Zen Cart storefront's product search, indexer cron, click beacon, and type-ahead autocomplete through the Seekmodo platform at <code>mcp.seekmodo.com</code>, while keeping native Zen Cart search permanently armed as a graceful fallback. The same download includes <strong>Seekmodo AI Chatbot</strong> — storefront AI chat, live-agent takeover, email ticketing, and cloud Inbox on admin.seekmodo.com (plan-gated after pairing)."
       - type: heading
         level: 3
         text: What the plugin swaps
@@ -44,6 +44,7 @@ sections:
           - "<strong>Indexer cron</strong> — bulk catalog upserts to Seekmodo, auto-chunked at 500 documents per request."
           - "<strong>Click beacon</strong> — mirrors search and product-click events for analytics and LTR attribution."
           - "<strong>Type-ahead</strong> — prefix-tuned autocomplete with commerce-aware scoring."
+          - "<strong>AI chatbot &amp; tickets</strong> — optional Seekmodo AI Chatbot plugin in the same zip (widget, inbox, mail); enable after pairing on an active plan."
       - type: heading
         level: 3
         text: Requirements
@@ -118,11 +119,13 @@ sections:
           - title: Open Zen Cart admin
             body: "Log in to your admin panel (<code>/admin</code> or your renamed path)."
           - title: Upload the plugin
-            body: "Go to <strong>Tools → Plugin Manager → Upload New Plugin</strong> and select the downloaded zip."
+            body: "Go to <strong>Tools → Plugin Manager → Upload New Plugin</strong> and select the downloaded zip. One zip contains both <strong>Seekmodo</strong> (search) and <strong>Seekmodo AI Chatbot</strong> (chat / tickets)."
           - title: Install Seekmodo
             body: "Find the row labelled <strong>Seekmodo</strong> and click <strong>Install</strong>. The Scripted Installer creates the configuration group and seeds 13 <code>NUMINIX_SEEKMODO_*</code> rows with safe defaults (<code>MODE=off</code>)."
+          - title: Install Seekmodo AI Chatbot
+            body: "Find <strong>Seekmodo AI Chatbot</strong> in Plugin Manager and click <strong>Install</strong>. Enable the widget after pairing (plan-gated). Configure LLM keys and Knowledge Base under Tools → Seekmodo AI Chatbot."
           - title: Confirm installation
-            body: "The Plugin Manager row should read <strong>Seekmodo {{VERSION}} — Installed</strong>."
+            body: "Plugin Manager should show <strong>Seekmodo {{VERSION}} — Installed</strong> and <strong>Seekmodo AI Chatbot</strong> installed."
       - type: heading
         level: 3
         text: Pair with your Seekmodo tenant
@@ -271,6 +274,17 @@ sections:
         text: Full troubleshooting guide
         url: https://seekmodo.com/docs/zen-cart/troubleshooting
 
+  chat:
+    title: Shopper chat
+    nav_label: Chat
+    blocks:
+      - type: paragraph
+        text: "The same Seekmodo zip installs <strong>Seekmodo AI Chatbot</strong> beside the search connector. After Plugin Manager install + pairing, enable the chatbot, add your LLM key, and rebuild the Knowledge Base. The connector copies <code>chat_launcher</code> from the tenant snapshot into <code>SEEKMODO_AI_CHATBOT_LAUNCHER_JSON</code> (color, flair, one-time auto-open)."
+      - type: list
+        items:
+          - "Rebuild Knowledge Base in chatbot settings compiles define pages and visible EZ-pages into the markdown cache that kb_search reads."
+          - "Inbound mail, daily auto-archive, and nightly improvement drafts run from the chatbot plugin crons. Mail passwords stay in plugin configuration."
+          - "admin.seekmodo.com/chat (Inbox) uses the store HMAC endpoint published via tenant.snapshot when the chatbot is installed."
   support:
     title: Support
     nav_label: Support

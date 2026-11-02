@@ -435,6 +435,15 @@ final class RemoteConfig
             )
                 ? (string) $row['chat_store_context']
                 : null,
+            // Chat launcher color, flair, and auto-open rules. Null skips
+            // the write so an older gateway does not wipe a local value.
+            'SEEKMODO_AI_CHATBOT_LAUNCHER_JSON' => (
+                isset($row['chat_launcher'])
+                && is_array($row['chat_launcher'])
+                && $row['chat_launcher'] !== []
+            )
+                ? json_encode($row['chat_launcher'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                : null,
         ];
         foreach ($writes as $key => $value) {
             if ($value === null) {

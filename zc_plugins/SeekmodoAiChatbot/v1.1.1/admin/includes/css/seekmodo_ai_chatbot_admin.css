@@ -1,0 +1,1106 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ==========================================================================
+   Seekmodo AI Chatbot — Admin Component Library
+   --------------------------------------------------------------------------
+   Single stylesheet shared by every Seekmodo AI Chatbot admin screen:
+   Chat Inbox / Chat Archive (seekmodo_ai_chatbot_chats.php), the two-pane
+   live console (ogc-console, progressively enhanced by
+   seekmodo_ai_chatbot_console.js), Settings, Support Ticket Mail, and the
+   zc158 home dashboard "Chat Inbox" widget.
+
+   Namespacing:
+     .nmx-*  — generic Numinix/Seekmodo admin chrome (buttons, forms, panels,
+               alerts, pills…) reused across other Numinix plugins' admin UI.
+     .ogc-*  — screens/components specific to the chat inbox / console
+               ("OpenAI Gpt Chat" was the historical internal name).
+
+   Everything below is backward compatible with class names already emitted
+   by seekmodo_ai_chatbot_chats.php, seekmodo_ai_chatbot_settings.php,
+   seekmodo_ai_chatbot_mail.php and SupportTicketsDashboardWidget.php — this
+   file only *adds to* and restyles those selectors, it does not rename any
+   of them. New, previously-unstyled classes referenced by those PHP files
+   (nmx-btn-secondary, nmx-form-help, seekmodo-gate-card, ogc-toolbar-right)
+   are now defined for the first time.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Design tokens (:root)
+   -------------------------------------------------------------------------- */
+:root {
+  /* Brand */
+  --nmx-charcoal:  #111827;
+  --nmx-primary:   #10B981;
+  --nmx-secondary: #06B6D4;
+  --nmx-accent:    #99F6E4;
+  --nmx-dark:      #111827;
+
+  /* Text + surfaces */
+  --nmx-text:      #1f2937;
+  --nmx-text-muted:#6b7280;
+  --nmx-text-faint:#9ca3af;
+  --nmx-border:    #e5e7eb;
+  --nmx-border-strong: #d1d5db;
+  --nmx-surface:   #ffffff;
+  --nmx-muted:     #f3f4f6;
+  --nmx-muted-2:   #f9fafb;
+
+  /* Semantic */
+  --nmx-success:   #10B981;
+  --nmx-success-bg:#ecfdf5;
+  --nmx-success-border:#6ee7b7;
+  --nmx-success-text:#065f46;
+  --nmx-warning:   #f59e0b;
+  --nmx-warning-bg:#fffbeb;
+  --nmx-warning-border:#fbbf24;
+  --nmx-warning-text:#92400e;
+  --nmx-danger:    #ef4444;
+  --nmx-danger-bg: #fef2f2;
+  --nmx-danger-border:#fecaca;
+  --nmx-danger-text:#991b1b;
+  --nmx-info-bg:   #ecfeff;
+  --nmx-info-border:#67e8f9;
+  --nmx-info-text: #155e75;
+
+  /* Status pills */
+  --nmx-status-open-bg: #ecfeff;
+  --nmx-status-open-text: #0e7490;
+  --nmx-status-live-bg: #ecfdf5;
+  --nmx-status-live-text: #047857;
+  --nmx-status-handed-off-bg: #fff7ed;
+  --nmx-status-handed-off-text: #c2410c;
+  --nmx-status-resolved-bg: #f3f4f6;
+  --nmx-status-resolved-text: #4b5563;
+
+  /* Spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Radii */
+  --nmx-radius-sm: 8px;
+  --nmx-radius-md: 10px;
+  --nmx-radius-lg: 12px;
+  --nmx-radius-pill: 999px;
+
+  /* Shadows */
+  --nmx-shadow-sm: 0 1px 2px rgba(17, 24, 39, .05);
+  --nmx-shadow-md: 0 8px 24px rgba(17, 24, 39, .06);
+  --nmx-shadow-lg: 0 16px 40px rgba(17, 24, 39, .10);
+
+  /* Focus ring (a11y) */
+  --nmx-focus-ring: 0 0 0 3px rgba(16, 185, 129, .35);
+}
+
+/* --------------------------------------------------------------------------
+   2. Base / scope reset
+   -------------------------------------------------------------------------- */
+.nmx-module {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--nmx-text);
+  background:
+    linear-gradient(135deg, rgba(16, 185, 129, .08) 0%, rgba(6, 182, 212, .06) 45%, rgba(153, 246, 228, .04) 100%),
+    linear-gradient(180deg, #f9fafb 0%, #ffffff 100%);
+  padding: var(--space-xl) clamp(16px, 4vw, 48px);
+  min-height: calc(100vh - 90px);
+}
+.nmx-module *,
+.nmx-module *::before,
+.nmx-module *::after {
+  box-sizing: border-box;
+}
+
+/* Focus-visible outlines everywhere inside the module (a11y) */
+.nmx-module a:focus-visible,
+.nmx-module button:focus-visible,
+.nmx-module input:focus-visible,
+.nmx-module select:focus-visible,
+.nmx-module textarea:focus-visible,
+.nmx-module [tabindex]:focus-visible,
+.nmx-module summary:focus-visible {
+  outline: 2px solid var(--nmx-secondary);
+  outline-offset: 2px;
+  border-radius: var(--nmx-radius-sm);
+}
+.nmx-module .ogc-conv-item:focus-visible {
+  outline: 2px solid var(--nmx-secondary);
+  outline-offset: -2px;
+}
+
+/* --------------------------------------------------------------------------
+   3. Layout primitives — breadcrumb, page header, panels/cards
+   -------------------------------------------------------------------------- */
+.nmx-breadcrumb {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--nmx-secondary);
+  margin-bottom: var(--space-md);
+}
+.nmx-breadcrumb a { color: var(--nmx-secondary); text-decoration: none; }
+.nmx-breadcrumb a:hover { color: var(--nmx-primary); }
+.nmx-breadcrumb .sep::before { content: '\203A'; margin: 0 8px; color: var(--nmx-text-faint); }
+
+.nmx-page-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-xl);
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  padding-bottom: var(--space-lg);
+  border-bottom: 2px solid transparent;
+  border-image: linear-gradient(90deg, #10B981, #06B6D4, #99F6E4) 1;
+}
+.nmx-page-header h2 {
+  font-size: clamp(26px, 4vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  color: var(--nmx-charcoal);
+  margin: 0 0 6px;
+}
+.nmx-page-header-subtitle { margin: 0; color: var(--nmx-text-muted); font-size: 14px; }
+.nmx-page-header-actions { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.nmx-page-header-actions a {
+  color: var(--nmx-primary);
+  font-weight: 700;
+  text-decoration: none;
+  font-size: 13px;
+}
+.nmx-page-header-actions a:hover { color: var(--nmx-secondary); }
+
+.nmx-panel {
+  background: var(--nmx-surface);
+  border: 1px solid var(--nmx-border);
+  border-radius: var(--nmx-radius-lg);
+  box-shadow: var(--nmx-shadow-md);
+  margin-bottom: var(--space-lg);
+  overflow: hidden;
+}
+.nmx-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--nmx-border);
+  background: linear-gradient(90deg, rgba(16, 185, 129, .08), rgba(6, 182, 212, .06));
+}
+.nmx-panel-header-text { min-width: 0; }
+.nmx-panel-title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-transform: none;
+  color: var(--nmx-charcoal);
+}
+.nmx-panel-body { padding: 18px; }
+.nmx-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 12px 18px;
+  border-top: 1px solid var(--nmx-border);
+  background: var(--nmx-muted);
+}
+.nmx-sticky-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: var(--space-lg);
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, .92);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--nmx-border);
+  border-radius: var(--nmx-radius-lg);
+  box-shadow: 0 -8px 24px rgba(17, 24, 39, .06);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Highlighted "gate" card (Settings → Seekmodo Account pairing status) */
+.seekmodo-gate-card {
+  border-color: var(--nmx-accent);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, .12), var(--nmx-shadow-md);
+}
+.seekmodo-gate-card .nmx-panel-header {
+  background: linear-gradient(90deg, rgba(16, 185, 129, .16), rgba(6, 182, 212, .10));
+}
+
+/* --------------------------------------------------------------------------
+   4. Buttons — primary / secondary / default (ghost) / danger / sm / disabled
+   -------------------------------------------------------------------------- */
+.nmx-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px;
+  border-radius: var(--nmx-radius-md);
+  border: 1px solid transparent;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.25 !important;
+  min-height: 36px;
+  height: auto !important;
+  cursor: pointer;
+  text-decoration: none;
+  vertical-align: middle;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.nmx-btn-sm { padding: 6px 12px !important; font-size: 12px; min-height: 30px; border-radius: var(--nmx-radius-sm); line-height: 1.25 !important; }
+
+/* Primary — gradient fill, main call to action */
+.nmx-btn-primary {
+  background: linear-gradient(135deg, #10B981 0%, #06B6D4 100%);
+  color: #fff;
+  border: none;
+}
+.nmx-btn-primary:hover { background: linear-gradient(135deg, #059669 0%, #0891b2 100%); color: #fff; }
+.nmx-btn-primary:active { filter: brightness(.96); }
+
+/* Secondary — outlined in brand secondary, for "open elsewhere" style actions */
+.nmx-btn-secondary {
+  background: #fff;
+  border-color: var(--nmx-secondary);
+  color: var(--nmx-secondary);
+}
+.nmx-btn-secondary:hover {
+  background: rgba(6, 182, 212, .08);
+  border-color: var(--nmx-secondary);
+  color: #0e7490;
+}
+
+/* Default / ghost — neutral outline, most common secondary action */
+.nmx-btn-default { background: #fff; border-color: var(--nmx-border); color: var(--nmx-charcoal); }
+.nmx-btn-default:hover { border-color: var(--nmx-primary); color: var(--nmx-primary); }
+
+/* Ghost — borderless, lowest-emphasis action (icon-only toolbar buttons, etc.) */
+.nmx-btn-ghost { background: transparent; border-color: transparent; color: var(--nmx-text-muted); }
+.nmx-btn-ghost:hover { background: var(--nmx-muted); color: var(--nmx-charcoal); }
+
+/* Danger — destructive actions */
+.nmx-btn-danger { background: var(--nmx-danger); color: #fff; border: none; }
+.nmx-btn-danger:hover { background: #dc2626; color: #fff; }
+
+.nmx-btn:disabled,
+.nmx-btn[aria-disabled="true"] {
+  opacity: .45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* --------------------------------------------------------------------------
+   5. Forms — controls, help text, checkboxes, grids
+   -------------------------------------------------------------------------- */
+.nmx-form-narrow { max-width: 920px; }
+
+.nmx-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+.nmx-form-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  .nmx-form-grid,
+  .nmx-form-grid-3 { grid-template-columns: 1fr; }
+}
+
+.nmx-form-group { margin-bottom: var(--space-md); }
+.nmx-form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--nmx-text-muted);
+  margin-bottom: 6px;
+}
+.nmx-form-control {
+  width: 100%;
+  border: 1px solid var(--nmx-border);
+  border-radius: var(--nmx-radius-md);
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--nmx-text);
+  background: #fff;
+}
+.nmx-form-control:focus {
+  outline: none;
+  border-color: var(--nmx-primary);
+  box-shadow: var(--nmx-focus-ring);
+}
+.nmx-form-control:disabled { background: var(--nmx-muted); color: var(--nmx-text-faint); cursor: not-allowed; }
+.nmx-form-control-sm { max-width: 140px; }
+
+/* Help / hint text under a field. .nmx-form-help is the canonical name used by
+   Settings; .nmx-help is kept as a backward-compatible alias (Mail screen). */
+.nmx-help,
+.nmx-form-help {
+  margin: 6px 0 0;
+  color: var(--nmx-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.nmx-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--nmx-text);
+  cursor: pointer;
+}
+.nmx-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--nmx-primary);
+  cursor: pointer;
+}
+
+.nmx-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.nmx-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+
+.nmx-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+@media (max-width: 900px) { .nmx-meta-grid { grid-template-columns: 1fr; } }
+.nmx-meta-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--nmx-text-muted);
+  margin-bottom: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   6. Pills / badges — status, awaiting, presence, guest
+   -------------------------------------------------------------------------- */
+.nmx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: var(--nmx-radius-pill);
+  background: var(--nmx-success-bg);
+  color: #047857;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.nmx-pill:first-child { margin-left: 0; }
+
+/* Status pills: open / live / handed_off / resolved */
+.ogc-status-open,
+.nmx-status-open { background: var(--nmx-status-open-bg); color: var(--nmx-status-open-text); }
+.ogc-status-live,
+.nmx-status-live { background: var(--nmx-status-live-bg); color: var(--nmx-status-live-text); }
+.ogc-status-handed_off,
+.nmx-status-handed_off { background: var(--nmx-status-handed-off-bg); color: var(--nmx-status-handed-off-text); }
+.ogc-status-resolved,
+.nmx-status-resolved { background: var(--nmx-status-resolved-bg); color: var(--nmx-status-resolved-text); }
+
+/* Awaiting-human pill (list rows, chat detail header, console list items) */
+.ogc-awaiting,
+.nmx-pill-awaiting { background: #fef3c7; color: #b45309; margin-left: 4px; }
+
+/* Presence pills / dots: online (shopper in widget) vs offline */
+.ogc-presence-online,
+.nmx-pill-online { background: var(--nmx-success-bg); color: #047857; }
+.ogc-presence-offline,
+.nmx-pill-offline { background: var(--nmx-muted); color: var(--nmx-text-muted); }
+
+.ogc-presence-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nmx-text-faint);
+  flex: 0 0 auto;
+}
+.ogc-presence-dot.is-online { background: var(--nmx-primary); box-shadow: 0 0 0 3px rgba(16, 185, 129, .18); }
+
+/* Compact dashboard-widget badge (zc158 home widget) */
+.ogc-dash-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: var(--nmx-radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--nmx-danger);
+  color: #fff;
+  vertical-align: middle;
+}
+
+/* --------------------------------------------------------------------------
+   7. Alerts — success / danger / warning / info / error (alias of danger)
+   -------------------------------------------------------------------------- */
+.nmx-alert {
+  padding: 12px 14px;
+  border-radius: var(--nmx-radius-md);
+  margin-bottom: var(--space-md);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.nmx-alert-success { background: var(--nmx-success-bg); border: 1px solid var(--nmx-success-border); color: var(--nmx-success-text); }
+.nmx-alert-danger  { background: var(--nmx-danger-bg);  border: 1px solid var(--nmx-danger-border);  color: var(--nmx-danger-text); }
+.nmx-alert-warning { background: var(--nmx-warning-bg); border: 1px solid var(--nmx-warning-border); color: var(--nmx-warning-text); }
+.nmx-alert-info    { background: var(--nmx-info-bg);    border: 1px solid var(--nmx-info-border);    color: var(--nmx-info-text); }
+/* Settings' Seekmodo Account gate uses nmx-alert-error as the failure state —
+   alias it to the same treatment as nmx-alert-danger. */
+.nmx-alert-error   { background: var(--nmx-danger-bg);  border: 1px solid var(--nmx-danger-border);  color: var(--nmx-danger-text); }
+
+/* --------------------------------------------------------------------------
+   8. Tabs / segmented controls
+   -------------------------------------------------------------------------- */
+/* Underline-style tabs (generic use) */
+.nmx-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--nmx-border);
+  margin-bottom: var(--space-md);
+}
+.nmx-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 4px;
+  margin-bottom: -1px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--nmx-text-muted);
+  cursor: pointer;
+}
+.nmx-tab:hover { color: var(--nmx-charcoal); }
+.nmx-tab.is-active,
+.nmx-tab[aria-selected="true"] { color: var(--nmx-primary); border-bottom-color: var(--nmx-primary); }
+
+/* Pill-style segmented control — used by the composer's Live / Email / Note
+   channel switch (.ogc-composer-segmented below) and reusable elsewhere. */
+.nmx-segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--nmx-muted);
+  border: 1px solid var(--nmx-border);
+  border-radius: var(--nmx-radius-pill);
+}
+.nmx-segmented-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  border-radius: var(--nmx-radius-pill);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--nmx-text-muted);
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.nmx-segmented-btn:hover { color: var(--nmx-charcoal); }
+.nmx-segmented-btn.is-active,
+.nmx-segmented-btn[aria-selected="true"] {
+  background: #fff;
+  color: var(--nmx-charcoal);
+  box-shadow: var(--nmx-shadow-sm);
+}
+.nmx-segmented-btn.is-active::before { content: '●'; font-size: 8px; margin-right: 5px; color: var(--nmx-primary); vertical-align: 1px; }
+.nmx-segmented-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* --------------------------------------------------------------------------
+   9. Empty states & skeleton loaders
+   -------------------------------------------------------------------------- */
+.nmx-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  padding: 48px 24px;
+  color: var(--nmx-text-muted);
+}
+.nmx-empty-state-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--nmx-muted);
+  color: var(--nmx-text-faint);
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+.nmx-empty-state-title { font-size: 15px; font-weight: 800; color: var(--nmx-charcoal); }
+.nmx-empty-state-body { font-size: 13px; max-width: 360px; }
+
+/* Legacy simple empty cell (table) kept for backward compatibility */
+.ogc-empty { text-align: center; padding: 28px !important; color: var(--nmx-text-faint); }
+
+@keyframes nmx-shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+.nmx-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--nmx-muted);
+  background-image: linear-gradient(90deg, var(--nmx-muted) 0%, #ececec 40%, var(--nmx-muted) 80%);
+  background-size: 400px 100%;
+  animation: nmx-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--nmx-radius-sm);
+}
+.nmx-skeleton-line { height: 10px; margin: 6px 0; }
+.nmx-skeleton-line.is-short { width: 55%; }
+.nmx-skeleton-avatar { width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto; }
+.nmx-skeleton-block { height: 64px; border-radius: var(--nmx-radius-md); }
+
+/* --------------------------------------------------------------------------
+   10. Avatars (initials circle)
+   -------------------------------------------------------------------------- */
+.nmx-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--nmx-primary) 0%, var(--nmx-secondary) 100%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .01em;
+  flex: 0 0 auto;
+  text-transform: uppercase;
+  user-select: none;
+}
+.nmx-avatar-sm { width: 26px; height: 26px; font-size: 10px; }
+.nmx-avatar-lg { width: 44px; height: 44px; font-size: 15px; }
+/* Muted variant for AI / system messages */
+.nmx-avatar-muted { background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%); }
+/* Amber variant for internal (agent-only) notes */
+.nmx-avatar-note { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+
+/* --------------------------------------------------------------------------
+   11. Message bubbles — user / assistant / admin / agent_note
+   -------------------------------------------------------------------------- */
+.ogc-transcript { display: flex; flex-direction: column; gap: 10px; }
+
+.ogc-msg {
+  max-width: 92%;
+  border-radius: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--nmx-border);
+}
+.ogc-msg-user       { align-self: flex-end; background: var(--nmx-info-bg); border-color: #a5f3fc; }
+.ogc-msg-assistant  { align-self: flex-start; background: var(--nmx-muted-2); }
+.ogc-msg-admin       { align-self: flex-start; background: var(--nmx-success-bg); border-color: var(--nmx-success-border); }
+.ogc-msg-agent_note {
+  align-self: stretch;
+  max-width: 100%;
+  background: var(--nmx-muted);
+  border: 1px dashed var(--nmx-border-strong);
+  border-left: 4px solid var(--nmx-text-muted);
+  opacity: .95;
+}
+.ogc-msg-agent_note .ogc-msg-role { color: #4b5563; }
+
+.ogc-msg-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.ogc-msg-role {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--nmx-text-muted);
+}
+.ogc-msg-time {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--nmx-text-faint);
+  white-space: nowrap;
+}
+.ogc-msg-body { line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.ogc-msg-body-md { white-space: normal; }
+.ogc-msg-body-md .ogc-msg-para { margin: 0 0 0.55em; }
+.ogc-msg-body-md .ogc-msg-para:last-child { margin-bottom: 0; }
+.ogc-msg-body-md .ogc-msg-gap { margin: 0.55em 0 0; }
+.ogc-msg-body-md a { color: var(--nmx-primary, #0f766e); word-break: break-all; }
+.ogc-msg-image-link { display: inline-block; margin: 6px 0; max-width: 100%; }
+.ogc-msg-product-image {
+  display: block;
+  max-width: min(220px, 100%);
+  max-height: 180px;
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid var(--nmx-border, #e5e7eb);
+  background: #fff;
+  object-fit: contain;
+}
+
+/* Bubble variant with a leading avatar, used in the console transcript */
+.ogc-msg-row { display: flex; gap: 8px; align-items: flex-start; max-width: 100%; }
+.ogc-msg-row.is-outgoing { flex-direction: row-reverse; }
+.ogc-msg-row .ogc-msg { margin: 0; }
+
+/* --------------------------------------------------------------------------
+   12. Two-pane live console (.ogc-console)
+   -------------------------------------------------------------------------- */
+.ogc-console {
+  display: grid;
+  grid-template-columns: var(--ogc-list-width, 420px) 6px minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+  height: calc(100vh - 220px);
+  min-height: 520px;
+  max-height: calc(100vh - 160px);
+}
+.ogc-console-splitter {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  flex-shrink: 0;
+  touch-action: none;
+}
+.ogc-console-splitter::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 2px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--nmx-border);
+}
+.ogc-console-splitter:hover::before,
+.ogc-console-splitter.is-dragging::before {
+  background: var(--nmx-primary);
+}
+
+/* Left pane — conversation list */
+.ogc-console-list-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 280px;
+  max-width: 640px;
+  background: var(--nmx-surface);
+  border: 1px solid var(--nmx-border);
+  border-radius: var(--nmx-radius-lg) 0 0 var(--nmx-radius-lg);
+  box-shadow: var(--nmx-shadow-md);
+  overflow: hidden;
+}
+.ogc-console-list-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--nmx-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: linear-gradient(90deg, rgba(16, 185, 129, .08), rgba(6, 182, 212, .06));
+  flex-shrink: 0;
+}
+.ogc-console-list-title { font-size: 13px; font-weight: 800; color: var(--nmx-charcoal); }
+.ogc-console-list-count { font-size: 12px; color: var(--nmx-text-muted); font-weight: 600; }
+.ogc-console-tabs {
+  padding: 0 8px;
+  border-bottom: 1px solid var(--nmx-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  overflow: visible;
+  flex-shrink: 0;
+}
+.ogc-console-filter {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--nmx-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.ogc-console-filter-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.ogc-console-list-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 6px;
+}
+.ogc-console-list-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-top: 1px solid var(--nmx-border);
+  background: var(--nmx-muted);
+  flex-shrink: 0;
+}
+
+/* Right pane — transcript + composer */
+.ogc-console-main {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  background: var(--nmx-surface);
+  border: 1px solid var(--nmx-border);
+  border-left: none;
+  border-radius: 0 var(--nmx-radius-lg) var(--nmx-radius-lg) 0;
+  box-shadow: var(--nmx-shadow-md);
+  overflow: hidden;
+}
+#ogc-console-chat {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+#ogc-console-chat[hidden] { display: none !important; }
+.ogc-console-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--nmx-border);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.ogc-console-header-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ogc-console-header-text { min-width: 0; }
+.ogc-console-header-name { font-size: 15px; font-weight: 800; color: var(--nmx-charcoal); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ogc-console-header-sub { font-size: 12px; color: var(--nmx-text-muted); margin-top: 2px; }
+
+.ogc-console-transcript {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 16px 18px;
+  background: var(--nmx-muted-2);
+  -webkit-overflow-scrolling: touch;
+}
+.ogc-console-transcript .ogc-transcript { max-width: 720px; margin: 0 auto; }
+
+.ogc-console-empty {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+.ogc-console-empty[hidden] { display: none !important; }
+.ogc-console-empty .nmx-empty-state { margin: auto; }
+
+/* Contextual action bar — claim / resume / resolve / reopen / archive / delete */
+.ogc-context-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* --------------------------------------------------------------------------
+   13. Conversation list items (.ogc-conv-item)
+   -------------------------------------------------------------------------- */
+.ogc-conv-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px 12px;
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--nmx-radius-md);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  transition: background-color .12s ease, border-color .12s ease;
+}
+a.ogc-conv-item:hover,
+a.ogc-conv-item:focus {
+  text-decoration: none;
+  color: inherit;
+}
+.ogc-conv-item:hover { background: var(--nmx-muted); }
+.ogc-conv-item.is-selected {
+  background: var(--nmx-success-bg);
+  border-color: var(--nmx-success-border);
+}
+.ogc-conv-item.is-awaiting:not(.is-selected) { background: #fff7ed; }
+.ogc-conv-item.is-awaiting .ogc-conv-name::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--nmx-danger);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.ogc-conv-body { flex: 1 1 auto; min-width: 0; max-width: 100%; overflow: hidden; }
+.ogc-conv-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.ogc-conv-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--nmx-charcoal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.ogc-conv-time { font-size: 11px; color: var(--nmx-text-faint); white-space: nowrap; flex: 0 0 auto; }
+.ogc-conv-preview {
+  font-size: 12px;
+  color: var(--nmx-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+.ogc-conv-footer,
+.ogc-conv-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+  max-width: 100%;
+  min-width: 0;
+}
+.ogc-conv-footer .nmx-pill,
+.ogc-conv-meta .nmx-pill { margin-left: 0; flex: 0 1 auto; }
+
+/* Skeleton placeholder row while the list is loading */
+.ogc-conv-item.is-skeleton { cursor: default; }
+.ogc-conv-item.is-skeleton:hover { background: transparent; }
+
+/* --------------------------------------------------------------------------
+   14. Composer dock — segmented Live / Email / Note control
+   -------------------------------------------------------------------------- */
+.ogc-composer {
+  border-top: 1px solid var(--nmx-border);
+  background: var(--nmx-surface);
+  padding: 12px 18px 20px;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+}
+.ogc-composer-segmented { margin-bottom: 10px; }
+.ogc-composer-panel { display: none; }
+.ogc-composer-panel.is-active { display: block; }
+.ogc-composer-hint { margin: 0 0 8px; font-size: 12px; color: var(--nmx-text-muted); }
+.ogc-composer-textarea {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  border: 1px solid var(--nmx-border);
+  border-radius: var(--nmx-radius-md);
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--nmx-text);
+  background: #fff;
+}
+.ogc-composer-textarea:focus {
+  outline: none;
+  border-color: var(--nmx-primary);
+  box-shadow: var(--nmx-focus-ring);
+}
+.ogc-composer-textarea:disabled { background: var(--nmx-muted); color: var(--nmx-text-faint); cursor: not-allowed; }
+.ogc-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.ogc-composer-footer-hint { font-size: 11px; color: var(--nmx-text-faint); }
+
+/* Legacy (pre-console) reply panel used on seekmodo_ai_chatbot_chats.php's
+   single-column detail view — kept as-is for backward compatibility. */
+.ogc-reply-panel { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--nmx-border); }
+.ogc-reply-panel h3 { margin: 18px 0 8px; font-size: 15px; color: var(--nmx-charcoal); }
+.ogc-reply-panel h3:first-of-type { margin-top: 0; }
+.ogc-reply-form textarea { width: 100%; min-height: 100px; margin-bottom: 10px; }
+.ogc-reply-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.ogc-inline-form { display: inline; margin: 0; }
+.ogc-hidden-form { display: none; }
+.ogc-actions { white-space: nowrap; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ogc-email-details {
+  margin-top: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--nmx-border);
+  border-radius: var(--nmx-radius-sm);
+  background: #fafafa;
+}
+.ogc-email-details > summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
+
+/* --------------------------------------------------------------------------
+   15. Awaiting banner + pulse
+   -------------------------------------------------------------------------- */
+.ogc-awaiting-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border-radius: var(--nmx-radius-sm);
+  border: 2px solid #dc2626;
+  background: var(--nmx-danger-bg);
+  color: var(--nmx-danger-text);
+  font-size: 15px;
+}
+/* display:flex above beats the UA [hidden] rule — force hide when attribute is set. */
+.ogc-awaiting-banner[hidden] {
+  display: none !important;
+}
+.ogc-awaiting-banner.is-active { animation: ogc-pulse 1.6s ease-in-out infinite; }
+@keyframes ogc-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, .35); }
+  50%      { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+}
+.ogc-awaiting-banner-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #dc2626;
+  margin-right: 8px;
+  vertical-align: middle;
+  animation: ogc-pulse-dot 1.2s ease-in-out infinite;
+}
+@keyframes ogc-pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+
+/* --------------------------------------------------------------------------
+   16. Filters, toolbar, table (list screen) — backward compatible
+   -------------------------------------------------------------------------- */
+.ogc-filters { margin: 0; }
+.ogc-filter-actions { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+.ogc-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.ogc-toolbar-left { display: flex; align-items: center; gap: 8px; }
+.ogc-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.ogc-table { width: 100%; border-collapse: collapse; }
+.ogc-table th,
+.ogc-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--nmx-border);
+  text-align: left;
+  vertical-align: top;
+}
+.ogc-table th {
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--nmx-text-muted);
+  background: var(--nmx-muted-2);
+}
+.ogc-table th a { color: inherit; text-decoration: none; }
+.ogc-table th a:hover { color: var(--nmx-primary); }
+.ogc-sub { color: var(--nmx-text-faint); font-size: 12px; margin-top: 2px; }
+.ogc-footer { flex-wrap: wrap; }
+.ogc-pager { display: flex; align-items: center; gap: 10px; }
+
+.ogc-row-awaiting td { background: #fff7ed !important; }
+.ogc-row-live td { border-left: 3px solid var(--nmx-status-live-text); }
+.ogc-row-resolved td { opacity: .72; }
+
+/* --------------------------------------------------------------------------
+   17. Dashboard widget compact card styles (.ogc-dash-*)
+   -------------------------------------------------------------------------- */
+#ogc-dash-inbox .panel-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.ogc-dash-awaiting { background: var(--nmx-danger-bg) !important; }
+.ogc-dash-awaiting td { border-left: 3px solid #dc2626; }
+.ogc-dash-live td { border-left: 3px solid var(--nmx-status-live-text); }
+
+/* --------------------------------------------------------------------------
+   18. Responsive — stack panes on narrow screens
+   -------------------------------------------------------------------------- */
+@media (max-width: 1080px) {
+  .ogc-console {
+    grid-template-columns: var(--ogc-list-width, 340px) 6px minmax(0, 1fr);
+  }
+}
+@media (max-width: 860px) {
+  .nmx-module { padding: var(--space-lg) var(--space-md); }
+  .ogc-console {
+    grid-template-columns: 1fr;
+    height: auto;
+    max-height: none;
+  }
+  .ogc-console-splitter { display: none; }
+  .ogc-console-list-pane {
+    height: 320px;
+    max-width: none;
+    border-radius: var(--nmx-radius-lg);
+  }
+  .ogc-console-main {
+    height: 70vh;
+    min-height: 420px;
+    border-left: 1px solid var(--nmx-border);
+    border-radius: var(--nmx-radius-lg);
+  }
+}
