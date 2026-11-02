@@ -116,6 +116,7 @@ except Exception:  # pragma: no cover — exercised on slim CI runners
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_ROOT = REPO_ROOT / "zc_plugins" / "Seekmodo"
+CHATBOT_PLUGIN_ROOT = REPO_ROOT / "zc_plugins" / "SeekmodoAiChatbot"
 MANIFEST_RE = re.compile(r"'pluginVersion'\s*=>\s*'v(\d+)\.(\d+)\.(\d+)'")
 DIST_DIR = REPO_ROOT / "dist"
 CONNECTOR_DOCS_YAML = REPO_ROOT / "connector-docs" / "zen-cart.yaml"
@@ -343,30 +344,82 @@ def _copy_sdk_tree(version_dir: Path, sdk_src: Path) -> int:
     return copied
 
 
+def _add_plugin_tree_to_zip(
+    zf: zipfile.ZipFile,
+    version_dir: Path,
+    plugin_name: str,
+    version_folder: str,
+) -> tuple[int, list[str]]:
+    """Write one encapsulated plugin tree under zc_plugins/<name>/<version>/."""
+    rel_root = Path("zc_plugins") / plugin_name / version_folder
+    skipped: list[str] = []
+    written = 0
+    for path in sorted(version_dir.rglob("*")):
+        if path.is_dir():
+            continue
+        if path.name == ".DS_Store":
+            continue
+        if any(part.startswith(".") for part in path.relative_to(version_dir).parts):
+            skipped.append(str(path.relative_to(version_dir)))
+            continue
+        arcname = (rel_root / path.relative_to(version_dir)).as_posix()
+        zf.write(path, arcname)
+        written += 1
+    return written, skipped
+
+
+def discover_chatbot_version() -> tuple[Path, str] | None:
+    """Highest SeekmodoAiChatbot version tree, if vendored into this repo."""
+    if not CHATBOT_PLUGIN_ROOT.is_dir():
+        return None
+    best: tuple[tuple[int, int, int], Path] | None = None
+    for child in CHATBOT_PLUGIN_ROOT.iterdir():
+        if not child.is_dir() or not child.name.startswith("v"):
+            continue
+        manifest = child / "manifest.php"
+        if not manifest.is_file():
+            continue
+        m = MANIFEST_RE.search(manifest.read_text(encoding="utf-8", errors="replace"))
+        if not m:
+            continue
+        triple = (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        if best is None or triple > best[0]:
+            best = (triple, child)
+    if best is None:
+        return None
+    return best[1], best[1].name
+
+
 def build_zip(version_dir: Path, version: str) -> Path:
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     out = DIST_DIR / f"seekmodo-zen-cart-{version}.zip"
     if out.exists():
         out.unlink()
 
-    # Plugin Manager expects the zip's top-level folder to be the
-    # plugin name (Seekmodo) with a versioned subfolder underneath.
-    rel_root = Path("zc_plugins") / "Seekmodo" / version
-
+    # Plugin Manager expects zc_plugins/<PluginName>/<version>/ trees.
+    # One download ships Seekmodo (search) plus SeekmodoAiChatbot (chat /
+    # tickets) so merchants get a single marketplace product.
     skipped: list[str] = []
     written = 0
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
-        for path in sorted(version_dir.rglob("*")):
-            if path.is_dir():
-                continue
-            if path.name == ".DS_Store":
-                continue
-            if any(part.startswith(".") for part in path.relative_to(version_dir).parts):
-                skipped.append(str(path.relative_to(version_dir)))
-                continue
-            arcname = (rel_root / path.relative_to(version_dir)).as_posix()
-            zf.write(path, arcname)
-            written += 1
+        n, s = _add_plugin_tree_to_zip(zf, version_dir, "Seekmodo", version)
+        written += n
+        skipped.extend(s)
+
+        chatbot = discover_chatbot_version()
+        if chatbot is None:
+            print(
+                "  WARN: zc_plugins/SeekmodoAiChatbot missing — zip is search-only",
+                file=sys.stderr,
+            )
+        else:
+            chat_dir, chat_ver = chatbot
+            n, s = _add_plugin_tree_to_zip(
+                zf, chat_dir, "SeekmodoAiChatbot", chat_ver
+            )
+            written += n
+            skipped.extend(s)
+            print(f"  bundled SeekmodoAiChatbot/{chat_ver} ({n} files)")
 
     rel = out.relative_to(REPO_ROOT)
     print(f"  built {rel} ({written} files, {out.stat().st_size:,} bytes)")
