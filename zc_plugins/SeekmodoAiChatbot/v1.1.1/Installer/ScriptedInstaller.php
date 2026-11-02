@@ -334,7 +334,7 @@ TXT;
         return true;
     }
 
-    public function doUpgrade($oldVersion)
+    public function doUpgrade($oldVersion = null): ?bool
     {
         return $this->executeUpgrade($oldVersion);
     }

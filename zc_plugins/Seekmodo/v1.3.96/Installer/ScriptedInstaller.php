@@ -474,7 +474,7 @@ class ScriptedInstaller extends ScriptedInstallBase
      *
      * @return bool|null
      */
-    public function doInstall()
+    public function doInstall(): ?bool
     {
         $this->bridgeVersionDetails(null);
         $installed = $this->executeInstall();
@@ -887,7 +887,7 @@ class ScriptedInstaller extends ScriptedInstallBase
     /**
      * @return array<string, mixed>|bool
      */
-    protected function getConfigurationKeyDetails(string $key_name, bool $only_check_existence = false)
+    protected function getConfigurationKeyDetails(string $key_name, bool $only_check_existence = false): array|bool
     {
         $sql = 'SELECT * FROM ' . TABLE_CONFIGURATION
             . " WHERE configuration_key = '" . $this->dbConn->prepare_input($key_name) . "'";
@@ -905,9 +905,9 @@ class ScriptedInstaller extends ScriptedInstallBase
     protected function executeInstallerDbPerform(
         string $table,
         array $sql_data_array,
-        string $performType = 'INSERT',
+        $performType = 'INSERT',
         string $whereCondition = '',
-        bool $debug = false
+        $debug = false
     ): bool {
         $this->dbConn->dieOnErrors = false;
         $this->dbConn->perform($table, $sql_data_array, $performType, $whereCondition, $debug);
@@ -923,7 +923,7 @@ class ScriptedInstaller extends ScriptedInstallBase
     /**
      * @return bool|\queryFactoryResult
      */
-    protected function executeInstallerSelectQuery(string $sql, ?int $limit = null)
+    protected function executeInstallerSelectQuery(string $sql, ?int $limit = null): bool|queryFactoryResult
     {
         $this->dbConn->dieOnErrors = false;
         $result = $this->dbConn->Execute($sql, $limit);
