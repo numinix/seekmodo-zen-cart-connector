@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## v1.3.97 — 2026-11-02
+
+### Fixed
+- Manifest parse error: literal `\n` between `pluginDescription` and `pluginAuthor` broke Plugin Manager installs.
+- ScriptedInstaller method signatures aligned with Zen Cart 1.5.8+/2.x typed `ScriptedInstallHelpers` (`doInstall(): ?bool`, `getConfigurationKeyDetails(): array|bool`, `executeInstallerSelectQuery(): bool|queryFactoryResult`, looser `executeInstallerDbPerform` parameter types).
+- Bundled Seekmodo AI Chatbot installer `doUpgrade($oldVersion = null): ?bool` for the same host compatibility.
+
 ## v1.3.96 - 2026-11-02 (AI Chatbot bundled)
 
 ### Added

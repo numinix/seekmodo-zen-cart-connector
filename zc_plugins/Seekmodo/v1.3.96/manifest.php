@@ -20,7 +20,8 @@
 return [
     'pluginVersion' => 'v1.3.96',
     'pluginName' => 'Seekmodo',
-    'pluginDescription' => 'AI product search, typeahead, Seekmodo AI chatbot, live chat, and ticketing for Zen Cart. Faster, more relevant results with learned-to-rank scoring, plus an optional storefront AI Chatbot and cloud Inbox (plan-gated after pairing). One-click pairing via Admin &rarr; Tools &rarr; <b>Connect to Seekmodo</b>; settings on <b>admin.seekmodo.com</b>. Falls back to native Zen Cart search if the platform is unreachable.',\n    'pluginAuthor' => 'Numinix',
+    'pluginDescription' => 'AI product search, typeahead, Seekmodo AI chatbot, live chat, and ticketing for Zen Cart. Faster, more relevant results with learned-to-rank scoring, plus an optional storefront AI Chatbot and cloud Inbox (plan-gated after pairing). One-click pairing via Admin &rarr; Tools &rarr; <b>Connect to Seekmodo</b>; settings on <b>admin.seekmodo.com</b>. Falls back to native Zen Cart search if the platform is unreachable.',
+    'pluginAuthor' => 'Numinix',
     'pluginId' => 2441, // zen-cart.com downloads.php?do=file&id=2441
     'zcVersions' => ['v157', 'v158', 'v200'],
     'changelog' => 'v1.3.96 (2026-11-02): Bundles Seekmodo AI Chatbot (launcher + inbox/tickets); syncs chat_launcher from tenant snapshot. See CHANGELOG.md.',
