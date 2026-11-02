@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Suggestions recover after a browser token expires (gateway-direct mode).** On a 401 the bundled SDK asked for a new token, but the page-level cache returned the same one while the shopper's clock still trusted it, so every keystroke stayed on 401s. The retry now bypasses that cache and calls `seekmodo:refresh`. The default proxy mode has no browser token and is unaffected.
 - **Restock sync.** `numinix_seekmodo_push_restock.php` sends on-hand quantities and recent order lines to Seekmodo so the admin Restock page can suggest a reorder quantity. Customer ids are hashed. Cancelled and voided orders are left out. Quantities above one billion, the usual unlimited-stock sentinel, are capped so the snapshot still uploads.
 - **Add-to-cart quantity on Numinix product URLs.** Cart telemetry no longer stores the products_id as the quantity when `NOTIFIER_CART_ADD_CART_END` leads with an empty argument and the SEO URL already carries `products_id`.
 - **Email-to-ticket policy** — snapshot `inbox_create_unmatched` writes the chatbot config flag. Inbox discovery publishes create, mail status, and shopper actions. Mailbox passwords stay on the store.

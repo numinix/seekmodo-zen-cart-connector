@@ -36,3 +36,17 @@ jobs:
       - name: Run suggest i18n UTF-8 + labels wiring smoke
         run: php tests/test_suggest_i18n_labels_v178.php
 
+  suggest-token-force-refresh:
+    name: suggest token refresh after 401
+    runs-on: [self-hosted, linux, x64, numinix-mini]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: none
+      - name: Run suggest token force-refresh smoke
+        run: php tests/test_suggest_token_force_refresh.php
+
