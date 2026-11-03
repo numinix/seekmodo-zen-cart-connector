@@ -336,9 +336,41 @@ final class Pairing
      */
     private static function fork_initial_push(): array
     {
+        $built = self::initial_push_command();
+        $cmd = (string) ($built['cmd'] ?? '');
+        if ($cmd === '') {
+            return ['forked' => false, 'err' => $built['err'] ?? 'pusher command unavailable', 'cmd' => ''];
+        }
+        if (!function_exists('shell_exec')) {
+            return ['forked' => false, 'err' => 'shell_exec disabled in php.ini', 'cmd' => $cmd];
+        }
+        if (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
+            return ['forked' => false, 'err' => 'Windows host (skipping fork — not a prod target)', 'cmd' => $cmd];
+        }
+
+        try {
+            @shell_exec($cmd);
+        } catch (\Throwable $e) {
+            return ['forked' => false, 'err' => 'shell_exec threw: ' . $e->getMessage(), 'cmd' => $cmd];
+        }
+
+        // Stamp the throttle marker. Best-effort.
+        if (function_exists('apcu_store')) {
+            @\apcu_store(self::FIRST_PUSH_THROTTLE_KEY, (string) time(), self::FIRST_PUSH_THROTTLE_S);
+        }
+        return ['forked' => true, 'err' => null, 'cmd' => $cmd];
+    }
+
+    /**
+     * Build the detached catalog-push command without executing it.
+     *
+     * @return array{cmd: string, err: string|null}
+     */
+    private static function initial_push_command(): array
+    {
         $pusherPath = realpath(__DIR__ . '/../../../../numinix_seekmodo_push_catalog.php');
         if ($pusherPath === false || !is_file($pusherPath)) {
-            return ['forked' => false, 'err' => 'pusher script not found at expected path', 'cmd' => ''];
+            return ['err' => 'pusher script not found at expected path', 'cmd' => ''];
         }
 
         // Resolve a PHP CLI binary. Under php-fpm, PHP_BINARY often
@@ -348,7 +380,6 @@ final class Pairing
         if ($php === '') {
             $hintPath = '/usr/bin/php' . PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
             return [
-                'forked' => false,
                 'err' => 'no php binary found in $PATH (host PHP '
                     . PHP_VERSION
                     . '). Create includes/extra_configures/numinix_seekmodo_php_binary.php under your catalog root (/shop/) with: '
@@ -413,24 +444,7 @@ final class Pairing
             . ' >> ' . escapeshellarg($logFile)
             . ' 2>&1 < /dev/null &';
 
-        if (!function_exists('shell_exec')) {
-            return ['forked' => false, 'err' => 'shell_exec disabled in php.ini', 'cmd' => $cmd];
-        }
-        if (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
-            return ['forked' => false, 'err' => 'Windows host (skipping fork — not a prod target)', 'cmd' => $cmd];
-        }
-
-        try {
-            @shell_exec($cmd);
-        } catch (\Throwable $e) {
-            return ['forked' => false, 'err' => 'shell_exec threw: ' . $e->getMessage(), 'cmd' => $cmd];
-        }
-
-        // Stamp the throttle marker. Best-effort.
-        if (function_exists('apcu_store')) {
-            @\apcu_store(self::FIRST_PUSH_THROTTLE_KEY, (string) time(), self::FIRST_PUSH_THROTTLE_S);
-        }
-        return ['forked' => true, 'err' => null, 'cmd' => $cmd];
+        return ['err' => null, 'cmd' => $cmd];
     }
 
     /**

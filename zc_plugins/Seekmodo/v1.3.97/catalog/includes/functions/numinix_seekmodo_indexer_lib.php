@@ -928,6 +928,41 @@ if (!function_exists('numinix_seekmodo_record_indexer_run')) {
     }
 }
 
+if (!function_exists('numinix_seekmodo_should_catalog_prune')) {
+    /**
+     * Orphan reconcile is only safe after every upsert in the run succeeded.
+     * A batch with failed docs must not call catalog.prune — those products
+     * would look stale and be evicted.
+     */
+    function numinix_seekmodo_should_catalog_prune(int $docsFailed, bool $dryRun = false, bool $noPrune = false): bool
+    {
+        return $docsFailed === 0 && !$dryRun && !$noPrune;
+    }
+}
+
+if (!function_exists('numinix_seekmodo_maybe_catalog_prune')) {
+    /**
+     * @return array{deleted:int,scanned:int,has_more:bool,errors:array<int,mixed>}|null
+     */
+    function numinix_seekmodo_maybe_catalog_prune(
+        int $docsFailed,
+        int $cutoffEpoch,
+        ?int $activeCount = null,
+        bool $dryRun = false,
+        bool $noPrune = false
+    ): ?array {
+        if (!numinix_seekmodo_should_catalog_prune($docsFailed, $dryRun, $noPrune)) {
+            return null;
+        }
+        if (!function_exists('numinix_seekmodo_catalog_prune')) {
+            return null;
+        }
+        $result = numinix_seekmodo_catalog_prune($cutoffEpoch, $activeCount);
+
+        return is_array($result) ? $result : null;
+    }
+}
+
 if (!function_exists('numinix_seekmodo_catalog_prune')) {
     /**
      * Post-full-index orphan eviction via gateway catalog.prune.

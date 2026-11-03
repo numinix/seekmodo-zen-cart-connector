@@ -882,14 +882,24 @@ $flushBatch();
 
 $evictedOrphans = 0;
 $pruneErrors = [];
-if (
+$pruneResult = null;
+if (function_exists('numinix_seekmodo_maybe_catalog_prune')) {
+    $pruneResult = numinix_seekmodo_maybe_catalog_prune(
+        (int) $docsFailed,
+        (int) $runStartedAt,
+        (int) $rownum,
+        (bool) $dryRun,
+        (bool) $noPrune
+    );
+} elseif (
     !$dryRun
     && !$noPrune
     && $docsFailed === 0
     && function_exists('numinix_seekmodo_catalog_prune')
 ) {
     $pruneResult = numinix_seekmodo_catalog_prune($runStartedAt, $rownum);
-    if (is_array($pruneResult)) {
+}
+if (is_array($pruneResult)) {
         $evictedOrphans = (int) ($pruneResult['deleted'] ?? 0);
         if (!empty($pruneResult['errors']) && is_array($pruneResult['errors'])) {
             foreach ($pruneResult['errors'] as $err) {
@@ -908,7 +918,6 @@ if (
     } elseif ($verbose) {
         _push_log('warn', 'catalog prune skipped (gateway unreachable / shadow mode / circuit open)');
     }
-}
 
 // --------------------------------------------------------------
 // Wrap-up
