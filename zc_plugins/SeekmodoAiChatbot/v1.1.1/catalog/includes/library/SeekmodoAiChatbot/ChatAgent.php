@@ -1891,8 +1891,133 @@ final class ChatAgent
             case 'open_support_ticket':
                 return $this->openSupportTicket($arguments);
 
+            case 'mcp_nx_order_summary':
+                return $this->nxOrderSummary($arguments);
+
+            case 'mcp_nx_license_status':
+                return $this->nxLicenseStatus($arguments);
+
+            case 'mcp_nx_support_ticket_create':
+                return $this->nxSupportTicketCreate($arguments);
+
             default:
                 return ['error' => "Unknown tool: {$toolName}"];
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $arguments
+     * @return array<string, mixed>
+     */
+    private function nxOrderSummary(array $arguments): array
+    {
+        if (!$this->shopper['logged_in'] || $this->shopper['customers_id'] < 1) {
+            return [
+                'ok' => false,
+                'error' => 'login_required',
+                'message' => 'Order summary requires the shopper to be logged in.',
+            ];
+        }
+        $ordersId = (int) ($arguments['orders_id'] ?? 0);
+        if ($ordersId <= 0) {
+            return ['ok' => false, 'error' => 'orders_id_required', 'message' => 'Ask for the order number, then call again.'];
+        }
+        try {
+            return $this->mcpClient->callTool('nx.order.summary', [
+                'orders_id' => $ordersId,
+                'customers_id' => $this->shopper['customers_id'],
+            ]);
+        } catch (ChatbotException $e) {
+            return [
+                'ok' => false,
+                'error' => 'nx_order_summary_unavailable',
+                'message' => 'Could not load that order summary. Offer a support ticket.',
+            ];
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $arguments
+     * @return array<string, mixed>
+     */
+    private function nxLicenseStatus(array $arguments): array
+    {
+        if (!$this->shopper['logged_in'] || $this->shopper['customers_id'] < 1) {
+            return [
+                'ok' => false,
+                'error' => 'login_required',
+                'message' => 'License lookup requires the shopper to be logged in.',
+            ];
+        }
+        $payload = ['customers_id' => $this->shopper['customers_id']];
+        $ordersId = (int) ($arguments['orders_id'] ?? 0);
+        if ($ordersId > 0) {
+            $payload['orders_id'] = $ordersId;
+        }
+        try {
+            return $this->mcpClient->callTool('nx.license.status', $payload);
+        } catch (ChatbotException $e) {
+            return [
+                'ok' => false,
+                'error' => 'nx_license_status_unavailable',
+                'message' => 'Could not load licenses. Offer My Downloads or a support ticket.',
+            ];
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $arguments
+     * @return array<string, mixed>
+     */
+    private function nxSupportTicketCreate(array $arguments): array
+    {
+        $email = strtolower(trim((string) ($arguments['customer_email'] ?? '')));
+        if ($email === '' && $this->shopper['logged_in'] && $this->shopper['email'] !== '') {
+            $email = $this->shopper['email'];
+        }
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return [
+                'ok' => false,
+                'error' => 'customer_email_required',
+                'message' => 'Ask for a valid email (guests must verify first), then call again.',
+            ];
+        }
+        if (!$this->shopper['logged_in']) {
+            $sessionId = $this->activeSessionId !== '' ? $this->activeSessionId : '';
+            if ($sessionId === '' || !$this->isEmailVerifiedInSession($sessionId, $email)) {
+                return [
+                    'ok' => false,
+                    'error' => 'email_verification_required',
+                    'message' => 'Guest must verify email (mcp_email_verification_send / verify) before opening a ticket.',
+                ];
+            }
+        }
+        $name = trim((string) ($arguments['customer_name'] ?? ''));
+        if ($name === '') {
+            $name = trim($this->shopper['first_name'] . ' ' . $this->shopper['last_name']);
+        }
+        $payload = [
+            'customer_email' => $email,
+            'customer_name' => $name,
+            'summary' => trim((string) ($arguments['summary'] ?? 'Chatbot support request')),
+            'body' => trim((string) ($arguments['body'] ?? $arguments['summary'] ?? '')),
+        ];
+        if ($this->shopper['customers_id'] > 0) {
+            $payload['customers_id'] = $this->shopper['customers_id'];
+        }
+        $ordersId = (int) ($arguments['orders_id'] ?? 0);
+        if ($ordersId > 0) {
+            $payload['orders_id'] = $ordersId;
+        }
+        try {
+            return $this->mcpClient->callTool('nx.support.ticket.create', $payload);
+        } catch (ChatbotException $e) {
+            return $this->openSupportTicket([
+                'customer_email' => $email,
+                'customer_name' => $name,
+                'summary' => $payload['summary'],
+                'confirm_email_ticket' => true,
+            ]);
         }
     }
 
@@ -3589,7 +3714,8 @@ final class ChatAgent
             $who = $this->shopper['first_name'] !== ''
                 ? $this->shopper['first_name']
                 : 'a logged-in customer';
-            $authLine = "Shopper authentication: LOGGED IN as {$who}. You may look up THIS shopper's own orders with mcp_order_lookup using only the order number.";
+            $customersId = (int) ($this->shopper['customers_id'] ?? 0);
+            $authLine = "Shopper authentication: LOGGED IN as {$who} (customers_id={$customersId}). You may look up THIS shopper's own orders with mcp_order_lookup using only the order number. When calling store order/license tools that require customers_id, pass customers_id={$customersId} exactly — never invent a different id.";
         } else {
             $authLine = 'Shopper authentication: GUEST (not logged in). You must NOT look up orders, change addresses, cancel orders, reveal order contents, engraving text, addresses, payment details, or any private account information. If they ask about an order, address change, cancel, or similar, politely ask them to log in to their account first. Do not ask a guest for an email address to look up an order.';
         }
@@ -3614,25 +3740,66 @@ final class ChatAgent
         $nameGuidance = "- When the shopper clearly states their name (e.g. \"I'm Alex\", \"My name is Sam Taylor\"), call set_shopper_name with that name so store admins see it in the chat Inbox instead of Guest. Greeting them is not enough — you must call the tool.\n"
             . "- Do not invent or guess a name. Only call set_shopper_name with a name they actually provided.\n";
 
+        $availableToolNames = [];
+        foreach ($this->buildToolDefinitions() as $toolDef) {
+            $toolName = (string) ($toolDef['function']['name'] ?? '');
+            if ($toolName !== '') {
+                $availableToolNames[$toolName] = true;
+            }
+        }
+        $hasEngravingTools = isset($availableToolNames['mcp_order_engraving_update']);
+        $hasAddressChangeTools = isset($availableToolNames['mcp_order_address_change_start'])
+            || isset($availableToolNames['mcp_order_address_change_preview']);
+        $hasShippingUpgradeTools = isset($availableToolNames['mcp_shipping_upgrade_options']);
+        $hasCancelTools = isset($availableToolNames['mcp_order_cancel_request'])
+            || isset($availableToolNames['mcp_order_cancel_capabilities']);
+        $hasGiftOrderFlows = $hasEngravingTools || $hasAddressChangeTools || $hasShippingUpgradeTools || $hasCancelTools;
+        $hasNxSupportTicket = false;
+        foreach (array_keys($availableToolNames) as $toolName) {
+            if (strpos($toolName, 'support_ticket') !== false || strpos($toolName, 'nx_support') !== false) {
+                $hasNxSupportTicket = true;
+                break;
+            }
+        }
+
+        if ($hasGiftOrderFlows) {
+            $ambiguousIntent = "- If the shopper asks to \"change an order\" / \"change something\" / \"the process to change an order\" without saying what, briefly list only the options that match tools available in this session"
+                . ($hasAddressChangeTools ? ' (delivery address)' : '')
+                . ($hasEngravingTools ? ' (personalisation/engraving text)' : '')
+                . ($hasCancelTools ? ' (cancel)' : '')
+                . ($hasShippingUpgradeTools ? ' (faster delivery)' : '')
+                . ", then ask which they mean before starting a flow or explaining a full process.\n"
+                . "- Only after they choose (or intent is obvious) call the matching topic/tools and continue.\n";
+        } else {
+            $ambiguousIntent = "- If the shopper asks about a problem with an order / \"change an order\" / \"help with my order\" without saying what, do NOT mention engraving, personalisation, delivery-address edits, or faster shipping.\n"
+                . "- Ask what went wrong and offer help that fits this store: download links, license/activation, invoice/receipt, order status from tools, or a human support ticket.\n"
+                . "- Only after they choose (or intent is obvious) call the matching tools and continue.\n";
+        }
+
         $guidance = <<<TXT
 
 {$storeContextBlock}
 Store catalog boundary (HARD RULE — never break this):
 - You ONLY represent THIS store and its own catalog/policies. The Store context above defines what this business sells.
 - NEVER recommend products, product types, brands, gift ideas, or category pages that did not come from THIS store's tools (seekmodo_product_search, mcp_product_search, mcp_product_get, sitemap_find_product, or KB topics).
+- NEVER claim this store does not sell a product or brand unless you called seekmodo_product_search (or mcp_product_search fallback) THIS turn and it returned no useful matches. If you have not searched yet, search first.
 - If catalog search is empty or weak: do NOT invent alternatives from general knowledge (blankets, gardening tools, jewellery, photo albums, tea sets, flowers, chocolates from memory, etc.). Say you could not find a match in this store's catalog, ask ONE clarifying question, and call seekmodo_product_search again.
 - Never mention, compare, or link other retailers.
 - When categories are returned by seekmodo_product_search, lead with those category links, then products from the same tool result.
+- Never label search results as "most popular", "best sellers", or similar unless a tool field explicitly says so. Present them as matching products from the catalog.
 
 Shopper voice:
-- Write for gift shoppers: clear, warm, concise UK English.
+- Write clearly and warmly for this store's customers. Follow Store context for spelling (US/UK), currency, and what the business sells — do not invent a gift-shop or UK voice when Store context says otherwise.
 - Never use internal terms with shoppers: shipping delta, fee product, needs_fee, requires_fee, editable flags, tool names, topic ids, MCP, runbook steps, or status ids.
-- Translate tool results into everyday language (for example "we may need you to pay a bit more postage", "we can update that before it ships", "please check out to confirm the postage difference").
+- Translate tool results into everyday language.
 - Do not narrate agent procedures (numbered tool steps) to the shopper. Give a short plain summary, then collect what you need.
 
 Ambiguous intent:
-- If the shopper asks to "change an order" / "change something" / "the process to change an order" without saying what, briefly list common options (delivery address, personalisation/engraving text, cancel, faster delivery), then ask which they mean before starting a flow or explaining a full process.
-- Only after they choose (or intent is obvious) call the matching topic/tools and continue.
+{$ambiguousIntent}
+Privacy:
+- {$authLine}
+- Never reveal private order or customer-account details to guests.
+- Never invent order or account details.
 
 Privacy:
 - {$authLine}
@@ -3640,19 +3807,19 @@ Privacy:
 - Never invent order or account details.
 
 Product recommendations:
-- For any product discovery, gift idea, or "what do you recommend" question, call seekmodo_product_search FIRST with the shopper's intent as the query.
+- For any product discovery, recommendation, or "what do you recommend" question, call seekmodo_product_search FIRST with the shopper's intent as the query.
 - Prefer Seekmodo results over sitemap_find_product and mcp_product_search. If seekmodo_product_search returns available=false / seekmodo_unavailable, call mcp_product_search once as a fallback before giving up.
 - Recommend only products and category pages returned by tools. Never suggest other retailers. Never invent category or product URLs.
-- When seekmodo_product_search returns a non-empty categories array, ALWAYS lead with those category page links (1–3 Markdown links like [70th Birthday Gifts](url)) before listing products — especially for broad occasion/age/gift queries. Categories let the shopper browse the full range; products are concrete starters.
-- Never invent generic gift ideas from general knowledge when the catalog search is empty or weak. That reads as "I couldn't find anything" filler — do not do it.
-- Open-ended gift asks (recipient/age/occasion with little product type — e.g. "gift for my 70-year-old nan", "something for dad"):
-  1) Call seekmodo_product_search with a practical catalog query (use "personalised gift", recipient words like nan/mum/dad, and any age/occasion hints — not a literal dump of the whole sentence if that looks too verbose).
-  2) If categories and/or products come back: present matching categories first (when present), then up to 5 catalog products in the Markdown format below, then ask ONE short clarifying question (interests/hobbies, product type, budget, photo vs text personalisation) so the next search can be tighter.
-  3) If the search returns nothing useful (empty products AND empty categories, found=0, or available=false even after the mcp_product_search fallback): do NOT say you "couldn't find specific products" and then invent ideas. Ask ONE clarifying question (interests, product type, budget) and say you will search again with that focus — then on their reply, call seekmodo_product_search again with the tighter query.
-- When the shopper says suggestions feel generic / common / not unique, stop dumping more SKUs and ask about tastes/interests before searching again.
-- Format each product recommendation in Markdown like this (use the real `url` and `image_url` values from the tool result — never placeholder hosts like storefront-url or image-url):
+- When seekmodo_product_search returns a non-empty categories array, ALWAYS lead with those category page links (1–3 Markdown links) before listing products — especially for broad queries. Categories let the shopper browse the full range; products are concrete starters.
+- Never invent products or gift ideas from general knowledge when the catalog search is empty or weak. That reads as "I couldn't find anything" filler — do not do it.
+- Open-ended asks with little product type:
+  1) Call seekmodo_product_search with a practical catalog query grounded in Store context (platform, plugin/service type, or gift category as appropriate — not a literal dump of the whole sentence if that looks too verbose).
+  2) If categories and/or products come back: present matching categories first (when present), then up to 5 catalog products in the Markdown format below, then ask ONE short clarifying question so the next search can be tighter.
+  3) If the search returns nothing useful (empty products AND empty categories, found=0, or available=false even after the mcp_product_search fallback): do NOT say you "couldn't find specific products" and then invent ideas. Ask ONE clarifying question and say you will search again with that focus — then on their reply, call seekmodo_product_search again with the tighter query.
+- When the shopper says suggestions feel generic / common / not unique, stop dumping more SKUs and ask a clarifying question before searching again.
+- Format each product recommendation in Markdown like this (use the real `url`, `price`, and `image_url` values from the tool result — never placeholder hosts like storefront-url or image-url, and never invent a currency symbol):
   1. **[Product Name](URL_FROM_TOOL)**
-     Price: £X.XX
+     Price: PRICE_STRING_FROM_TOOL
      One short sentence about why it fits.
      ![Product Name](IMAGE_URL_FROM_TOOL)
 - Include the storefront URL as a Markdown link and the image_url as a Markdown image when available. If `image_url` is empty, omit the image line entirely — do not invent or guess an image path.
@@ -3685,27 +3852,49 @@ Product recommendations:
 - Wishlist: no tool — offer product links / Seekmodo or support ticket; do not invent wishlist APIs.
 
 Orders / account help:
-- Private order lookup requires a logged-in shopper. Call mcp_order_lookup with orders_id only.
+- Private order lookup requires a logged-in shopper. Call mcp_order_lookup with orders_id only (or a store-specific order/license tool when that tool is listed for this session).
 - Do not accept or use a customer_email from the chat message for ownership checks.
 - If lookup returns login_required, tell the shopper to log in and try again. If they cannot log in / forgot their password, collect their email and call mcp_password_reset, then tell them to check inbox/spam — never reveal whether an account exists.
 - If the shopper did not receive an order confirmation email, call mcp_order_confirmation_resend with their orders_id (logged-in only).
 - If lookup fails ownership verification, say you could not find that order on their account; do not reveal whether the order exists for someone else.
-- When the shopper asks for shipping/tracking status, call mcp_order_lookup and use verify.has_tracking, verify.tracking_reference, and verify.tracking_url.
+- When the shopper asks for shipping/tracking status, call mcp_order_lookup and use verify.has_tracking, verify.tracking_reference, and verify.tracking_url when those fields exist.
 - If has_tracking is true, share the tracking number and the Markdown tracking link. If false, say tracking is not available yet (often before dispatch).
+- In-chat order mutations (mcp_order_engraving_update, address-change start/apply, shipping-upgrade start, cancel request) are available ONLY when those tools are listed for this session. When they are not listed, do not claim you can change the order in chat — and do not invent engraving, address-change, or faster-delivery options.
+- NEVER invent order status changes or refunds. Only report what tools return. If a tool refuses or the order cannot be changed, escalate via support ticket.
+- NEVER claim you changed an order unless the relevant tool returned ok=true. If it returned ok=true, confirm using the tool's customer_summary / message. Never contradict a successful tool result.
+TXT;
+
+        if ($hasGiftOrderFlows) {
+            $guidance .= <<<TXT
+
+Personalisation / gift-order flows (only because mutation tools are listed this session):
 - Before helping with personalisation/order edits, ALWAYS call mcp_order_lookup first and inspect verify.orders_status_name and verify.engraving_editable. Also read lines[].engravings / attributes for the current text, current_length, and character_limit when present. Call mcp_kb_topic_get (order-edit) for general "can I edit my order?" questions.
 - Engraving editability is decided ONLY by verify.engraving_editable. Tracking can exist on still-editable orders (including test tracking) — never treat has_tracking as "already processed".
 - If engraving_editable is false (for example status Printed, Dispatched, Shipped, Delivered), tell the shopper the order has already been processed/shipped and cannot be modified online. Do not offer an account personalisation editor link; offer a support ticket if they still need help.
 - If engraving_editable is true, share a Markdown link to lines[].personalise_url when present (My Account live-preview editor) so the shopper can edit themselves. Never invent a personalise_url — only use the exact URL returned from mcp_order_lookup.
-- In-chat order mutations (mcp_order_engraving_update, address-change start/apply, shipping-upgrade start, cancel request) are available ONLY when those tools are listed for this session. When they are not listed, do not claim you can change the order in chat — guide the shopper to the self-service link or a support ticket.
 - When mcp_order_engraving_update IS available and the shopper wants you to change text in chat: honour character_limit, pass old_text/new_text from lookup, and never invent a different limit. When sharing a production PDF after an update, ONLY use result.pdf_url exactly as returned.
-- NEVER invent order status changes or refunds. Only report what tools return. If a tool refuses or the order is shipped/not editable, escalate via support ticket.
-- NEVER claim you changed an order unless the relevant tool returned ok=true. If it returned ok=true, confirm using the tool's customer_summary / message (and share result.pdf_url when present for engraving). Never contradict a successful tool result.
 - Agent-only procedure (do not narrate these steps to the shopper; summarise in plain language and ask for what you need):
   - Personalisation edits (default): mcp_order_lookup → if editable, Markdown-link personalise_url; if not editable, explain status and offer support. Use mcp_order_engraving_update only when that tool is available and the shopper wants the change applied in chat.
   - Shipping upgrades: only when mcp_shipping_upgrade_* tools are available — options → start → status after payment. Otherwise explain they may need support for a faster method, or open a ticket.
   - Address changes: call mcp_kb_topic_get (order-address-change). Prefer My Account order history self-service when mutation tools are unavailable; when address-change tools are available, preview/start then confirm. If tools refuse or the order has shipped, offer a support ticket.
   - Order cancel: call mcp_kb_topic_get (order-cancel). When cancel tools are available, use capabilities then request. When not available, offer a support ticket — never invent refunds.
   - Returns / exchanges (logged-in): call mcp_kb_topic_get (returns), collect order number/reason/items, call mcp_return_request, and share only the customer_summary. Guests: ask them to log in, or open a support ticket after email verification.
+TXT;
+        } else {
+            $guidance .= <<<TXT
+
+Digital / account order help (gift-order mutation tools are NOT listed this session):
+- Do not offer engraving edits, personalisation changes, delivery-address changes, or faster physical shipping.
+- Prefer store-specific order/license/download tools when listed. Otherwise use mcp_order_lookup for status and line items the shopper owns, then open a support ticket when you cannot resolve the issue.
+- Returns / refunds / cancellations: only follow Store context and KB topics; when unsure, open a support ticket — never invent refunds.
+TXT;
+        }
+
+        if ($hasNxSupportTicket) {
+            $guidance .= "\n- Prefer the store-specific support ticket tool when listed (for example a Zammad ticket tool) over open_support_ticket when the shopper needs a human. Share only the ticket number and portal URL the tool returns.\n";
+        }
+
+        $guidance .= <<<TXT
 
 Shopper name:
 {$nameGuidance}
@@ -4393,7 +4582,7 @@ TXT;
                 'type' => 'function',
                 'function' => [
                     'name' => 'open_support_ticket',
-                    'description' => 'Escalate when you cannot help or the shopper asks for a human. If a store admin is online (admin/dashboard), notifies them for live chat (no guest email verification). If no admin is online, returns no_admin_online — tell the shopper a live agent is unavailable and offer an email ticket; only if they agree, call again with confirm_email_ticket=true (guests must verify email first). On failure, share contact_url Markdown.',
+                    'description' => 'Escalate when you cannot help or the shopper asks for a human. If a store admin is online (admin/dashboard), notifies them for live chat (no guest email verification). If no admin is online, returns no_admin_online — tell the shopper a live agent is unavailable and offer an email ticket; only if they agree, call again with confirm_email_ticket=true (guests must verify email first). On failure, share contact_url Markdown. Prefer mcp_nx_support_ticket_create when that tool is listed.',
                     'parameters' => [
                         'type' => 'object',
                         'properties' => [
@@ -4420,6 +4609,75 @@ TXT;
             ];
         }
 
+        if (self::numinixShopperToolsEnabled()) {
+            $tools[] = [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'mcp_nx_order_summary',
+                    'description' => 'Logged-in only. Summarise a Numinix order the shopper owns (status, products, downloads link). Use for digital order help — not engraving or address changes.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'orders_id' => [
+                                'type' => 'integer',
+                                'description' => 'Order number',
+                            ],
+                        ],
+                        'required' => ['orders_id'],
+                    ],
+                ],
+            ];
+            $tools[] = [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'mcp_nx_license_status',
+                    'description' => 'Logged-in only. List license/download records for the shopper (optionally filtered by orders_id). Never invent license keys.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'orders_id' => [
+                                'type' => 'integer',
+                                'description' => 'Optional order number filter',
+                            ],
+                        ],
+                    ],
+                ],
+            ];
+            $tools[] = [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'mcp_nx_support_ticket_create',
+                    'description' => 'Open a Numinix Zammad support ticket and return ticket number + portal URL. Prefer this over open_support_ticket on Numinix. Guests must verify email first.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'customer_email' => [
+                                'type' => 'string',
+                                'description' => 'Shopper email',
+                            ],
+                            'customer_name' => [
+                                'type' => 'string',
+                                'description' => 'Optional shopper name',
+                            ],
+                            'summary' => [
+                                'type' => 'string',
+                                'description' => 'Short subject',
+                            ],
+                            'body' => [
+                                'type' => 'string',
+                                'description' => 'Ticket body / chat summary',
+                            ],
+                            'orders_id' => [
+                                'type' => 'integer',
+                                'description' => 'Optional related order id',
+                            ],
+                        ],
+                        'required' => ['customer_email', 'summary'],
+                    ],
+                ],
+            ];
+        }
+
         $tools = array_merge($tools, $this->tenantChatTools()->definitions());
 
         return self::filterToolsByOrderMutationPolicy($tools);
@@ -4436,6 +4694,20 @@ TXT;
         }
         $value = strtolower(trim((string) SEEKMODO_AI_CHATBOT_ALLOW_ORDER_MUTATIONS));
         return $value === 'true' || $value === '1' || $value === 'yes' || $value === 'on';
+    }
+
+    /**
+     * Numinix.com / Numinix.ca digital-order and Zammad helpers.
+     */
+    private static function numinixShopperToolsEnabled(): bool
+    {
+        $host = '';
+        if (defined('HTTPS_SERVER') && trim((string) HTTPS_SERVER) !== '') {
+            $host = strtolower((string) HTTPS_SERVER);
+        } elseif (defined('HTTP_SERVER') && trim((string) HTTP_SERVER) !== '') {
+            $host = strtolower((string) HTTP_SERVER);
+        }
+        return strpos($host, 'numinix.com') !== false || strpos($host, 'numinix.ca') !== false;
     }
 
     /**

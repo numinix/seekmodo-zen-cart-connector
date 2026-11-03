@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Changed
+- **Seekmodo AI Chatbot catalog fit** — system prompt takes voice, currency, and order-help options from store context and the tools listed for the session (no hardcoded UK gift-shop engraving list). Numinix.com/.ca get digital order, license, and Zammad ticket helpers.
+
 ## v1.3.98 — 2026-11-03
 
 ### Tests
