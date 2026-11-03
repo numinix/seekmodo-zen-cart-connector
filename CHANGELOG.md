@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## v1.3.98 — 2026-11-03
+
+### Tests
+
+- Cover the post-pair catalog push fork and the guard that skips `catalog.prune` when a batch reports `failed > 0`.
+
 ## v1.3.97 — 2026-11-02
 
 ### Fixed
