@@ -1,0 +1,10 @@
+# Parent of /v1/suggest — catch no-slash POSTs before mod_dir 301s.
+<IfModule mod_dir.c>
+  DirectorySlash Off
+</IfModule>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^suggest$ suggest/index.php [L,QSA]
+  RewriteRule ^suggest/$ suggest/index.php [L,QSA]
+</IfModule>

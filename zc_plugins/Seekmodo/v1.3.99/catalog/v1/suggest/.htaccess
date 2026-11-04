@@ -1,0 +1,20 @@
+# Seekmodo same-origin suggest proxy.
+#
+# Apache mod_dir DirectorySlash On (default) 301s POST /v1/suggest →
+# /v1/suggest/, and browsers drop the JSON body on that redirect. The
+# SDK posts to {gateway}/v1/suggest with no trailing slash, so the
+# widget receives a 200 empty envelope and looks "broken" with no
+# connector code change on the storefront.
+#
+# DirectorySlash Off + an explicit rewrite keep POST bodies intact on
+# both /v1/suggest and /v1/suggest/.
+<IfModule mod_dir.c>
+  DirectorySlash Off
+</IfModule>
+
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^$ index.php [L]
+</IfModule>
