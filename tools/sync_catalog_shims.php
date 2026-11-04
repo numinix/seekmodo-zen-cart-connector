@@ -60,32 +60,49 @@ foreach ($shims as $file) {
     fwrite(STDOUT, "synced {$file} from {$version}\n");
 }
 
-// Proxy-first: /v1/suggest/index.php (SDK {gateway}/v1/suggest)
-// plus DirectorySlash-Off .htaccess files so POST /v1/suggest keeps its body.
-$v1Files = [
-    'v1/suggest/index.php',
-    'v1/suggest/.htaccess',
-    'v1/.htaccess',
-];
-foreach ($v1Files as $v1Rel) {
-    $v1Src = $srcDir . '/' . $v1Rel;
-    $v1Dst = $catalogRoot . '/' . $v1Rel;
-    if (!is_file($v1Src)) {
-        fwrite(STDERR, "WARN: missing source {$v1Src}\n");
-        continue;
+// Proxy-first file shim: /v1/suggest.php (+ extensionless /v1/suggest).
+// A leftover suggest/ directory 301s POST /v1/suggest and drops the body.
+$v1Dir = $catalogRoot . '/v1';
+if (!is_dir($v1Dir) && !@mkdir($v1Dir, 0755, true)) {
+    fwrite(STDERR, "ERROR: failed to mkdir {$v1Dir}\n");
+    $ok = false;
+} else {
+    $legacyDir = $v1Dir . '/suggest';
+    if (is_dir($legacyDir) && !is_link($legacyDir)) {
+        $bak = $v1Dir . '/suggest.dirbak.' . date('YmdHis');
+        if (@rename($legacyDir, $bak)) {
+            fwrite(STDOUT, "moved legacy {$legacyDir} -> {$bak}\n");
+        } else {
+            fwrite(STDERR, "ERROR: could not move legacy suggest/ directory\n");
+            $ok = false;
+        }
     }
-    $v1DstDir = dirname($v1Dst);
-    if (!is_dir($v1DstDir) && !@mkdir($v1DstDir, 0755, true)) {
-        fwrite(STDERR, "ERROR: failed to mkdir {$v1DstDir}\n");
+
+    $suggestSrc = $srcDir . '/v1/suggest.php';
+    if (!is_file($suggestSrc)) {
+        fwrite(STDERR, "WARN: missing source {$suggestSrc}\n");
+    } else {
+        foreach (['suggest.php', 'suggest'] as $name) {
+            $dst = $v1Dir . '/' . $name;
+            if (!copy($suggestSrc, $dst)) {
+                fwrite(STDERR, "ERROR: failed to copy v1/{$name}\n");
+                $ok = false;
+                continue;
+            }
+            fwrite(STDOUT, "synced v1/{$name} from {$version}\n");
+        }
+    }
+
+    $htSrc = $srcDir . '/v1/.htaccess';
+    $htDst = $v1Dir . '/.htaccess';
+    if (!is_file($htSrc)) {
+        fwrite(STDERR, "WARN: missing source {$htSrc}\n");
+    } elseif (!copy($htSrc, $htDst)) {
+        fwrite(STDERR, "ERROR: failed to copy v1/.htaccess\n");
         $ok = false;
-        continue;
+    } else {
+        fwrite(STDOUT, "synced v1/.htaccess from {$version}\n");
     }
-    if (!copy($v1Src, $v1Dst)) {
-        fwrite(STDERR, "ERROR: failed to copy {$v1Rel}\n");
-        $ok = false;
-        continue;
-    }
-    fwrite(STDOUT, "synced {$v1Rel} from {$version}\n");
 }
 
 exit($ok ? 0 : 2);

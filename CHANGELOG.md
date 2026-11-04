@@ -5,6 +5,10 @@
 ### Changed
 - **Seekmodo AI Chatbot catalog fit** — system prompt takes voice, currency, and order-help options from store context and the tools listed for the session (no hardcoded UK gift-shop engraving list). Numinix.com/.ca get digital order, license, and Zammad ticket helpers.
 
+## v1.3.101 - 2026-11-04 (proxy-first suggest file shim)
+
+- **Empty suggest dropdown on Apache.** The SDK POSTs `{gateway}/v1/suggest` with no trailing slash. Shipping that path as a `suggest/` directory made Apache DirectorySlash / ErrorDocument 301 the request; browsers drop the JSON body and the widget paints an empty panel even though gateway suggest still works. Installer + `sync_catalog_shims.php` now deploy `v1/suggest.php` (and an extensionless `v1/suggest` copy), rewrite both slash forms to the file, and move any legacy `v1/suggest/` directory aside.
+
 ## v1.3.100 — 2026-11-04
 
 ### Fixed
