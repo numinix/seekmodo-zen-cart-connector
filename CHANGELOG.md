@@ -5,6 +5,11 @@
 ### Changed
 - **Seekmodo AI Chatbot catalog fit** — system prompt takes voice, currency, and order-help options from store context and the tools listed for the session (no hardcoded UK gift-shop engraving list). Numinix.com/.ca get digital order, license, and Zammad ticket helpers.
 
+## v1.3.99 — 2026-11-04
+
+### Fixed
+- **Proxy-first suggest on Apache no longer returns empty panels.** The SDK POSTs `{gateway}/v1/suggest` (no trailing slash). With Apache `DirectorySlash On`, that 301s to `/v1/suggest/` and browsers drop the JSON body, so the shim returns a 200 empty envelope and the dropdown looks dead even though gateway suggest still works. Installer + `sync_catalog_shims.php` now deploy `v1/.htaccess` and `v1/suggest/.htaccess` (`DirectorySlash Off` + rewrite to `index.php`) alongside the shim.
+
 ## v1.3.98 — 2026-11-03
 
 ### Tests

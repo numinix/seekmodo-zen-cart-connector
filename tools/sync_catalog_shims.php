@@ -61,22 +61,31 @@ foreach ($shims as $file) {
 }
 
 // Proxy-first: /v1/suggest/index.php (SDK {gateway}/v1/suggest)
-$v1Rel = 'v1/suggest/index.php';
-$v1Src = $srcDir . '/' . $v1Rel;
-$v1Dst = $catalogRoot . '/' . $v1Rel;
-if (is_file($v1Src)) {
+// plus DirectorySlash-Off .htaccess files so POST /v1/suggest keeps its body.
+$v1Files = [
+    'v1/suggest/index.php',
+    'v1/suggest/.htaccess',
+    'v1/.htaccess',
+];
+foreach ($v1Files as $v1Rel) {
+    $v1Src = $srcDir . '/' . $v1Rel;
+    $v1Dst = $catalogRoot . '/' . $v1Rel;
+    if (!is_file($v1Src)) {
+        fwrite(STDERR, "WARN: missing source {$v1Src}\n");
+        continue;
+    }
     $v1DstDir = dirname($v1Dst);
     if (!is_dir($v1DstDir) && !@mkdir($v1DstDir, 0755, true)) {
         fwrite(STDERR, "ERROR: failed to mkdir {$v1DstDir}\n");
         $ok = false;
-    } elseif (!copy($v1Src, $v1Dst)) {
+        continue;
+    }
+    if (!copy($v1Src, $v1Dst)) {
         fwrite(STDERR, "ERROR: failed to copy {$v1Rel}\n");
         $ok = false;
-    } else {
-        fwrite(STDOUT, "synced {$v1Rel} from {$version}\n");
+        continue;
     }
-} else {
-    fwrite(STDERR, "WARN: missing source {$v1Src}\n");
+    fwrite(STDOUT, "synced {$v1Rel} from {$version}\n");
 }
 
 exit($ok ? 0 : 2);

@@ -20,9 +20,10 @@ Confirm `no_picture.(gif|png|jpg|webp)` is still treated as a miss and never win
 
 ```bash
 php tests/test_no_picture_suggest_thumbs.php
+php tests/test_suggest_dirslash_htaccess.php
 ```
 
-The smoke discovers the highest `zc_plugins/Seekmodo/v1.3.*` tree automatically. Run it before tagging / releasing.
+The smokes discover the highest `zc_plugins/Seekmodo/v1.3.*` tree automatically. Run them before tagging / releasing. The DirectorySlash htaccess smoke guards the proxy-first `/v1/suggest` POST path (empty dropdown when Apache 301s away the body).
 
 ## Fix belongs in connector main
 
