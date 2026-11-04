@@ -5,6 +5,11 @@
 ### Changed
 - **Seekmodo AI Chatbot catalog fit** — system prompt takes voice, currency, and order-help options from store context and the tools listed for the session (no hardcoded UK gift-shop engraving list). Numinix.com/.ca get digital order, license, and Zammad ticket helpers.
 
+## v1.3.100 — 2026-11-04
+
+### Fixed
+- **Plugin Manager upgrade fatal on Zen Cart cores that ship `ScriptedInstallHelpers`.** Overriding `getConfigurationKeyDetails()`, `addConfigurationKey()`, and `deleteConfigurationKeys()` as `protected` violated PHP visibility rules when the trait declares them `public` (`Access level … must be public`). Those helpers are now `public` so Upgrade can load the installer.
+
 ## v1.3.99 — 2026-11-04
 
 ### Fixed
