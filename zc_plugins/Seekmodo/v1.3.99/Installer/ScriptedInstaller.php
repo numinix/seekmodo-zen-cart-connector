@@ -846,7 +846,7 @@ class ScriptedInstaller extends ScriptedInstallBase
     /**
      * @param array<string, mixed> $properties
      */
-    protected function addConfigurationKey(string $key_name, array $properties): int
+    public function addConfigurationKey(string $key_name, array $properties): int
     {
         if ($this->getConfigurationKeyDetails($key_name, true) !== false) {
             return 0;
@@ -883,7 +883,7 @@ class ScriptedInstaller extends ScriptedInstallBase
     /**
      * @param list<string> $key_names
      */
-    protected function deleteConfigurationKeys(array $key_names): int
+    public function deleteConfigurationKeys(array $key_names): int
     {
         if ($key_names === []) {
             return 0;
@@ -903,7 +903,7 @@ class ScriptedInstaller extends ScriptedInstallBase
     /**
      * @return array<string, mixed>|bool
      */
-    protected function getConfigurationKeyDetails(string $key_name, bool $only_check_existence = false): array|bool
+    public function getConfigurationKeyDetails(string $key_name, bool $only_check_existence = false): array|bool
     {
         $sql = 'SELECT * FROM ' . TABLE_CONFIGURATION
             . " WHERE configuration_key = '" . $this->dbConn->prepare_input($key_name) . "'";
