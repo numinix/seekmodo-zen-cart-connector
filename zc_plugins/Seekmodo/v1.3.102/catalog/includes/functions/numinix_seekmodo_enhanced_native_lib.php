@@ -417,4 +417,3 @@ if (!function_exists('numinix_seekmodo_run_typeahead_local')) {
         ];
     }
 }
-

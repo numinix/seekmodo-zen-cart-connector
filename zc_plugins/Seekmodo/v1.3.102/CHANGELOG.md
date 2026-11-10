@@ -535,13 +535,13 @@ zc_plugins/Seekmodo/v<X.Y.Z>/CHANGELOG.md.
   previous candidate list stopped at ea-php82. Also derives CLI from
   PHP_BINARY, supports NUMINIX_SEEKMODO_PHP_BINARY, and passes
   --ack-quota on admin-forked pushes. Fixes
-  
+
 o php binary found in $PATH` on PHP 8.3 storefronts (NS-26042).
 
 ## v1.3.33 - 2026-07-27 (events referer parity)
 
 - **Shopper-context parity (Rec 3)** - click / impression / conversion
-  event builders in 
+  event builders in
 uminix_seekmodo_events_lib.php now stamp
   HTTP_REFERER onto the event when present (same as search /
   typeahead payloads).
@@ -1428,4 +1428,3 @@ Full detail: [`zc_plugins/Seekmodo/v1.0.3/CHANGELOG.md`](zc_plugins/Seekmodo/v1.
 - Initial release. Four swap-points (search, indexer, click beacon,
   type-ahead). Mode-aware (`off` / `shadow` / `enforce`). HMAC-signed
   REST envelope. APCu circuit breaker shared across php-fpm workers.
-
