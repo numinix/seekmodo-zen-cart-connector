@@ -24,7 +24,7 @@ return [
     'pluginAuthor' => 'Numinix',
     'pluginId' => 2441, // zen-cart.com downloads.php?do=file&id=2441
     'zcVersions' => ['v157', 'v158', 'v200'],
-    'changelog' => 'v1.3.101 (2026-11-04): Proxy-first suggest uses a file shim (v1/suggest.php) instead of a suggest/ directory so Apache no longer 301s POST /v1/suggest and drops the SDK body. See CHANGELOG.md.',
+    'changelog' => 'v1.3.102 (2026-11-10): Restore missing public chat, Inbox, and portal endpoints after deployment cleanup while preserving tracked loaders. Correct encapsulated chat catalog-root resolution. Add endpoint recovery and UTF-8 greeting regression coverage. See CHANGELOG.md.',
     'github_repo' => 'https://github.com/numinix/seekmodo-zen-cart-connector',
     'pluginGroups' => [],
 ];
