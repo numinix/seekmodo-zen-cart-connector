@@ -20,8 +20,8 @@ $normalized = str_replace('\\', '/', $catalogRoot);
 if (strpos($normalized, '/zc_plugins/') !== false) {
     // Running from plugin tree during development.
     $pluginCatalog = $catalogRoot;
-    $resolved = realpath($catalogRoot . '/../../..');
-    $catalogRoot = $resolved !== false ? $resolved : dirname($catalogRoot, 3);
+    $resolved = realpath($catalogRoot . '/../../../..');
+    $catalogRoot = $resolved !== false ? $resolved : dirname($catalogRoot, 4);
 } else {
     $pluginCatalog = seekmodo_ai_chat_find_plugin_catalog($catalogRoot);
 }
