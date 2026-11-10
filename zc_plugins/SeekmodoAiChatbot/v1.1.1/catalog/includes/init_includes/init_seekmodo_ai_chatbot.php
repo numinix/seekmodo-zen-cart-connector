@@ -22,6 +22,12 @@ if (!defined('IS_ADMIN_FLAG') || !IS_ADMIN_FLAG) {
     });
 
     if (defined('SEEKMODO_AI_CHATBOT_ENABLED') && SEEKMODO_AI_CHATBOT_ENABLED === 'true') {
+        if (defined('DIR_FS_CATALOG')) {
+            $missingEndpoints = \SeekmodoAiChatbot\CatalogEndpoints::ensure((string) DIR_FS_CATALOG, dirname(__DIR__, 2));
+            if ($missingEndpoints !== []) {
+                error_log('Seekmodo chat endpoint repair failed: ' . implode(', ', $missingEndpoints));
+            }
+        }
         $observerFile = dirname(__DIR__) . '/classes/observers/ChatbotWidgetObserver.php';
         if (is_file($observerFile)) {
             require_once $observerFile;
