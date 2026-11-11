@@ -558,6 +558,17 @@
   var contextBar = qs('ogc-console-context-bar');
   var transcriptEl = qs('ogc-console-transcript');
   var composerRoot = qs('ogc-console-composer');
+  var stickToBottom = true;
+  var prevSelectedForScroll = null;
+  function transcriptNearBottom() {
+    if (!transcriptEl) return true;
+    return transcriptEl.scrollHeight - transcriptEl.scrollTop - transcriptEl.clientHeight <= 96;
+  }
+  if (transcriptEl) {
+    transcriptEl.addEventListener('scroll', function () {
+      stickToBottom = transcriptNearBottom();
+    }, { passive: true });
+  }
 
   function showEmptyPane() {
     if (emptyPane) {
@@ -680,13 +691,24 @@
 
   function renderTranscript(chat) {
     if (!transcriptEl) return;
+    var chatId = chat && chat.chat_id != null ? parseInt(chat.chat_id, 10) : null;
+    var selectedChanged = chatId !== prevSelectedForScroll;
+    prevSelectedForScroll = chatId;
+    if (selectedChanged) stickToBottom = true;
+    var shouldStick = stickToBottom;
+    var prevTop = transcriptEl.scrollTop;
     var wrap = document.createElement('div');
     wrap.className = 'ogc-transcript';
     (chat.messages || []).forEach(function (m) { wrap.appendChild(renderMessage(m, chat)); });
     transcriptEl.innerHTML = '';
     transcriptEl.appendChild(wrap);
     requestAnimationFrame(function () {
-      transcriptEl.scrollTop = transcriptEl.scrollHeight;
+      if (shouldStick) {
+        stickToBottom = true;
+        transcriptEl.scrollTop = transcriptEl.scrollHeight;
+      } else {
+        transcriptEl.scrollTop = prevTop;
+      }
     });
   }
 

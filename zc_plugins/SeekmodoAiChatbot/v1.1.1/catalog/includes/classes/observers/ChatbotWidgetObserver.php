@@ -439,6 +439,21 @@ class ChatbotWidgetObserver extends base
         const input = document.getElementById('chatbot-input');
         const send = document.getElementById('chatbot-send');
         const messages = document.getElementById('chatbot-messages');
+        let stickToBottom = true;
+        let paintingTranscript = false;
+        function nearBottom() {
+            return messages.scrollHeight - messages.scrollTop - messages.clientHeight <= 96;
+        }
+        function scrollMessagesToBottom(force) {
+            if (force || stickToBottom) {
+                stickToBottom = true;
+                messages.scrollTop = messages.scrollHeight;
+            }
+        }
+        messages.addEventListener('scroll', function () {
+            if (paintingTranscript) return;
+            stickToBottom = nearBottom();
+        }, { passive: true });
         const homeEl = document.getElementById('chatbot-home');
         const chatEl = document.getElementById('chatbot-chat');
         const welcomeEl = document.getElementById('chatbot-home-welcome');
@@ -777,10 +792,16 @@ class ChatbotWidgetObserver extends base
         }
 
         function rerenderTranscript() {
+            const shouldStick = stickToBottom;
+            const prevTop = messages.scrollTop;
+            paintingTranscript = true;
             clearMessagesUi();
             transcript.forEach(function (m) {
-                addMessage(m.text, m.role, false);
+                addMessage(m.text, m.role, false, { skipScroll: true });
             });
+            paintingTranscript = false;
+            if (shouldStick) scrollMessagesToBottom(true);
+            else messages.scrollTop = prevTop;
             applyStatusUi();
         }
 
@@ -889,7 +910,7 @@ class ChatbotWidgetObserver extends base
             return '<p>' + html + '</p>';
         }
 
-        function addMessage(text, role, shouldPersist) {
+        function addMessage(text, role, shouldPersist, opts) {
             const msg = document.createElement('div');
             const displayRole = role === 'admin' ? 'admin' : role;
             msg.className = 'chatbot-msg ' + displayRole;
@@ -899,7 +920,9 @@ class ChatbotWidgetObserver extends base
                 msg.textContent = text;
             }
             messages.appendChild(wrapAgentMessage(msg, role));
-            messages.scrollTop = messages.scrollHeight;
+            if (!(opts && opts.skipScroll)) {
+                scrollMessagesToBottom(!!(opts && opts.forceScroll) || role === 'user');
+            }
             if (shouldPersist !== false) {
                 transcript.push({role: role, text: text});
                 if (transcript.length > MAX_STORED_MESSAGES) {
@@ -1002,20 +1025,24 @@ class ChatbotWidgetObserver extends base
             showTicketConfirm(false);
             setTicketStatus('');
             view = 'chat';
+            stickToBottom = true;
+            paintingTranscript = true;
             clearMessagesUi();
             if (transcript.length === 0) {
                 if (options.notice) {
-                    addMessage(options.notice, 'bot');
+                    addMessage(options.notice, 'bot', undefined, { skipScroll: true });
                 }
-                addMessage(GREETING, 'bot');
+                addMessage(GREETING, 'bot', undefined, { skipScroll: true });
             } else {
                 transcript.forEach(function (m) {
-                    addMessage(m.text, m.role, false);
+                    addMessage(m.text, m.role, false, { skipScroll: true });
                 });
                 if (options.notice) {
-                    addMessage(options.notice, 'bot');
+                    addMessage(options.notice, 'bot', undefined, { skipScroll: true });
                 }
             }
+            paintingTranscript = false;
+            scrollMessagesToBottom(true);
             applyView();
             applyStatusUi();
             persist();
@@ -1063,7 +1090,7 @@ class ChatbotWidgetObserver extends base
             el.id = 'chatbot-typing';
             el.textContent = '...';
             messages.appendChild(wrapAgentMessage(el, 'bot'));
-            messages.scrollTop = messages.scrollHeight;
+            scrollMessagesToBottom(false);
         }
 
         function hideTyping() {

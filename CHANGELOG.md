@@ -5,6 +5,14 @@
 ### Changed
 - **Seekmodo AI Chatbot catalog fit** — system prompt takes voice, currency, and order-help options from store context and the tools listed for the session (no hardcoded UK gift-shop engraving list). Numinix.com/.ca get digital order, license, and Zammad ticket helpers.
 
+## v1.3.103 - 2026-11-11
+
+### Fixed
+- **Chat scroll stick-to-bottom.** Admin live console polls and storefront
+  widget transcript refreshes no longer force the scrollbar to the bottom
+  while someone is reading older messages. Auto-scroll only when near the
+  latest turn (or when opening / sending).
+
 ## v1.3.102 - 2026-11-10
 
 ### Fixed
