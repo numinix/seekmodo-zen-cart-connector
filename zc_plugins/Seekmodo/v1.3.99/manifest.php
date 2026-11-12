@@ -18,7 +18,7 @@
  * operators don't have to flip modes manually.
  */
 return [
-    'pluginVersion' => 'v1.3.104',
+    'pluginVersion' => 'v1.3.99',
     'pluginName' => 'Seekmodo',
     'pluginDescription' => 'AI product search, typeahead, Seekmodo AI chatbot, live chat, and ticketing for Zen Cart. Faster, more relevant results with learned-to-rank scoring, plus an optional storefront AI Chatbot and cloud Inbox (plan-gated after pairing). One-click pairing via Admin &rarr; Tools &rarr; <b>Connect to Seekmodo</b>; settings on <b>admin.seekmodo.com</b>. Falls back to native Zen Cart search if the platform is unreachable.',
     'pluginAuthor' => 'Numinix',
