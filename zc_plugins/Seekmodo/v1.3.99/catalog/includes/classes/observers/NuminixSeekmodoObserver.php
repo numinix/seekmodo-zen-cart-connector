@@ -502,12 +502,14 @@ class NuminixSeekmodoObserver extends \base
         // wrongly early-returned on !enabled and left Zen Cart's
         // native LIKE + default name sort.
         $envelope = null;
-        $attemptGateway = function_exists('numinix_seekmodo_should_attempt_gateway_search')
+        $attemptGateway = !(function_exists('numinix_seekmodo_is_http_prefetch_request')
+                && numinix_seekmodo_is_http_prefetch_request())
+            && (function_exists('numinix_seekmodo_should_attempt_gateway_search')
             ? numinix_seekmodo_should_attempt_gateway_search()
             : (
                 function_exists('numinix_seekmodo_enabled')
                 && numinix_seekmodo_enabled()
-            );
+            ));
         if ($attemptGateway && function_exists('numinix_seekmodo_run_search')) {
             $envelope = numinix_seekmodo_run_search($params);
         }
@@ -1348,6 +1350,10 @@ class NuminixSeekmodoObserver extends \base
     {
         static $emitted = false;
         if ($emitted) {
+            return;
+        }
+        if (function_exists('numinix_seekmodo_is_http_prefetch_request')
+            && numinix_seekmodo_is_http_prefetch_request()) {
             return;
         }
         if (!function_exists('numinix_seekmodo_enabled') || !numinix_seekmodo_enabled()) {

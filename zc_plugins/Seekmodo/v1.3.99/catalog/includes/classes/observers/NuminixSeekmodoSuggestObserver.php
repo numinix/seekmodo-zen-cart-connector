@@ -815,6 +815,7 @@ final class NuminixSeekmodoSuggestObserver extends base
     }
     el.setAttribute('layout', CFG.layout || 'split-rail');
     el.setAttribute('show-branding', CFG.show_branding ? 'true' : 'false');
+    el.setAttribute('prefetch-serp', '');
     if (CFG.extras && typeof CFG.extras === 'object') {
       for (var k in CFG.extras) {
         if (Object.prototype.hasOwnProperty.call(CFG.extras, k)) {

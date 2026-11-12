@@ -5,6 +5,11 @@
 ### Changed
 - **Seekmodo AI Chatbot catalog fit** — system prompt takes voice, currency, and order-help options from store context and the tools listed for the session (no hardcoded UK gift-shop engraving list). Numinix.com/.ca get digital order, license, and Zammad ticket helpers.
 
+## v1.3.104 — 2026-11-11
+
+### Added
+- **SSR SERP prefetch UX (Phase 3).** Autoboot `<seekmodo-suggest>` sets `prefetch-serp`. Advanced-search SERP requests with `Sec-Purpose: prefetch` (or `Purpose: prefetch`) skip gateway search, search-event stash, and SERP click beacons until the shopper actually views the page.
+
 ## v1.3.103 - 2026-11-11
 
 ### Fixed
