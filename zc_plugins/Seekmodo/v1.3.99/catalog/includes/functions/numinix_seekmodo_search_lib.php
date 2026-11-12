@@ -1113,6 +1113,28 @@ if (!function_exists('_numinix_seekmodo_search_cache_put')) {
     }
 }
 
+if (!function_exists('numinix_seekmodo_is_http_prefetch_request')) {
+    /**
+     * Chrome intent-prefetch for server-rendered SERPs (see
+     * docs/runbooks/serp-preview.md). Skip gateway search telemetry
+     * until the shopper actually views the page.
+     */
+    function numinix_seekmodo_is_http_prefetch_request(): bool
+    {
+        foreach (['HTTP_SEC_PURPOSE', 'HTTP_PURPOSE'] as $key) {
+            if (!isset($_SERVER[$key])) {
+                continue;
+            }
+            $val = strtolower(trim((string) $_SERVER[$key]));
+            if ($val !== '' && strpos($val, 'prefetch') !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
 if (!function_exists('_numinix_seekmodo_remember_search_event')) {
     /**
      * Per-request memo + per-session stash of the gateway's
@@ -1135,6 +1157,10 @@ if (!function_exists('_numinix_seekmodo_remember_search_event')) {
      */
     function _numinix_seekmodo_remember_search_event(array $row): void
     {
+        if (function_exists('numinix_seekmodo_is_http_prefetch_request')
+            && numinix_seekmodo_is_http_prefetch_request()) {
+            return;
+        }
         if (!isset($row['session_id']) || (string) $row['session_id'] === '') {
             $row['session_id'] = function_exists('_numinix_seekmodo_session_id')
                 ? _numinix_seekmodo_session_id()
