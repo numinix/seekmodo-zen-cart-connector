@@ -5,6 +5,12 @@
 ### Changed
 - **Seekmodo AI Chatbot catalog fit** — system prompt takes voice, currency, and order-help options from store context and the tools listed for the session (no hardcoded UK gift-shop engraving list). Numinix.com/.ca get digital order, license, and Zammad ticket helpers.
 
+### Fixed
+- **Cloudflare Speculation Rules (soft):** do not mint the `sm_pid` Set-Cookie
+  on `Sec-Purpose: prefetch` / `Purpose: prefetch`. CF returns
+  `Cf-Speculation-Refused` (often a 503) when a prefetch response sets
+  cookies. Zen Cart core `cookie_test` may still set cookies on some hosts.
+
 ## v1.3.104 — 2026-11-11
 
 ### Added
