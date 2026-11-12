@@ -174,13 +174,6 @@ if (!function_exists('numinix_seekmodo_resolve_pid')) {
         if ($existing !== '' && _numinix_seekmodo_pid_is_valid($existing)) {
             return $existing;
         }
-        // Speculative prefetch (Sec-Purpose: prefetch) must not mint a
-        // Set-Cookie — Cloudflare refuses Speculation Rules with
-        // Cf-Speculation-Refused / 503 when the response sets cookies.
-        if (function_exists('numinix_seekmodo_is_http_prefetch_request')
-            && numinix_seekmodo_is_http_prefetch_request()) {
-            return null;
-        }
         $pid = _numinix_seekmodo_pid_mint();
         _numinix_seekmodo_pid_set_cookie($pid);
         // Surface the freshly-minted value for the rest of the

@@ -7,7 +7,7 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__);
-$plugin = $root . '/zc_plugins/Seekmodo/v1.3.104';
+$plugin = $root . '/zc_plugins/Seekmodo/v1.3.105';
 $errors = [];
 $passed = 0;
 
