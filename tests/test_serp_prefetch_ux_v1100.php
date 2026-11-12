@@ -7,7 +7,7 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__);
-$plugin = $root . '/zc_plugins/Seekmodo/v1.3.104';
+$plugin = $root . '/zc_plugins/Seekmodo/v1.3.105';
 $errors = [];
 $passed = 0;
 
@@ -55,6 +55,18 @@ $current = function_exists('numinix_seekmodo_current_search_event')
     : null;
 assert_true('prefetch skips stash', $current === null, $errors, $passed);
 unset($_SERVER['HTTP_SEC_PURPOSE']);
+
+echo "== sm_pid mint skipped on prefetch ==\n";
+$shopperLib = (string) file_get_contents(
+    $plugin . '/catalog/includes/functions/numinix_seekmodo_shopper_lib.php'
+);
+assert_true(
+    'resolve_pid guards prefetch before Set-Cookie mint',
+    strpos($shopperLib, 'numinix_seekmodo_is_http_prefetch_request') !== false
+        && strpos($shopperLib, 'Speculative prefetch') !== false,
+    $errors,
+    $passed
+);
 
 echo "== autoboot markup ==\n";
 $suggest = file_get_contents($plugin . '/catalog/includes/classes/observers/NuminixSeekmodoSuggestObserver.php');
