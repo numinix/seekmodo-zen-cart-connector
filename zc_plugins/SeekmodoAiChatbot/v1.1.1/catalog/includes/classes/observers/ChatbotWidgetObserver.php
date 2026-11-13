@@ -581,7 +581,7 @@ class ChatbotWidgetObserver extends base
             // Also lock while a request is in flight so state stays consistent.
             const contactOpen = contactPanel && !contactPanel.hidden
                 && contactCodeStep && !contactCodeStep.hidden;
-            const locked = resolved || loading;
+            const locked = resolved;
             input.disabled = locked;
             send.disabled = locked;
             if (handedOff) {
@@ -610,12 +610,13 @@ class ChatbotWidgetObserver extends base
             }
         }
 
-        async function apiPost(payload) {
+        async function apiPost(payload, signal) {
             const resp = await fetch(API_URL, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 credentials: 'same-origin',
                 body: JSON.stringify(payload),
+                signal: signal,
             });
             const text = await resp.text();
             let data = null;
@@ -1299,24 +1300,43 @@ class ChatbotWidgetObserver extends base
             }
         }, 60000);
 
-        async function sendMessage() {
+        const SEND_GROUP_MS = 2000;
+        let pendingTexts = [];
+        let sendTimer = null;
+        let chatAbort = null;
+
+        function sendMessage() {
             const text = input.value.trim();
-            if (!text || loading) return;
-            if (chatStatus === 'resolved') return;
+            if (!text || chatStatus === 'resolved') return;
+            input.value = '';
+            addMessage(text, 'user');
+            pendingTexts.push(text);
+            if (chatAbort) {
+                chatAbort.abort();
+                chatAbort = null;
+                hideTyping();
+            }
+            if (sendTimer) clearTimeout(sendTimer);
+            sendTimer = setTimeout(flushPending, SEND_GROUP_MS);
+        }
+
+        async function flushPending() {
+            sendTimer = null;
+            if (!pendingTexts.length || chatStatus === 'resolved') return;
+            const batch = pendingTexts.join('\n');
+            pendingTexts = [];
             if (!sessionId) {
                 sessionId = newSessionId();
             }
-
-            input.value = '';
-            addMessage(text, 'user');
-            setLoading(true);
             showTyping();
-
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            chatAbort = controller;
             try {
                 const data = await apiPost({
-                    message: text,
+                    message: batch,
                     session_id: sessionId,
-                });
+                }, controller ? controller.signal : undefined);
+                if (controller && controller.signal.aborted) return;
                 hideTyping();
                 if (data.session_reset) {
                     // Server rotated the session (unowned localStorage leftover).
@@ -1373,15 +1393,18 @@ class ChatbotWidgetObserver extends base
                     persist();
                 }
             } catch (e) {
+                if (e && e.name === 'AbortError') return;
                 hideTyping();
-                pendingConnectBySession[sessionId] = text;
+                pendingConnectBySession[sessionId] = batch;
                 applyUnavailableResponse({
                     reply: 'I\'m sorry — our chatbot isn\'t available right now, and no one is immediately available in chat. Would you like us to open a support ticket so an agent can follow up?',
                     needs_ticket_confirm: true,
                     assistant_unavailable: true,
                 });
             }
-            setLoading(false);
+            if (chatAbort === controller) {
+                chatAbort = null;
+            }
             if (!input.disabled) {
                 try { input.focus(); } catch (e) { /* ignore */ }
             }
