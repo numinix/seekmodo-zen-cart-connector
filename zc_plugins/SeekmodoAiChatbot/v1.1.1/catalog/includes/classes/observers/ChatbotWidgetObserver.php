@@ -318,6 +318,7 @@ class ChatbotWidgetObserver extends base
         let transcript = [];
         let view = state.view || 'home';
         let loading = false;
+        let awaitingReply = false;
         let chatStatus = 'open';
         let liveAgentName = '';
         let statusPollTimer = null;
@@ -800,6 +801,7 @@ class ChatbotWidgetObserver extends base
             transcript.forEach(function (m) {
                 addMessage(m.text, m.role, false, { skipScroll: true });
             });
+            if (awaitingReply) showTyping();
             paintingTranscript = false;
             if (shouldStick) scrollMessagesToBottom(true);
             else messages.scrollTop = prevTop;
@@ -1086,9 +1088,20 @@ class ChatbotWidgetObserver extends base
         }
 
         function showTyping() {
+            const existing = document.getElementById('chatbot-typing');
+            if (existing) {
+                const node = existing.closest('.chatbot-msg-row') || existing;
+                if (messages.lastElementChild !== node) {
+                    messages.appendChild(node);
+                }
+                scrollMessagesToBottom(false);
+                return;
+            }
             const el = document.createElement('div');
             el.className = 'chatbot-msg bot typing';
             el.id = 'chatbot-typing';
+            el.setAttribute('role', 'status');
+            el.setAttribute('aria-label', 'Reply in progress');
             el.textContent = '...';
             messages.appendChild(wrapAgentMessage(el, 'bot'));
             scrollMessagesToBottom(false);
@@ -1099,6 +1112,15 @@ class ChatbotWidgetObserver extends base
             if (!el) return;
             const row = el.closest('.chatbot-msg-row');
             (row || el).remove();
+        }
+
+        function endReplyWait() {
+            if (pendingTexts.length || sendTimer) {
+                showTyping();
+                return;
+            }
+            awaitingReply = false;
+            hideTyping();
         }
 
         // Initial view
@@ -1311,10 +1333,11 @@ class ChatbotWidgetObserver extends base
             input.value = '';
             addMessage(text, 'user');
             pendingTexts.push(text);
+            awaitingReply = true;
+            showTyping();
             if (chatAbort) {
                 chatAbort.abort();
                 chatAbort = null;
-                hideTyping();
             }
             if (sendTimer) clearTimeout(sendTimer);
             sendTimer = setTimeout(flushPending, SEND_GROUP_MS);
@@ -1322,7 +1345,13 @@ class ChatbotWidgetObserver extends base
 
         async function flushPending() {
             sendTimer = null;
-            if (!pendingTexts.length || chatStatus === 'resolved') return;
+            if (chatStatus === 'resolved') {
+                pendingTexts = [];
+                awaitingReply = false;
+                hideTyping();
+                return;
+            }
+            if (!pendingTexts.length) return;
             const batch = pendingTexts.join('\n');
             pendingTexts = [];
             if (!sessionId) {
@@ -1337,7 +1366,7 @@ class ChatbotWidgetObserver extends base
                     session_id: sessionId,
                 }, controller ? controller.signal : undefined);
                 if (controller && controller.signal.aborted) return;
-                hideTyping();
+                endReplyWait();
                 if (data.session_reset) {
                     // Server rotated the session (unowned localStorage leftover).
                     // Keep only the message just sent — do not stitch the reply
@@ -1394,7 +1423,7 @@ class ChatbotWidgetObserver extends base
                 }
             } catch (e) {
                 if (e && e.name === 'AbortError') return;
-                hideTyping();
+                endReplyWait();
                 pendingConnectBySession[sessionId] = batch;
                 applyUnavailableResponse({
                     reply: 'I\'m sorry — our chatbot isn\'t available right now, and no one is immediately available in chat. Would you like us to open a support ticket so an agent can follow up?',
