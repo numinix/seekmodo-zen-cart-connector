@@ -473,6 +473,7 @@ final class ChatArchive
                     date_updated = '" . $db->prepareInput(date('Y-m-d H:i:s', $updatedTs)) . "'
                   WHERE chat_id = " . (int) $existing->fields['chat_id']
             );
+            self::mirrorLatest($sessionId, $display, $customersId, $email);
             return;
         }
 
@@ -504,6 +505,47 @@ final class ChatArchive
                 '" . $db->prepareInput(date('Y-m-d H:i:s', $updatedTs)) . "'
              )"
         );
+        self::mirrorLatest($sessionId, $display, $customersId, $email);
+    }
+
+    /**
+     * Copy the newest shopper/assistant pair into Seekmodo MySQL.
+     * The store row written above remains the admin transcript.
+     *
+     * @param list<array<string, mixed>> $display
+     */
+    private static function mirrorLatest(string $sessionId, array $display, int $customersId, string $email): void
+    {
+        $user = '';
+        $assistant = '';
+        foreach ($display as $row) {
+            $role = (string) ($row['role'] ?? '');
+            $content = trim((string) ($row['content'] ?? ''));
+            if ($content === '') {
+                continue;
+            }
+            if ($role === 'user') {
+                $user = $content;
+            } elseif ($role === 'assistant' || $role === 'bot') {
+                $assistant = $content;
+            }
+        }
+        if ($user === '' || $assistant === '') {
+            return;
+        }
+        try {
+            $search = new SeekmodoProductSearch();
+            $search->gatewayPost('/v1/chat.mirror', [
+                'session_id' => $sessionId,
+                'user_message' => $user,
+                'assistant_message' => $assistant,
+                'customers_id' => $customersId,
+                'email' => $email,
+            ]);
+        } catch (\Throwable $e) {
+            // The store archive is already saved. A mirror failure must not
+            // drop the shopper's chat.
+        }
     }
 
     /**

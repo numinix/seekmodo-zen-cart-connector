@@ -1268,10 +1268,10 @@ class ChatbotWidgetObserver extends base
             refreshChatStatus(sessionId);
         });
 
-        close.addEventListener('click', async () => {
-            if (view === 'chat' && sessionId && hasRealMessages(transcript) && chatStatus !== 'resolved') {
-                await resolveCurrentChat();
-            }
+        close.addEventListener('click', () => {
+            // Closing the panel must not resolve the chat. Resolve is
+            // an explicit end, and only then may a later hide-from-list
+            // job look at the row. The transcript stays.
             stopStatusPolling();
             panel.classList.remove('open');
             showHome();
