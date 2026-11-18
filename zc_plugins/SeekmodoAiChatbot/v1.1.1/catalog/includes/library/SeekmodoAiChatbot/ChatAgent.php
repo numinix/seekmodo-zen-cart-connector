@@ -1464,10 +1464,17 @@ final class ChatAgent
             $created = (int) ($data['created'] ?? $updated);
             $expired = ($updated > 0 && ($now - $updated) > $idle)
                 || ($created > 0 && ($now - $created) > $maxAge);
-            if ($expired) {
-                @unlink($file);
-                $removed++;
+            if (!$expired) {
+                continue;
             }
+            $sessionId = basename($file, '.json');
+            // Hot session only. Keep the file when the admin archive
+            // does not already contain this chat.
+            if (!ChatArchive::getBySessionId($sessionId)) {
+                continue;
+            }
+            @unlink($file);
+            $removed++;
         }
         return $removed;
     }
@@ -4852,7 +4859,7 @@ TXT;
         $expired = ($updated > 0 && ($now - $updated) > $idle)
             || ($created > 0 && ($now - $created) > $maxAge);
 
-        if ($expired) {
+        if ($expired && ChatArchive::getBySessionId($sessionId)) {
             @unlink($file);
             $this->historyReset = true;
             self::$sessionMeta[$sessionId] = [
