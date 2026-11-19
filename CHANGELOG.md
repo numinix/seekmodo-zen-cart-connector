@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **Private forward threads in Seekmodo Tickets (admin).** Bundled AI Chatbot Tickets UI can open and continue Freshdesk-style forward threads (`forward_create` / `forward_reply`). Third-party recipients stay off the customer timeline.
 - **Seekmodo AI Chatbot ticket-resolved FAQ learning.** Nightly `post_chat_analysis.php` only enqueues resolved tickets that had a bot-failure answer followed by a human admin reply; `PostChatAnalyzer` returns one `kb_fact` FAQ or a permanent skip. Inbox `open_from_session` opens a handed_off ticket when the assistant cannot answer. Requires Numinix MCP analysis.job source `ticket_resolved`.
 
 ### Changed
