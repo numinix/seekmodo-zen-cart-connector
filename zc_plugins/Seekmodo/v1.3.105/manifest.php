@@ -24,7 +24,7 @@ return [
     'pluginAuthor' => 'Numinix',
     'pluginId' => 2441, // zen-cart.com downloads.php?do=file&id=2441
     'zcVersions' => ['v157', 'v158', 'v200'],
-    'changelog' => 'v1.3.105 (2026-11-12): Skip sm_pid Set-Cookie on Sec-Purpose prefetch (Cloudflare Speculation Rules). Builds on v1.3.104 SSR SERP prefetch UX. See CHANGELOG.md.',
+    'changelog' => 'v1.3.105 (2026-11-19): Proxy-first /v1/suggest reads JSON before CSRF rewrite (empty dropdown fix). Also skip sm_pid cookie on Sec-Purpose prefetch. See CHANGELOG.md.',
     'github_repo' => 'https://github.com/numinix/seekmodo-zen-cart-connector',
     'pluginGroups' => [],
 ];
