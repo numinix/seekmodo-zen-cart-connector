@@ -13,6 +13,17 @@
 
 declare(strict_types=1);
 
+// Health probes (Better Stack chat_health_ok) GET this endpoint. Answer before
+// preloading the plugin library so one PHP-8-only helper cannot 500 the probe
+// when MultiPHP has the vhost on ea-php74 (2026-11-19 KIP staging outage).
+$seekmodoAiChatMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+if ($seekmodoAiChatMethod === 'GET' || $seekmodoAiChatMethod === 'HEAD') {
+    header('Content-Type: application/json; charset=utf-8');
+    http_response_code(405);
+    echo json_encode(['error' => 'method_not_allowed']);
+    exit;
+}
+
 $catalogRoot = __DIR__;
 $pluginCatalog = null;
 $normalized = str_replace('\\', '/', $catalogRoot);
@@ -561,7 +572,12 @@ function seekmodo_ai_chat_preload_plugin_library(string $pluginCatalog): void
             }
         }
     }
+    // Cron/CLI-only helpers — do not eager-load on the shopper request path.
+    $skip = ['PostChatAnalyzer.php' => true];
     foreach (glob($lib . '/*.php') ?: [] as $path) {
+        if (isset($skip[basename($path)])) {
+            continue;
+        }
         require_once $path;
     }
 }

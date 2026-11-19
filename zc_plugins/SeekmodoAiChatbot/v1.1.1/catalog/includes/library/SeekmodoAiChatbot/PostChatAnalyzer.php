@@ -16,11 +16,21 @@ final class PostChatAnalyzer
     private const MAX_TRANSCRIPT_MESSAGES = 40;
     private const MAX_MESSAGE_CHARS = 600;
 
+    /** @var string */
+    private $apiKey;
+    /** @var string */
+    private $model;
+    /** @var int */
+    private $timeout;
+
     public function __construct(
-        private string $apiKey,
-        private string $model = 'gpt-4o-mini',
-        private int $timeout = 60
+        string $apiKey,
+        string $model = 'gpt-4o-mini',
+        int $timeout = 60
     ) {
+        $this->apiKey = $apiKey;
+        $this->model = $model;
+        $this->timeout = $timeout;
     }
 
     /**
