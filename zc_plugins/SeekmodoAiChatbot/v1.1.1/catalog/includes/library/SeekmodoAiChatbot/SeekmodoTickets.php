@@ -19,6 +19,7 @@ class SeekmodoTickets
     public const ADMIN_ACTIONS = [
         'list', 'get', 'poll', 'agents', 'create', 'reply', 'note', 'update',
         'assign', 'watch', 'unwatch', 'presence', 'convert_from_chat', 'settings_get',
+        'forward_create', 'forward_reply',
     ];
 
     /** @return array{0:string,1:string}|null tenant id + shared secret */
