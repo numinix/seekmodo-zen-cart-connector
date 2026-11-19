@@ -436,12 +436,147 @@ final class TicketInboxService
             'assign' => $this->assign($chatId, $payload),
             'assignees', 'list_assignees' => $this->assignees(),
             'create' => $this->createFromEmail($payload),
+            'open_from_session' => $this->openFromSession($payload),
             'mail_status' => $this->mailStatus(),
             'shopper_list' => $this->shopperList($payload),
             'shopper_get' => $this->shopperGet($payload),
             'shopper_reply' => $this->shopperReply($payload),
             default => throw new \InvalidArgumentException('unknown_action'),
         };
+    }
+
+    /**
+     * Mark an existing chat session as a handed_off ticket (bot failure path).
+     * Optionally syncs a transcript from the gateway and assigns an online admin.
+     *
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    public function openFromSession(array $payload): array
+    {
+        $sessionId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($payload['session_id'] ?? '')) ?: '';
+        if ($sessionId === '') {
+            throw new \InvalidArgumentException('session_id_required');
+        }
+
+        $email = strtolower(trim((string) ($payload['customer_email'] ?? $payload['email'] ?? '')));
+        $name = trim((string) ($payload['customer_name'] ?? $payload['name'] ?? ''));
+        $customersId = (int) ($payload['customers_id'] ?? 0);
+        $loggedIn = !empty($payload['logged_in']) || $customersId > 0;
+        $emailVerified = !empty($payload['email_verified']) || $loggedIn;
+
+        /** @var list<array<string, mixed>> $messages */
+        $messages = [];
+        if (isset($payload['messages']) && is_array($payload['messages'])) {
+            foreach ($payload['messages'] as $m) {
+                if (!is_array($m)) {
+                    continue;
+                }
+                $role = strtolower(trim((string) ($m['role'] ?? '')));
+                $content = trim((string) ($m['content'] ?? ''));
+                if ($content === '' || !in_array($role, ['user', 'assistant', 'admin', 'bot', 'system'], true)) {
+                    continue;
+                }
+                if ($role === 'bot') {
+                    $role = 'assistant';
+                }
+                $messages[] = ['role' => $role, 'content' => $content];
+            }
+        }
+
+        $row = ChatArchive::getBySessionId($sessionId);
+        if ($row === null && $messages === []) {
+            throw new \InvalidArgumentException('chat_not_found');
+        }
+
+        if ($messages !== []) {
+            $shopper = [
+                'logged_in' => $loggedIn,
+                'customers_id' => $customersId,
+                'email' => $email,
+                'first_name' => $name !== '' ? $name : '',
+                'last_name' => '',
+            ];
+            if ($name !== '' && str_contains($name, ' ')) {
+                $parts = preg_split('/\s+/', $name, 2) ?: [];
+                $shopper['first_name'] = trim((string) ($parts[0] ?? $name));
+                $shopper['last_name'] = trim((string) ($parts[1] ?? ''));
+            }
+            ChatArchive::upsert($sessionId, $messages, $shopper, [
+                'created' => time(),
+                'updated' => time(),
+                'status' => 'handed_off',
+                'handed_off' => true,
+            ]);
+            $row = ChatArchive::getBySessionId($sessionId);
+        }
+
+        if ($row === null) {
+            throw new \RuntimeException('chat_not_found');
+        }
+
+        $chatId = (int) ($row['chat_id'] ?? 0);
+        if ($chatId < 1) {
+            throw new \RuntimeException('chat_not_found');
+        }
+
+        $existingEmail = strtolower(trim((string) ($row['customer_email'] ?? '')));
+        if ($email === '') {
+            $email = $existingEmail;
+        }
+        $verifiedInArchive = !empty($row['email_verified']) || $existingEmail !== '';
+        if (!$loggedIn && !$emailVerified && !$verifiedInArchive && $email === '') {
+            return [
+                'ok' => false,
+                'error' => 'email_required',
+                'needs_email' => true,
+                'chat_id' => $chatId,
+                'session_id' => $sessionId,
+                'message' => 'Ask the shopper for an email address and verify it before opening the ticket.',
+            ];
+        }
+
+        if ($email !== '' || $name !== '' || $customersId > 0) {
+            ChatArchive::attachContact($sessionId, $email, $name, $customersId);
+        }
+
+        $status = strtolower(trim((string) ($row['status'] ?? 'open')));
+        if ($status !== 'handed_off' && $status !== 'resolved') {
+            ChatArchive::setStatus($chatId, 'handed_off', 0);
+        } elseif ($status === 'handed_off' && trim((string) ($row['handed_off_at'] ?? '')) === '') {
+            ChatArchive::setStatus($chatId, 'handed_off', 0);
+        }
+
+        ChatAgent::stampSessionHandedOff($sessionId);
+
+        $assignedAdminId = (int) ($row['assigned_admin_id'] ?? 0);
+        $assigned = false;
+        if ($assignedAdminId < 1 && AdminPresence::isAnyOnline()) {
+            $onlineAdminId = AdminPresence::firstOnlineAdminId();
+            if ($onlineAdminId > 0) {
+                try {
+                    $this->assign($chatId, ['admin_id' => $onlineAdminId]);
+                    $assignedAdminId = $onlineAdminId;
+                    $assigned = true;
+                } catch (\Throwable $e) {
+                    // Leave unassigned in the ticket queue.
+                }
+            }
+        } elseif ($assignedAdminId > 0) {
+            $assigned = true;
+        }
+
+        $fresh = ChatArchive::getById($chatId) ?? $row;
+        return [
+            'ok' => true,
+            'chat_id' => $chatId,
+            'ticket_number' => $chatId,
+            'session_id' => $sessionId,
+            'status' => (string) ($fresh['status'] ?? 'handed_off'),
+            'assigned' => $assigned,
+            'assigned_admin_id' => $assignedAdminId,
+            'message' => 'Support ticket #' . $chatId . ' is open. A teammate will follow up.',
+        ];
     }
 
     /**

@@ -2164,15 +2164,28 @@ final class ChatArchive
      */
     public static function listResolvedForAnalysis(int $minMessages, array $excludeChatIds = [], int $limit = 100, int $withinDays = 14): array
     {
+        // Kept for callers; learning queue now uses listTicketResolvedForAnalysis().
+        return self::listTicketResolvedForAnalysis($excludeChatIds, $limit, $withinDays);
+    }
+
+    /**
+     * Resolved tickets that had a human reply after a bot failure — the only
+     * chats the nightly post-chat job should learn from.
+     *
+     * @param list<int> $excludeChatIds
+     * @return list<array{chat_id: int, message_count: int, date_updated: string}>
+     */
+    public static function listTicketResolvedForAnalysis(array $excludeChatIds = [], int $limit = 100, int $withinDays = 14): array
+    {
         global $db;
         self::ensureTable();
-        $minMessages = max(1, $minMessages);
         $limit = max(1, min(500, $limit));
         $withinDays = max(1, min(90, $withinDays));
 
         $where = [
             "status = 'resolved'",
-            'message_count >= ' . (int) $minMessages,
+            'handed_off_at IS NOT NULL',
+            'last_admin_reply_at IS NOT NULL',
             'resolved_at IS NOT NULL',
             'resolved_at >= DATE_SUB(NOW(), INTERVAL ' . (int) $withinDays . ' DAY)',
         ];
@@ -2181,22 +2194,109 @@ final class ChatArchive
             $where[] = 'chat_id NOT IN (' . implode(',', $excludeChatIds) . ')';
         }
 
-        $rows = [];
+        $candidates = [];
         $res = $db->Execute(
-            'SELECT chat_id, message_count, date_updated FROM ' . self::tableName() . '
+            'SELECT chat_id, message_count, date_updated, messages_json FROM ' . self::tableName() . '
               WHERE ' . implode(' AND ', $where) . '
               ORDER BY resolved_at ASC
-              LIMIT ' . (int) $limit
+              LIMIT ' . (int) ($limit * 3)
         );
         while ($res && !$res->EOF) {
-            $rows[] = [
-                'chat_id' => (int) $res->fields['chat_id'],
-                'message_count' => (int) $res->fields['message_count'],
-                'date_updated' => (string) $res->fields['date_updated'],
-            ];
+            $chatId = (int) $res->fields['chat_id'];
+            $decoded = json_decode((string) ($res->fields['messages_json'] ?? '[]'), true);
+            $messages = is_array($decoded) ? $decoded : [];
+            if (self::transcriptHasBotFailureBeforeAdminReply($messages)) {
+                $candidates[] = [
+                    'chat_id' => $chatId,
+                    'message_count' => (int) $res->fields['message_count'],
+                    'date_updated' => (string) $res->fields['date_updated'],
+                ];
+                if (count($candidates) >= $limit) {
+                    break;
+                }
+            }
             $res->MoveNext();
         }
-        return $rows;
+        return $candidates;
+    }
+
+    public static function isEligibleForTicketResolvedAnalysis(int $chatId): bool
+    {
+        if ($chatId < 1) {
+            return false;
+        }
+        $row = self::getById($chatId);
+        if ($row === null) {
+            return false;
+        }
+        if (strtolower(trim((string) ($row['status'] ?? ''))) !== 'resolved') {
+            return false;
+        }
+        if (trim((string) ($row['handed_off_at'] ?? '')) === '') {
+            return false;
+        }
+        if (trim((string) ($row['last_admin_reply_at'] ?? '')) === '') {
+            return false;
+        }
+        $messages = is_array($row['messages'] ?? null) ? $row['messages'] : [];
+        return self::transcriptHasBotFailureBeforeAdminReply($messages);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $messages
+     */
+    public static function transcriptHasBotFailureBeforeAdminReply(array $messages): bool
+    {
+        $sawFailure = false;
+        foreach ($messages as $m) {
+            if (!is_array($m)) {
+                continue;
+            }
+            $role = strtolower(trim((string) ($m['role'] ?? '')));
+            $content = trim((string) ($m['content'] ?? ''));
+            if ($content === '') {
+                continue;
+            }
+            if (in_array($role, ['assistant', 'bot'], true)) {
+                if (self::assistantReplyLooksLikeFailure($content)) {
+                    $sawFailure = true;
+                }
+                continue;
+            }
+            if ($role === 'admin' && $sawFailure) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static function assistantReplyLooksLikeFailure(string $text): bool
+    {
+        $flat = strtolower(str_replace(["\u{2019}", "\u{2018}", '’', '‘'], "'", $text));
+        if ($flat === '') {
+            return false;
+        }
+        if (preg_match('/\[contact us\]\s*\(/i', $text) === 1) {
+            return true;
+        }
+        if (preg_match('/contact us/i', $flat) === 1) {
+            return true;
+        }
+        $patterns = [
+            "/i (?:don't|do not|can't|cannot) (?:help|answer|find|confirm)/",
+            '/i(?:\'m| am) (?:unable|not able) to/',
+            "/i (?:don't|do not) have (?:specific|enough|that|the)/",
+            '/couldn\'t (?:find|answer|confirm|generate)/',
+            '/no (?:specific )?(?:information|details|notes) (?:on|about|for)/',
+            '/please (?:contact|reach out to) (?:support|the store|customer)/',
+            '/a (?:person|teammate|human) (?:on the store team |from (?:support|the store) )?needs to/',
+        ];
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $flat) === 1) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

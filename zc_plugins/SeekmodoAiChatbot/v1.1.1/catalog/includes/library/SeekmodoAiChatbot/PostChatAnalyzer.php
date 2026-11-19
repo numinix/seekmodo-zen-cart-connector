@@ -4,24 +4,15 @@ declare(strict_types=1);
 namespace SeekmodoAiChatbot;
 
 /**
- * Analyzes a finished (resolved/idle) chat transcript in an isolated LLM
- * pass — never inside the shopper-facing reply turn — and proposes zero or
- * more typed improvement drafts (see docs/plans "Post-chat improvement
- * queue"). Every proposal is written to the Numinix MCP improvement_drafts
- * queue via improvement.propose and stays pending until a human approves it;
- * this class never mutates the live prompt, topics, or tools itself.
+ * Learns from a resolved ticket that a human answered after a bot failure.
+ * Returns either one kb_fact FAQ draft (written only from the human answer)
+ * or a permanent skip reason: not_resolved / not_general.
  *
- * Hard rules (see buildSystemPrompt): prefer no proposal over noise, never
- * invent store policy, max 3 proposals per chat, no prices/refunds/shipping
- * promises/medical claims, and no verbatim PII (emails/phones/long digit
- * runs) in the stored claim/evidence — this is an internal admin queue, but
- * we still redact defensively both in the prompt and again in code.
+ * Never mutates the live prompt — drafts stay pending until a person
+ * approves them under Tools → Chatbot Improvements.
  */
 final class PostChatAnalyzer
 {
-    private const ALLOWED_KINDS = ['kb_fact', 'prompt_rule', 'topic_gap', 'tool_bug', 'escalation_pattern'];
-    private const ALLOWED_SEVERITIES = ['low', 'medium', 'high'];
-    private const MAX_PROPOSALS = 3;
     private const MAX_TRANSCRIPT_MESSAGES = 40;
     private const MAX_MESSAGE_CHARS = 600;
 
@@ -35,44 +26,152 @@ final class PostChatAnalyzer
     /**
      * @param list<array{role: string, content: string}> $messages Display messages (user/assistant/admin).
      * @param array{status?: string, handed_off?: bool, known_topic_ids?: list<string>} $meta
-     * @return array{ok: bool, proposals: list<array<string, mixed>>, error?: string}
+     * @return array{
+     *   ok: bool,
+     *   proposals: list<array<string, mixed>>,
+     *   skip_reason?: string,
+     *   error?: string,
+     *   billed_via?: string
+     * }
      */
     public function analyze(array $messages, array $meta = []): array
     {
-        if ($this->apiKey === '' || $this->apiKey === 'unavailable') {
-            return ['ok' => false, 'proposals' => [], 'error' => 'api_key_unavailable'];
-        }
         $excerpt = $this->buildTranscriptExcerpt($messages);
         if ($excerpt === '') {
-            return ['ok' => true, 'proposals' => []];
+            return ['ok' => true, 'proposals' => [], 'skip_reason' => 'not_resolved'];
         }
 
-        $messages = [
+        $promptMessages = [
             ['role' => 'system', 'content' => $this->buildSystemPrompt($meta)],
             ['role' => 'user', 'content' => $excerpt],
         ];
+
+        $billedVia = 'byok';
         try {
-            $client = \SeekmodoAiChatbot\Llm\LlmClient::fromConfig();
-            $opts = [
-                'temperature' => 0.2,
-                'max_tokens' => 1200,
-                'timeout' => $this->timeout,
-            ];
-            if ($client->provider() === 'openai' || $client->provider() === 'deepseek') {
-                $opts['response_format'] = ['type' => 'json_object'];
+            if ($this->apiKey !== '' && $this->apiKey !== 'unavailable') {
+                $decoded = $this->callByok($promptMessages);
+            } else {
+                $hosted = $this->callSeekmodoHosted($promptMessages, $meta);
+                if (empty($hosted['ok'])) {
+                    return [
+                        'ok' => false,
+                        'proposals' => [],
+                        'error' => (string) ($hosted['error'] ?? 'hosted_llm_failed'),
+                    ];
+                }
+                $decoded = $hosted['decoded'] ?? [];
+                $billedVia = 'chat_turns';
             }
-            $decoded = $client->chat($messages, [], $opts);
         } catch (\Throwable $e) {
             return ['ok' => false, 'proposals' => [], 'error' => 'llm_request_failed: ' . $e->getMessage()];
         }
 
         $content = (string) ($decoded['choices'][0]['message']['content'] ?? '');
+        if ($content === '' && isset($decoded['content']) && is_string($decoded['content'])) {
+            $content = $decoded['content'];
+        }
         $parsed = json_decode($content, true);
-        if (!is_array($parsed) || !isset($parsed['proposals']) || !is_array($parsed['proposals'])) {
+        if (!is_array($parsed)) {
             return ['ok' => false, 'proposals' => [], 'error' => 'malformed_analyzer_json'];
         }
 
-        return ['ok' => true, 'proposals' => $this->sanitizeProposals($parsed['proposals'])];
+        $skipReason = trim((string) ($parsed['skip_reason'] ?? ''));
+        if (in_array($skipReason, ['not_resolved', 'not_general'], true)) {
+            return [
+                'ok' => true,
+                'proposals' => [],
+                'skip_reason' => $skipReason,
+                'billed_via' => $billedVia,
+            ];
+        }
+
+        $faq = is_array($parsed['faq'] ?? null) ? $parsed['faq'] : null;
+        if ($faq === null && isset($parsed['proposals'][0]) && is_array($parsed['proposals'][0])) {
+            $faq = $parsed['proposals'][0];
+        }
+        if (!is_array($faq)) {
+            return [
+                'ok' => true,
+                'proposals' => [],
+                'skip_reason' => 'not_resolved',
+                'billed_via' => $billedVia,
+            ];
+        }
+
+        $proposal = $this->sanitizeFaq($faq);
+        if ($proposal === null) {
+            return [
+                'ok' => true,
+                'proposals' => [],
+                'skip_reason' => 'not_resolved',
+                'billed_via' => $billedVia,
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'proposals' => [$proposal],
+            'billed_via' => $billedVia,
+        ];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $messages
+     * @return array<string, mixed>
+     */
+    private function callByok(array $messages): array
+    {
+        $client = \SeekmodoAiChatbot\Llm\LlmClient::fromConfig();
+        $opts = [
+            'temperature' => 0.2,
+            'max_tokens' => 900,
+            'timeout' => $this->timeout,
+        ];
+        if ($client->provider() === 'openai' || $client->provider() === 'deepseek') {
+            $opts['response_format'] = ['type' => 'json_object'];
+        }
+        return $client->chat($messages, [], $opts);
+    }
+
+    /**
+     * When the store has no BYOK key, run the analysis on Seekmodo's model
+     * and spend one chat_turns unit via chat.analyze_ticket.
+     *
+     * @param list<array<string, mixed>> $messages
+     * @param array<string, mixed> $meta
+     * @return array{ok: bool, decoded?: array<string, mixed>, error?: string}
+     */
+    private function callSeekmodoHosted(array $messages, array $meta): array
+    {
+        try {
+            $search = new SeekmodoProductSearch();
+            $resp = $search->gatewayPost('/v1/chat.analyze_ticket', [
+                'system' => (string) ($messages[0]['content'] ?? ''),
+                'transcript' => (string) ($messages[1]['content'] ?? ''),
+                'chat_id' => (int) ($meta['chat_id'] ?? 0),
+                'session_id' => (string) ($meta['session_id'] ?? ''),
+            ]);
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'error' => 'hosted_request_failed: ' . $e->getMessage()];
+        }
+        if (!is_array($resp)) {
+            return ['ok' => false, 'error' => 'hosted_unavailable'];
+        }
+        if (empty($resp['ok'])) {
+            return ['ok' => false, 'error' => (string) ($resp['error'] ?? 'hosted_failed')];
+        }
+        $content = (string) ($resp['content'] ?? '');
+        if ($content === '') {
+            return ['ok' => false, 'error' => 'hosted_empty'];
+        }
+        return [
+            'ok' => true,
+            'decoded' => [
+                'choices' => [
+                    ['message' => ['content' => $content]],
+                ],
+            ],
+        ];
     }
 
     private function buildSystemPrompt(array $meta): string
@@ -82,27 +181,26 @@ final class PostChatAnalyzer
         $knownTopics = implode(', ', array_map('strval', $meta['known_topic_ids'] ?? []));
 
         return <<<PROMPT
-You are a quality-review analyst reading a finished shopper support-chat transcript AFTER the conversation ended. You are NOT talking to the shopper. Your only job is to decide whether this transcript reveals anything worth a human operator reviewing to improve the store's chatbot, knowledge base, or tools.
+You are a quality-review analyst reading a finished shopper support chat that became a ticket. A human later answered after the bot failed. You are NOT talking to the shopper.
 
 Chat status: {$status}. Handed off to a human: {$handedOff}.
-Known policy topic ids (for topic_gap/kb_fact topic_id only, do not invent others): {$knownTopics}
+Known policy topic ids (optional topic_id only): {$knownTopics}
 
-Output STRICT JSON only, matching exactly: {"proposals": [ {"kind": "...", "title": "...", "claim": "...", "rationale": "...", "suggested_text": "...", "landing_target": "...", "severity": "low|medium|high", "topic_id": "..."} ]}
+Decide ONE of:
+1) Propose a single reusable FAQ fact drawn ONLY from the human/admin answer (never invent policy the human did not state).
+2) Skip permanently with skip_reason "not_resolved" when the human reply does not actually answer the failed shopper question.
+3) Skip permanently with skip_reason "not_general" when the question is about one order, one account, one shopper, or other non-reusable personal detail.
 
-Rules for "kind" (pick the single best fit per proposal):
-- kb_fact: a durable, tool-evidenced product/policy fact the transcript proves true. suggested_text may be empty.
-- prompt_rule: the bot skipped a step or behaved wrongly across the conversation (e.g. recommended products before asking who a gift is for, budget, or occasion). suggested_text = one short ADDITIONAL_RULES-style bullet starting with "-".
-- topic_gap: the bot lacked or gave weak guidance on a policy/domain topic. suggested_text = a short markdown draft for that topic.
-- tool_bug: a tool returned wrong, missing, or contradictory data. suggested_text = repro steps + expected vs actual.
-- escalation_pattern: the shopper needed a human for a reason that keeps recurring and could be encoded. suggested_text = one short rule/process bullet.
+Output STRICT JSON only, matching exactly one of:
+{"skip_reason":"not_resolved"}
+{"skip_reason":"not_general"}
+{"faq":{"kind":"kb_fact","title":"...","claim":"...","rationale":"...","suggested_text":"...","landing_target":"","severity":"low|medium|high","topic_id":""}}
 
 Hard rules:
-- Prefer emitting {"proposals": []} over any low-value or speculative finding. Most chats deserve zero proposals.
-- Never invent store policy, prices, refund amounts/timing, shipping promises, or medical/safety claims — if unsure whether something is store policy, use kind "topic_gap" and say "needs human verification" in rationale, do not assert it as fact.
-- Never include the shopper's email address, phone number, full name, street address, order number, or any other long digit sequence (card/order numbers) in any field — refer to them generically (e.g. "the shopper's email", "an order number") instead of quoting them.
-- Maximum 3 proposals total, ordered most-impactful first.
-- severity: high = repeatedly blocks purchase/trust, medium = notable friction, low = minor polish.
-- If the same issue would apply to many chats (a systemic prompt/topic gap), still propose it once — do not propose the same claim more than once here.
+- Write the FAQ claim/suggested_text only from what the admin/human said. Do not invent store policy.
+- Prefer skip over a weak or speculative FAQ.
+- Never include email addresses, phone numbers, full names, street addresses, order numbers, or long digit sequences — refer generically.
+- kind must be kb_fact when proposing a FAQ.
 PROMPT;
     }
 
@@ -118,14 +216,12 @@ PROMPT;
             return '';
         }
         if (count($messages) > self::MAX_TRANSCRIPT_MESSAGES) {
-            // Keep the start (how it opened) and the end (how it was left) — the
-            // middle of a long chat is the least likely place to find a miss.
             $head = array_slice($messages, 0, 12);
             $tail = array_slice($messages, -(self::MAX_TRANSCRIPT_MESSAGES - 12));
             $messages = array_merge($head, [['role' => 'system', 'content' => '...[truncated]...']], $tail);
         }
 
-        $lines = ['Transcript (chronological):'];
+        $lines = ['Transcript (chronological). ASSISTANT = bot; ADMIN = human ticket reply:'];
         foreach ($messages as $m) {
             $role = (string) ($m['role'] ?? '');
             $content = trim((string) ($m['content'] ?? ''));
@@ -138,46 +234,35 @@ PROMPT;
     }
 
     /**
-     * @param list<mixed> $rawProposals
-     * @return list<array<string, mixed>>
+     * @param array<string, mixed> $faq
+     * @return array<string, mixed>|null
      */
-    private function sanitizeProposals(array $rawProposals): array
+    private function sanitizeFaq(array $faq): ?array
     {
-        $out = [];
-        foreach ($rawProposals as $p) {
-            if (!is_array($p) || count($out) >= self::MAX_PROPOSALS) {
-                continue;
-            }
-            $kind = trim((string) ($p['kind'] ?? ''));
-            if (!in_array($kind, self::ALLOWED_KINDS, true)) {
-                continue;
-            }
-            $claim = $this->redactPii(trim((string) ($p['claim'] ?? '')));
-            if ($claim === '') {
-                continue;
-            }
-            $severity = trim((string) ($p['severity'] ?? 'low'));
-            if (!in_array($severity, self::ALLOWED_SEVERITIES, true)) {
-                $severity = 'low';
-            }
-            $out[] = [
-                'kind' => $kind,
-                'title' => mb_substr($this->redactPii(trim((string) ($p['title'] ?? ''))), 0, 255),
-                'claim' => $claim,
-                'rationale' => $this->redactPii(trim((string) ($p['rationale'] ?? ''))),
-                'suggested_text' => $this->redactPii(trim((string) ($p['suggested_text'] ?? ''))),
-                'landing_target' => trim((string) ($p['landing_target'] ?? '')),
-                'severity' => $severity,
-                'topic_id' => trim((string) ($p['topic_id'] ?? '')),
-            ];
+        $kind = trim((string) ($faq['kind'] ?? 'kb_fact'));
+        if ($kind !== 'kb_fact') {
+            $kind = 'kb_fact';
         }
-        return $out;
+        $claim = $this->redactPii(trim((string) ($faq['claim'] ?? '')));
+        if ($claim === '') {
+            return null;
+        }
+        $severity = trim((string) ($faq['severity'] ?? 'medium'));
+        if (!in_array($severity, ['low', 'medium', 'high'], true)) {
+            $severity = 'medium';
+        }
+        return [
+            'kind' => $kind,
+            'title' => mb_substr($this->redactPii(trim((string) ($faq['title'] ?? ''))), 0, 255),
+            'claim' => $claim,
+            'rationale' => $this->redactPii(trim((string) ($faq['rationale'] ?? ''))),
+            'suggested_text' => $this->redactPii(trim((string) ($faq['suggested_text'] ?? ''))),
+            'landing_target' => trim((string) ($faq['landing_target'] ?? '')),
+            'severity' => $severity,
+            'topic_id' => trim((string) ($faq['topic_id'] ?? '')),
+        ];
     }
 
-    /**
-     * Defense-in-depth redaction in case the model still echoes PII despite
-     * the system-prompt instruction not to.
-     */
     private function redactPii(string $text): string
     {
         if ($text === '') {
@@ -190,8 +275,6 @@ PROMPT;
             '[address]',
             $text
         ) ?? $text;
-        // Light name scrub for common self-introductions only — broad
-        // proper-noun redaction creates too many false positives in product copy.
         $text = preg_replace(
             '/\b(?:my name is|i am|i\'m)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/i',
             '[name]',
