@@ -35,6 +35,43 @@ final class AdminPresence
 
     public static function isAnyOnline(?int $withinSeconds = null): bool
     {
+        return self::firstOnlineAdminId($withinSeconds) > 0
+            || self::hasAnonymousOnline($withinSeconds);
+    }
+
+    /**
+     * Prefer a concrete Zen Cart admin id from recent presence touches.
+     */
+    public static function firstOnlineAdminId(?int $withinSeconds = null): int
+    {
+        $within = $withinSeconds ?? self::DEFAULT_ONLINE_SECONDS;
+        $within = max(60, min(3600, (int) $within));
+        $path = self::path();
+        if ($path === '' || !is_file($path)) {
+            return 0;
+        }
+        $data = self::read($path);
+        $cutoff = time() - $within;
+        $bestId = 0;
+        $bestTs = 0;
+        foreach ($data as $key => $ts) {
+            if (!is_int($ts) || $ts < $cutoff) {
+                continue;
+            }
+            if (!is_string($key) || !preg_match('/^a(\d+)$/', $key, $m)) {
+                continue;
+            }
+            $adminId = (int) $m[1];
+            if ($adminId > 0 && $ts >= $bestTs) {
+                $bestTs = $ts;
+                $bestId = $adminId;
+            }
+        }
+        return $bestId;
+    }
+
+    private static function hasAnonymousOnline(?int $withinSeconds = null): bool
+    {
         $within = $withinSeconds ?? self::DEFAULT_ONLINE_SECONDS;
         $within = max(60, min(3600, (int) $within));
         $path = self::path();

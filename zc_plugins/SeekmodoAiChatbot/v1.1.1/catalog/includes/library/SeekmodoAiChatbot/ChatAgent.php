@@ -22,6 +22,7 @@ final class ChatAgent
     private int $maxToolRounds;
     private string $kbPath;
     private string $additionalRules;
+    private string $platformCatalogHint = '';
     /** @var array{logged_in: bool, customers_id: int, email: string, first_name: string, last_name: string} */
     private array $shopper;
 
@@ -149,6 +150,7 @@ final class ChatAgent
 
         $messages[] = ['role' => 'user', 'content' => $message];
         $this->activeMessages = $messages;
+        $this->platformCatalogHint = $this->platformCatalogFacts($message);
 
         for ($round = 0; $round < $this->maxToolRounds; $round++) {
             // Human claimed / live-replied while we were generating — stop publishing AI output.
@@ -208,7 +210,9 @@ final class ChatAgent
                 $replyText = 'I\'m sorry, I couldn\'t generate a response. Please try rephrasing your question.';
             }
 
+            $replyText = $this->maybeOpenTicketOnBotFailure($sessionId, (string) $replyText, $messages);
             $messages[] = ['role' => 'assistant', 'content' => $replyText];
+            $this->activeMessages = $messages;
             $this->saveHistory($sessionId, $messages);
 
             return array_merge([
@@ -223,13 +227,91 @@ final class ChatAgent
         if ($suppressed !== null) {
             return array_merge($suppressed, $escalationFlags);
         }
+        $fallback = $this->maybeOpenTicketOnBotFailure($sessionId, $fallback, $messages);
         $messages[] = ['role' => 'assistant', 'content' => $fallback];
+        $this->activeMessages = $messages;
         $this->saveHistory($sessionId, $messages);
         return array_merge([
             'reply' => $fallback,
             'tools_called' => array_unique($toolsCalled),
             'session_reset' => $this->historyReset,
         ], $escalationFlags);
+    }
+
+    /**
+     * When the assistant cannot answer (or only deflects to Contact us), open
+     * the same chat as a handed_off ticket and tell the shopper the ticket #.
+     *
+     * @param list<array{role: string, content: string, tool_calls?: array, tool_call_id?: string}> $messages
+     */
+    private function maybeOpenTicketOnBotFailure(string $sessionId, string $replyText, array $messages): string
+    {
+        if (!ChatArchive::assistantReplyLooksLikeFailure($replyText)) {
+            return $replyText;
+        }
+
+        $meta = self::$sessionMeta[$sessionId] ?? [];
+        $status = strtolower(trim((string) ($meta['status'] ?? '')));
+        if ($status === 'handed_off' || $status === 'live' || $status === 'resolved') {
+            return $replyText;
+        }
+
+        $email = strtolower(trim((string) ($this->shopper['email'] ?? '')));
+        $loggedIn = !empty($this->shopper['logged_in']) && $email !== '';
+        $verified = $loggedIn || ($email !== '' && $this->isEmailVerifiedInSession($sessionId, $email));
+
+        if (!$verified) {
+            $meta['pending_ticket_from_failure'] = true;
+            self::$sessionMeta[$sessionId] = $meta;
+            $ask = 'I couldn\'t fully answer that from the store notes. '
+                . 'Please leave and verify your email so I can open a support ticket for a teammate.';
+            if (ChatArchive::assistantReplyLooksLikeFailure($replyText) && !str_contains(strtolower($replyText), 'email')) {
+                return rtrim($replyText) . "\n\n" . $ask;
+            }
+            return $ask;
+        }
+
+        try {
+            $svc = new TicketInboxService();
+            $result = $svc->openFromSession([
+                'session_id' => $sessionId,
+                'messages' => $messages,
+                'customer_email' => $email,
+                'customer_name' => trim(($this->shopper['first_name'] ?? '') . ' ' . ($this->shopper['last_name'] ?? '')),
+                'customers_id' => (int) ($this->shopper['customers_id'] ?? 0),
+                'logged_in' => $loggedIn,
+                'email_verified' => true,
+            ]);
+        } catch (\Throwable $e) {
+            return $replyText;
+        }
+
+        if (empty($result['ok'])) {
+            if (!empty($result['needs_email'])) {
+                $meta['pending_ticket_from_failure'] = true;
+                self::$sessionMeta[$sessionId] = $meta;
+            }
+            return $replyText;
+        }
+
+        unset($meta['pending_ticket_from_failure']);
+        self::$sessionMeta[$sessionId] = $meta;
+        $ticketNumber = (int) ($result['ticket_number'] ?? $result['chat_id'] ?? 0);
+        if ($ticketNumber < 1) {
+            return $replyText;
+        }
+
+        // Prefer ticket confirmation over a Contact us deflection.
+        $replyText = preg_replace(
+            '/\n*\s*\[Contact us\]\([^)]+\)\s*/i',
+            "\n\n",
+            $replyText
+        ) ?? $replyText;
+        $notice = 'I opened support ticket #' . $ticketNumber
+            . ' so a teammate can follow up'
+            . ($email !== '' ? ' at ' . $email : '')
+            . '.';
+        return rtrim($replyText) . "\n\n" . $notice;
     }
 
     /**
@@ -1370,6 +1452,11 @@ final class ChatAgent
         if ($chatId < 1 || !defined('SEEKMODO_AI_CHATBOT_POST_CHAT_ANALYSIS_ENABLED') || SEEKMODO_AI_CHATBOT_POST_CHAT_ANALYSIS_ENABLED !== 'true') {
             return;
         }
+        // Only ticket-resolved chats with a human answer after a bot failure
+        // enter the learning queue. Nightly cron is the catch-up path.
+        if (!ChatArchive::isEligibleForTicketResolvedAnalysis($chatId)) {
+            return;
+        }
         $mcpUrl = defined('SEEKMODO_AI_CHATBOT_MCP_URL') ? (string) SEEKMODO_AI_CHATBOT_MCP_URL : '';
         $mcpToken = defined('SEEKMODO_AI_CHATBOT_MCP_TOKEN') ? (string) SEEKMODO_AI_CHATBOT_MCP_TOKEN : '';
         if ($mcpUrl === '' || $mcpToken === '') {
@@ -1377,12 +1464,15 @@ final class ChatAgent
         }
         try {
             $client = new McpClient($mcpUrl, $mcpToken, 3);
-            $client->callTool('analysis.job.enqueue', ['chat_id' => $chatId, 'source' => $source]);
+            $client->callTool('analysis.job.enqueue', [
+                'chat_id' => $chatId,
+                'source' => $source === 'resolve' ? 'ticket_resolved' : $source,
+            ]);
         } catch (\Throwable $e) {
-            // Best-effort — nightly cron also enqueues recently resolved
-            // chats (ChatArchive::listResolvedForAnalysis) and requeues
-            // jobs that previously landed in 'error', so a transient MCP
-            // failure here does not permanently drop the transcript.
+            // Best-effort — nightly cron also enqueues eligible
+            // ticket_resolved chats and requeues jobs that previously
+            // landed in 'error', so a transient MCP failure here does
+            // not permanently drop the transcript.
         }
     }
 
@@ -1468,8 +1558,8 @@ final class ChatAgent
                 continue;
             }
             $sessionId = basename($file, '.json');
-            // Hot session only. Keep the file when the admin archive
-            // does not already contain this chat.
+            // The JSON file is only the hot session. Keep it when the
+            // admin archive does not already have this chat.
             if (!ChatArchive::getBySessionId($sessionId)) {
                 continue;
             }
@@ -3654,11 +3744,39 @@ final class ChatAgent
             // Archive attachment is best-effort.
         }
 
+        $ticketNotice = '';
+        $meta = self::$sessionMeta[$sessionId] ?? [];
+        if (!empty($meta['pending_ticket_from_failure']) && $sessionId !== '' && $sessionId !== 'unknown') {
+            try {
+                $svc = new TicketInboxService();
+                $opened = $svc->openFromSession([
+                    'session_id' => $sessionId,
+                    'messages' => is_array($this->activeMessages) ? $this->activeMessages : [],
+                    'customer_email' => $email,
+                    'customer_name' => $name,
+                    'customers_id' => (int) ($this->shopper['customers_id'] ?? 0),
+                    'logged_in' => !empty($this->shopper['logged_in']),
+                    'email_verified' => true,
+                ]);
+                if (!empty($opened['ok'])) {
+                    unset($meta['pending_ticket_from_failure']);
+                    self::$sessionMeta[$sessionId] = $meta;
+                    $ticketNumber = (int) ($opened['ticket_number'] ?? $opened['chat_id'] ?? 0);
+                    if ($ticketNumber > 0) {
+                        $ticketNotice = ' Support ticket #' . $ticketNumber . ' is now open.';
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Verification still succeeded; ticket can be opened later.
+            }
+        }
+
         return [
             'ok' => true,
             'verified' => true,
             'email' => $email,
-            'message' => 'Email verified successfully. You may now proceed (for example open_support_ticket).',
+            'message' => 'Email verified successfully. You may now proceed (for example open_support_ticket).'
+                . $ticketNotice,
         ];
     }
 
@@ -3787,7 +3905,7 @@ final class ChatAgent
 
 {$storeContextBlock}
 Store catalog boundary (HARD RULE — never break this):
-- You ONLY represent THIS store and its own catalog/policies. The Store context above defines what this business sells.
+- You ONLY represent THIS store and its own catalog/policies. Store context is background. It is not a list of platforms to refuse. Answer a named platform from the catalog search for this turn.
 - NEVER recommend products, product types, brands, gift ideas, or category pages that did not come from THIS store's tools (seekmodo_product_search, mcp_product_search, mcp_product_get, sitemap_find_product, or KB topics).
 - NEVER claim this store does not sell a product or brand unless you called seekmodo_product_search (or mcp_product_search fallback) THIS turn and it returned no useful matches. If you have not searched yet, search first.
 - If catalog search is empty or weak: do NOT invent alternatives from general knowledge (blankets, gardening tools, jewellery, photo albums, tea sets, flowers, chocolates from memory, etc.). Say you could not find a match in this store's catalog, ask ONE clarifying question, and call seekmodo_product_search again.
@@ -3913,7 +4031,63 @@ TXT;
             $guidance .= "\n\nAdditional admin rules:\n" . $this->additionalRules;
         }
 
+        if ($this->platformCatalogHint !== '') {
+            $guidance .= "\n\n" . $this->platformCatalogHint;
+        }
+
         return $base . "\n" . $guidance;
+    }
+
+    private function platformCatalogFacts(string $message): string
+    {
+        $map = [
+            'shopify' => 'Shopify',
+            'bigcommerce' => 'BigCommerce',
+            'big commerce' => 'BigCommerce',
+            'magento' => 'Magento',
+            'woocommerce' => 'WooCommerce',
+            'wordpress' => 'WordPress',
+            'zen cart' => 'Zen Cart',
+            'zencart' => 'Zen Cart',
+            'lexmodo' => 'Lexmodo',
+        ];
+        $hay = strtolower($message);
+        $labels = [];
+        foreach ($map as $needle => $label) {
+            if (str_contains($hay, $needle)) {
+                $labels[$label] = true;
+            }
+        }
+        if ($labels === []) {
+            return '';
+        }
+        $blocks = [];
+        foreach (array_keys($labels) as $label) {
+            try {
+                $result = $this->executeTool('seekmodo_product_search', ['query' => $label, 'limit' => 5]);
+            } catch (\Throwable $e) {
+                $result = [];
+            }
+            $lines = [];
+            $products = is_array($result['products'] ?? null) ? $result['products'] : [];
+            foreach (array_slice($products, 0, 5) as $product) {
+                if (!is_array($product)) {
+                    continue;
+                }
+                $name = trim((string) ($product['name'] ?? $product['title'] ?? ''));
+                $url = trim((string) ($product['url'] ?? ''));
+                if ($name === '') {
+                    continue;
+                }
+                $lines[] = $url !== '' ? '- ' . $name . ' (' . $url . ')' : '- ' . $name;
+            }
+            if ($lines === []) {
+                $blocks[] = 'Catalog search for ' . $label . ' returned no product titles. Do not say the platform is unsupported. Ask one clarifying question.';
+            } else {
+                $blocks[] = 'Catalog search for ' . $label . ' returned these live products. Say yes, Numinix supports ' . $label . ', and cite these. Do not say ' . $label . ' is unsupported.' . "\n" . implode("\n", $lines);
+            }
+        }
+        return "Platform catalog facts for this turn (these override Store context):\n" . implode("\n\n", $blocks);
     }
 
     /**

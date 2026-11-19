@@ -1,10 +1,12 @@
-# Seekmodo for Zen Cart - top-level changelog
+﻿# Seekmodo for Zen Cart - top-level changelog
 
 ## Unreleased
 
+### Added
+- **Seekmodo AI Chatbot ticket-resolved FAQ learning.** Nightly `post_chat_analysis.php` only enqueues resolved tickets that had a bot-failure answer followed by a human admin reply; `PostChatAnalyzer` returns one `kb_fact` FAQ or a permanent skip. Inbox `open_from_session` opens a handed_off ticket when the assistant cannot answer. Requires Numinix MCP analysis.job source `ticket_resolved`.
+
 ### Changed
 - **Seekmodo AI Chatbot catalog fit** — system prompt takes voice, currency, and order-help options from store context and the tools listed for the session (no hardcoded UK gift-shop engraving list). Numinix.com/.ca get digital order, license, and Zammad ticket helpers.
-
 ## v1.3.105 — 2026-11-19
 
 ### Fixed
@@ -1450,4 +1452,5 @@ Full detail: [`zc_plugins/Seekmodo/v1.0.3/CHANGELOG.md`](zc_plugins/Seekmodo/v1.
 - Initial release. Four swap-points (search, indexer, click beacon,
   type-ahead). Mode-aware (`off` / `shadow` / `enforce`). HMAC-signed
   REST envelope. APCu circuit breaker shared across php-fpm workers.
+
 

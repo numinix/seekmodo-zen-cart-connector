@@ -2,15 +2,13 @@
 /**
  * Post-chat improvement queue: nightly catch-up + job processing.
  *
- * 1. Enqueues chats that went idle/unresolved (never resolved by the
- *    shopper or an admin) so they still get analyzed.
- * 2. Claims a batch of pending analysis jobs (queued here or right after a
- *    chat resolves/closes — see ChatAgent::enqueuePostChatAnalysis) and runs
- *    PostChatAnalyzer against each transcript.
- * 3. Writes zero or more typed improvement drafts via the Numinix MCP
- *    improvement.propose tool. Nothing here ever changes bot behavior —
- *    every draft sits pending until an admin approves it under
- *    Tools -> Chatbot Improvements.
+ * 1. Enqueues resolved tickets that had a human reply after a bot failure
+ *    (source ticket_resolved). Idle/open chats are not learning candidates.
+ * 2. Claims a batch of pending analysis jobs and runs PostChatAnalyzer.
+ * 3. Writes at most one kb_fact FAQ draft via improvement.propose, or
+ *    permanently skips with not_resolved / not_general. Nothing here ever
+ *    changes bot behavior — drafts stay pending until an admin approves
+ *    them under Tools -> Chatbot Improvements.
  *
  * Requires Numinix MCP v1.0.14+ (improvement.* / analysis.job.* tools).
  *
@@ -110,14 +108,17 @@ if (!defined('SEEKMODO_AI_CHATBOT_POST_CHAT_ANALYSIS_ENABLED') || SEEKMODO_AI_CH
 
 $mcpUrl = defined('SEEKMODO_AI_CHATBOT_MCP_URL') ? (string) SEEKMODO_AI_CHATBOT_MCP_URL : '';
 $mcpToken = defined('SEEKMODO_AI_CHATBOT_MCP_TOKEN') ? (string) SEEKMODO_AI_CHATBOT_MCP_TOKEN : '';
-$apiKey = defined('SEEKMODO_AI_CHATBOT_API_KEY') ? (string) SEEKMODO_AI_CHATBOT_API_KEY : '';
+$apiKey = \SeekmodoAiChatbot\Llm\LlmClient::apiKeyFor(
+    \SeekmodoAiChatbot\Llm\LlmClient::configuredProvider()
+);
 $model = defined('SEEKMODO_AI_CHATBOT_MODEL') ? (string) SEEKMODO_AI_CHATBOT_MODEL : 'gpt-4o-mini';
 
-if ($mcpUrl === '' || $mcpToken === '' || $apiKey === '') {
-    exit("seekmodo_ai_chatbot_post_chat_analysis: missing MCP URL/token or LLM API key, exiting.\n");
+if ($mcpUrl === '' || $mcpToken === '') {
+    exit("seekmodo_ai_chatbot_post_chat_analysis: missing MCP URL/token, exiting.\n");
 }
+// BYOK is preferred. When the store has no key, PostChatAnalyzer bills one
+// chat_turns unit through Seekmodo's hosted analyze path.
 
-$idleMinutes = defined('SEEKMODO_AI_CHATBOT_POST_CHAT_IDLE_MINUTES') ? (int) SEEKMODO_AI_CHATBOT_POST_CHAT_IDLE_MINUTES : 120;
 $minMessages = defined('SEEKMODO_AI_CHATBOT_POST_CHAT_MIN_MESSAGES') ? (int) SEEKMODO_AI_CHATBOT_POST_CHAT_MIN_MESSAGES : 3;
 $maxPerNight = defined('SEEKMODO_AI_CHATBOT_POST_CHAT_MAX_PER_NIGHT') ? (int) SEEKMODO_AI_CHATBOT_POST_CHAT_MAX_PER_NIGHT : 50;
 $batchSize = defined('SEEKMODO_AI_CHATBOT_POST_CHAT_JOB_BATCH_SIZE') ? (int) SEEKMODO_AI_CHATBOT_POST_CHAT_JOB_BATCH_SIZE : 20;
@@ -148,40 +149,22 @@ $seekmodo_ai_chatbot_existing_job_chat_ids = static function () use ($db): array
     return $out;
 };
 
-// 1. Nightly catch-up — chats that went idle without ever being resolved,
-//    plus recently resolved chats whose resolve-time enqueue may have
-//    failed. analysis.job.enqueue is idempotent (unique key on chat_id)
+// 1. Nightly catch-up — only resolved tickets with a human reply after a
+//    bot failure. analysis.job.enqueue is idempotent (unique key on chat_id)
 //    and requeues prior 'error' jobs with attempts remaining.
 $enqueued = 0;
 $excludeChatIds = $seekmodo_ai_chatbot_existing_job_chat_ids();
-$idleChats = \SeekmodoAiChatbot\ChatArchive::listIdleUnresolved($idleMinutes, $minMessages, $excludeChatIds, $maxPerNight);
-foreach ($idleChats as $row) {
+$ticketChats = \SeekmodoAiChatbot\ChatArchive::listTicketResolvedForAnalysis($excludeChatIds, $maxPerNight);
+foreach ($ticketChats as $row) {
     $chatId = (int) ($row['chat_id'] ?? 0);
     if ($chatId < 1) {
         continue;
     }
     try {
-        $mcp->callTool('analysis.job.enqueue', ['chat_id' => $chatId, 'source' => 'cron_idle']);
+        $mcp->callTool('analysis.job.enqueue', ['chat_id' => $chatId, 'source' => 'ticket_resolved']);
         $enqueued++;
-        $excludeChatIds[] = $chatId;
     } catch (\Throwable $e) {
         fwrite(STDERR, "seekmodo_ai_chatbot_post_chat_analysis: enqueue failed for chat {$chatId}: " . $e->getMessage() . "\n");
-    }
-}
-$resolvedBudget = max(0, $maxPerNight - $enqueued);
-if ($resolvedBudget > 0) {
-    $resolvedChats = \SeekmodoAiChatbot\ChatArchive::listResolvedForAnalysis($minMessages, $excludeChatIds, $resolvedBudget);
-    foreach ($resolvedChats as $row) {
-        $chatId = (int) ($row['chat_id'] ?? 0);
-        if ($chatId < 1) {
-            continue;
-        }
-        try {
-            $mcp->callTool('analysis.job.enqueue', ['chat_id' => $chatId, 'source' => 'cron_catchup']);
-            $enqueued++;
-        } catch (\Throwable $e) {
-            fwrite(STDERR, "seekmodo_ai_chatbot_post_chat_analysis: resolved catch-up enqueue failed for chat {$chatId}: " . $e->getMessage() . "\n");
-        }
     }
 }
 
@@ -233,15 +216,30 @@ foreach ($claimed as $job) {
         continue;
     }
 
+    if (!\SeekmodoAiChatbot\ChatArchive::isEligibleForTicketResolvedAnalysis($chatId)) {
+        seekmodo_ai_chatbot_complete_job($mcp, $jobId, 'skipped', 'not_ticket_resolved');
+        continue;
+    }
+
     $meta = [
         'status' => (string) ($chat['status'] ?? 'unknown'),
         'handed_off' => !empty($chat['handed_off_at']),
         'known_topic_ids' => $knownTopicIds,
+        'chat_id' => $chatId,
+        'session_id' => (string) ($chat['session_id'] ?? ''),
     ];
 
     $result = $analyzer->analyze($messages, $meta);
     if (empty($result['ok'])) {
+        // Transient model/hosted failure — leave retryable.
         seekmodo_ai_chatbot_complete_job($mcp, $jobId, 'error', (string) ($result['error'] ?? 'analyze_failed'));
+        continue;
+    }
+
+    $skipReason = trim((string) ($result['skip_reason'] ?? ''));
+    if (in_array($skipReason, ['not_resolved', 'not_general'], true)) {
+        seekmodo_ai_chatbot_complete_job($mcp, $jobId, 'skipped', $skipReason);
+        $processed++;
         continue;
     }
 
@@ -254,18 +252,18 @@ foreach ($claimed as $job) {
         }
         try {
             $mcp->callTool('improvement.propose', [
-                'kind' => (string) ($p['kind'] ?? ''),
+                'kind' => (string) ($p['kind'] ?? 'kb_fact'),
                 'claim' => (string) ($p['claim'] ?? ''),
                 'title' => (string) ($p['title'] ?? ''),
                 'rationale' => (string) ($p['rationale'] ?? ''),
                 'suggested_text' => (string) ($p['suggested_text'] ?? ''),
                 'landing_target' => (string) ($p['landing_target'] ?? ''),
-                'severity' => (string) ($p['severity'] ?? 'low'),
+                'severity' => (string) ($p['severity'] ?? 'medium'),
                 'topic_id' => (string) ($p['topic_id'] ?? ''),
                 'source_session' => $sessionId,
                 'chat_id' => $chatId,
                 'source' => 'post_chat',
-                'evidence' => ['chat_id' => $chatId],
+                'evidence' => ['chat_id' => $chatId, 'source' => 'ticket_resolved'],
             ]);
             $proposedCount++;
         } catch (\Throwable $e) {
@@ -276,14 +274,14 @@ foreach ($claimed as $job) {
 
     try {
         if ($proposeFailures > 0) {
-            // Keep the job retryable — do not mark done when any proposal
-            // failed to record, or those findings are permanently lost.
             $mcp->callTool('analysis.job.complete', [
                 'job_id' => $jobId,
                 'result' => 'error',
                 'reason' => 'propose_failed:' . $proposeFailures,
                 'proposal_count' => $proposedCount,
             ]);
+        } elseif ($proposedCount < 1) {
+            seekmodo_ai_chatbot_complete_job($mcp, $jobId, 'skipped', 'not_resolved');
         } else {
             $mcp->callTool('analysis.job.complete', ['job_id' => $jobId, 'result' => 'done', 'proposal_count' => $proposedCount]);
         }
