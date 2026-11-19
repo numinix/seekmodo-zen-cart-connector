@@ -5,9 +5,10 @@
 ### Changed
 - **Seekmodo AI Chatbot catalog fit** — system prompt takes voice, currency, and order-help options from store context and the tools listed for the session (no hardcoded UK gift-shop engraving list). Numinix.com/.ca get digital order, license, and Zammad ticket helpers.
 
-## v1.3.105 — 2026-11-12
+## v1.3.105 — 2026-11-19
 
 ### Fixed
+- **Proxy-first suggest empty dropdown on LiteSpeed/EA-PHP.** Catalog `/v1/suggest` reads the SDK JSON body before the CSRF `POST→GET` rewrite. Flipping the method first emptied `php://input`, so the widget got an empty envelope while `?q=` still worked.
 - **Cloudflare Speculation Rules (soft):** do not mint or clear the `sm_pid`
   Set-Cookie on `Sec-Purpose: prefetch` / `Purpose: prefetch`. CF returns
   `Cf-Speculation-Refused` (often a 503) when a prefetch response sets

@@ -16,6 +16,14 @@
 
 declare(strict_types=1);
 
+// Capture JSON before mutating REQUEST_METHOD. On LiteSpeed / EA-PHP,
+// flipping POST→GET first empties php://input, so the SDK's JSON POST
+// (no query string) returns an empty envelope while ?q= still works.
+$rawInput = file_get_contents('php://input');
+if (!is_string($rawInput)) {
+    $rawInput = '';
+}
+
 // Zen Cart CSRF: init_sanitize rejects POSTs without securityToken.
 // This shim only reads the raw JSON body (never $_POST form fields).
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
@@ -68,10 +76,9 @@ $empty = [
     ],
 ];
 
-$raw = file_get_contents('php://input');
 $params = [];
-if (is_string($raw) && $raw !== '') {
-    $decoded = json_decode($raw, true);
+if ($rawInput !== '') {
+    $decoded = json_decode($rawInput, true);
     if (is_array($decoded)) {
         $params = $decoded;
     }
