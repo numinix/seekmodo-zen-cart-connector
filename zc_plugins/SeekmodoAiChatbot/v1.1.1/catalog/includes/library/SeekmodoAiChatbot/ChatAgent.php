@@ -3102,6 +3102,9 @@ final class ChatAgent
         if ($productsId < 1) {
             return false;
         }
+        if (session_status() !== PHP_SESSION_ACTIVE && function_exists('session_start')) {
+            session_start();
+        }
         if (!isset($_SESSION['cart']) || !is_object($_SESSION['cart'])) {
             return false;
         }
@@ -3122,6 +3125,9 @@ final class ChatAgent
         }
 
         $cart->add_cart($productsId, 1);
+        if (function_exists('session_write_close')) {
+            session_write_close();
+        }
         return true;
     }
 

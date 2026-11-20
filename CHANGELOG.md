@@ -8,6 +8,10 @@
 
 ### Changed
 - **Seekmodo AI Chatbot catalog fit** — system prompt takes voice, currency, and order-help options from store context and the tools listed for the session (no hardcoded UK gift-shop engraving list). Numinix.com/.ca get digital order, license, and Zammad ticket helpers.
+
+### Fixed
+- **Storefront page loads no longer wait on the chatbot session.** Chat list, status, and reply requests release the Zen Cart PHP session before the Seekmodo call. A fee added to the cart reopens the session only for that update.
+
 ## v1.3.105 — 2026-11-19
 
 ### Fixed
