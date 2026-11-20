@@ -135,6 +135,13 @@ if (!preg_match('/^[a-zA-Z0-9_-]+$/', $sessionId)) {
 
 $shopper = seekmodo_ai_chat_resolve_shopper();
 
+// Read-only chat calls run on every page view. Release the storefront
+// session before the archive lookup so a slow chat request cannot block
+// the next page load from this browser.
+if (in_array($action, ['list_chats', 'list_tickets'], true) && function_exists('session_write_close')) {
+    session_write_close();
+}
+
 if ($action === 'list_chats') {
     $rows = \SeekmodoAiChatbot\ChatArchive::listForShopper(
         (int) ($shopper['customers_id'] ?? 0),
@@ -163,6 +170,9 @@ if ($action === 'list_tickets') {
 
 if ($action === 'chat_status') {
     $chat = seekmodo_ai_chat_verify_session_owner($sessionId, $shopper);
+    if (function_exists('session_write_close')) {
+        session_write_close();
+    }
     if ($chat === null) {
         http_response_code(404);
         echo json_encode(['error' => 'chat_not_found']);
@@ -244,6 +254,11 @@ if ($action === 'reopen_chat') {
 $sessionGuard = seekmodo_ai_chat_ensure_owned_session($sessionId, $shopper);
 $sessionId = $sessionGuard['session_id'];
 $sessionForcedReset = !empty($sessionGuard['session_reset']);
+// Ownership is recorded. The reply can take up to the MCP timeout, and
+// that must not keep the shopper's page loads waiting on this session.
+if (function_exists('session_write_close')) {
+    session_write_close();
+}
 
 $apiKey = defined('SEEKMODO_AI_CHATBOT_API_KEY') ? SEEKMODO_AI_CHATBOT_API_KEY : '';
 $model = defined('SEEKMODO_AI_CHATBOT_MODEL') ? SEEKMODO_AI_CHATBOT_MODEL : 'gpt-4o-mini';
