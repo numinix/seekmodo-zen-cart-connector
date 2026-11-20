@@ -1,0 +1,100 @@
+/**
+ * Seekmodo recommendations widgets - strip layout + hover stacking.
+ *
+ * Horizontal scrolling lives on __viewport. The __row itself stays
+ * overflow:visible so theme hover expansions can paint outside the
+ * card box. (CSS forbids pairing overflow-x:auto with overflow-y:visible
+ * on the same element — the visible axis computes to auto and clips.)
+ * Viewport uses bottom padding as reserved room inside the scrollport.
+ */
+.seekmodo-recommendations,
+.numinix-seekmodo-recommendations,
+.seekmodo-cart-reco {
+  position: relative;
+  z-index: 2;
+  margin: 1.5rem 0;
+}
+
+.seekmodo-recommendations:has(.seekmodo-recommendations__item:hover),
+.seekmodo-recommendations:has(.seekmodo-recommendations__item:focus-within),
+.numinix-seekmodo-recommendations:has(.numinix-seekmodo-recommendations__item:hover),
+.numinix-seekmodo-recommendations:has(.numinix-seekmodo-recommendations__item:focus-within),
+.seekmodo-cart-reco:has(:hover),
+.seekmodo-cart-reco:has(:focus-within) {
+  z-index: 30;
+}
+
+.seekmodo-recommendations__heading,
+.numinix-seekmodo-recommendations__heading {
+  font-size: 1.25rem;
+  margin: 0 0 0.75rem;
+}
+
+.seekmodo-recommendations__section,
+.numinix-seekmodo-recommendations__section {
+  position: relative;
+  overflow: visible;
+  margin: 1.25rem 0;
+}
+
+.seekmodo-recommendations__viewport,
+.numinix-seekmodo-recommendations__viewport {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 9rem;
+  margin-bottom: -6rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.seekmodo-recommendations__row,
+.numinix-seekmodo-recommendations__row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0 0.75rem;
+  overflow: visible;
+}
+
+.seekmodo-recommendations__item,
+.numinix-seekmodo-recommendations__item {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 10rem;
+}
+
+.seekmodo-recommendations__item:hover,
+.seekmodo-recommendations__item:focus-within,
+.numinix-seekmodo-recommendations__item:hover,
+.numinix-seekmodo-recommendations__item:focus-within {
+  z-index: 5;
+}
+
+.seekmodo-recommendations__item__link,
+.numinix-seekmodo-recommendations__item__link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.seekmodo-recommendations__item__image img,
+.numinix-seekmodo-recommendations__item__image img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.seekmodo-recommendations__item__name,
+.numinix-seekmodo-recommendations__item__name {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.seekmodo-recommendations__item__price,
+.numinix-seekmodo-recommendations__item__price {
+  display: block;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
