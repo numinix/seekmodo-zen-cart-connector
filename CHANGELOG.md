@@ -12,6 +12,14 @@
 ### Fixed
 - **Storefront page loads no longer wait on the chatbot session.** Chat list, status, and reply requests release the Zen Cart PHP session before the Seekmodo call. A fee added to the cart reopens the session only for that update.
 
+## v1.3.106 — 2026-11-20
+
+### Changed
+- **Gateway origin outage (Phase 1).** Transport errors and 5xx from mcp
+  mark a 5-minute APCu outage flag so subsequent storefront calls skip the
+  dead-gateway wait and fall back to native search immediately. Cleared on
+  the next successful gateway response.
+
 ## v1.3.105 — 2026-11-19
 
 ### Fixed
