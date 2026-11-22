@@ -12,6 +12,14 @@
 ### Fixed
 - **Storefront page loads no longer wait on the chatbot session.** Chat list, status, and reply requests release the Zen Cart PHP session before the Seekmodo call. A fee added to the cart reopens the session only for that update.
 
+## v1.3.107 — 2026-11-21
+
+### Fixed
+- **Seekmodo Tickets admin page sends the action with every call.** The shared ticket UI calls `request(action, body)`; the Zen Cart page glue (Tools → Seekmodo Tickets) only posted its first argument, so the proxy received a bare string and answered `bad_json`. The glue now merges the action into the body and still accepts a full payload object.
+
+### Added
+- **More ticket actions through the bundled AI Chatbot Tickets proxy.** `attachment_get` (download a ticket attachment), `participants_add` / `participants_remove` (CC people on a ticket) and `macros_list` (read saved replies) are now allowed. Tenant settings, macro editing, suppressions, quarantine, merge and bulk update stay in admin.seekmodo.com.
+
 ## v1.3.106 — 2026-11-20
 
 ### Changed

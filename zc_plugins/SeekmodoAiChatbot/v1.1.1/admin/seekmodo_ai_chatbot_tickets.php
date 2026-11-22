@@ -134,7 +134,11 @@ $adminUrl = 'https://admin.seekmodo.com/tickets' . ($tenantId !== '' ? '?t=' . r
           'adminUrl' => $adminUrl,
           'openTicket' => $openTicket > 0 ? $openTicket : null,
       ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?>;
-      function request(payload) {
+      // The shared UI calls request(action, body); accept a full payload too.
+      function request(action, body) {
+        var payload = typeof action === 'string'
+          ? Object.assign({}, body || {}, { action: action })
+          : (action || {});
         return fetch(cfg.proxy, {
           method: 'POST',
           credentials: 'same-origin',

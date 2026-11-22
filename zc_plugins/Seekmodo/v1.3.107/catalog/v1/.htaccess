@@ -1,0 +1,27 @@
+# Seekmodo same-origin suggest proxy (file shim).
+#
+# The SDK POSTs `{gateway}/v1/suggest` with no trailing slash. A directory
+# named `suggest/` makes Apache DirectorySlash / ErrorDocument 301 that
+# request (browsers drop the JSON body ? empty dropdown). Installer
+# deploys suggest.php (and an extensionless `suggest` copy on hosts that
+# allow SetHandler). Never deploy a `suggest/` directory.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^suggest$ suggest.php [L,QSA]
+  RewriteRule ^suggest/$ suggest.php [L,QSA]
+</IfModule>
+
+<Files "suggest">
+  <IfModule mime_module>
+    SetHandler application/x-httpd-ea-php81
+  </IfModule>
+  <IfModule mod_php.c>
+    SetHandler application/x-httpd-php
+  </IfModule>
+  <IfModule mod_php7.c>
+    SetHandler application/x-httpd-php
+  </IfModule>
+  <IfModule mod_php8.c>
+    SetHandler application/x-httpd-php
+  </IfModule>
+</Files>
