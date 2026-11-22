@@ -15,11 +15,19 @@ class SeekmodoTickets
 {
     public const DEFAULT_API_URL = 'https://seekmodo.com/api/platform/tickets_api';
 
-    /** Actions the admin UI may call. inbound_email is reserved for the mail poller. */
+    /**
+     * Actions the admin UI may call (least privilege).
+     *
+     * inbound_email is reserved for the mail poller; shopper_* and csat_submit
+     * belong to the storefront portal. Tenant-config and bulk actions
+     * (settings_set, macros_set/remove, suppressions_*, quarantine_*, merge,
+     * bulk_update) stay in admin.seekmodo.com.
+     */
     public const ADMIN_ACTIONS = [
         'list', 'get', 'poll', 'agents', 'create', 'reply', 'note', 'update',
         'assign', 'watch', 'unwatch', 'presence', 'convert_from_chat', 'settings_get',
         'forward_create', 'forward_reply',
+        'attachment_get', 'participants_add', 'participants_remove', 'macros_list',
     ];
 
     /** @return array{0:string,1:string}|null tenant id + shared secret */
