@@ -2,6 +2,20 @@
 
 Rules for AI agents and operators working in this repository.
 
+## Production release gate (Jeff approval)
+
+Do **not** tag a release, run `tools/build_release.py` for production
+publish, merge a release auto-PR that updates the live download, or
+otherwise ship a merchant-facing Zen Cart connector build without Jeff
+explicitly approving in the current chat (e.g. "ship it", "deploy",
+"go live", "approve release").
+
+Temp branches, commits, and open PRs are fine. If Jeff only asked to
+implement or fix, stop after the PR / local package and wait.
+
+Also enforced globally via the Cursor user rule
+`connector-release-approval.mdc`.
+
 ## Version cuts
 
 Before copying a new `zc_plugins/Seekmodo/vX.Y.Z` tree or tagging a release, follow [docs/version-cut.md](docs/version-cut.md) (includes the `no_picture` suggest-thumb regression smoke).
